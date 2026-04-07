@@ -377,15 +377,17 @@ button { cursor: pointer; }
     <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
     <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
     <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
+    <button class="role-btn" onclick="setRole('postprod')" data-role="postprod">Post Prod</button>
   </div>
 </div>
 
 <!-- NAV -->
 <div class="nav" id="main-nav">
-  <button class="nav-tab active" onclick="showPage('rooms')" data-page="rooms" data-roles="lead,defoliator,fertigator,cloner,ipm">Rooms</button>
-  <button class="nav-tab" onclick="showPage('assignments')" data-page="assignments" data-roles="lead,defoliator,fertigator,cloner,ipm,checker">My Tasks</button>
+  <button class="nav-tab active" onclick="showPage('assignments')" data-page="assignments" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">My Tasks</button>
+  <button class="nav-tab" onclick="showPage('rooms')" data-page="rooms" data-roles="lead,defoliator,fertigator,cloner,ipm">Rooms</button>
+  <button class="nav-tab" onclick="showPage('postprod')" data-page="postprod" data-roles="lead,postprod">Post Production</button>
   <button class="nav-tab" onclick="showPage('clonetracker')" data-page="clonetracker" data-roles="lead,cloner">Clone Tracker</button>
-  <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker">Today's Log</button>
+  <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Today's Log</button>
   <button class="nav-tab" onclick="showPage('additive')" data-page="additive" data-roles="lead,fertigator">Additive Schedule</button>
   <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
@@ -570,7 +572,7 @@ button { cursor: pointer; }
     <!-- TEAM ROSTER -->
     <div class="section-title mb12">Team roster & access</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-      Add each team member, assign their role, and set an optional PIN. When someone opens the dashboard they select their name and enter their PIN to load their view automatically.
+      Add each team member, assign their role, and set their AGT employee ID. When someone opens the dashboard they select their name and enter their AGT ID to load their view automatically.
     </div>
     <div id="team-roster-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:12px"></div>
     <button onclick="addTeamMember()" class="btn-primary" style="font-size:12px;padding:7px 14px;margin-bottom:24px">+ Add team member</button>
@@ -596,20 +598,83 @@ button { cursor: pointer; }
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Select your name to load your view</p>
       <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
       <div id="login-pin-row" style="display:none">
-        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your PIN</label>
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
         <div style="display:flex;gap:8px">
-          <input id="login-pin-input" type="password" maxlength="6" placeholder="PIN" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
+          <input id="login-pin-input" type="password" maxlength="10" placeholder="e.g. 005963" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
           <button onclick="confirmLogin()" class="btn-primary">Enter</button>
         </div>
-        <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect PIN</div>
+        <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
       </div>
       <button onclick="skipLogin()" style="width:100%;margin-top:10px;font-size:12px;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Skip — use role switcher instead</button>
     </div>
   </div>
 
-</div><!-- /main -->
+  <!-- ══ PAGE: POST PRODUCTION ══ -->
+  <div id="page-postprod" class="page">
+    <div class="row mb12">
+      <div class="section-title">Post production</div>
+      <div style="flex:1"></div>
+      <span class="tag tag-purple" style="font-size:10px">#post-production</span>
+    </div>
 
-<!-- COMPLETION MODAL -->
+    <!-- SUB-TABS -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="nav-tab active" onclick="showPostTab('queue',this)" style="font-size:12px">Trim queue</button>
+      <button class="nav-tab" onclick="showPostTab('weights',this)" style="font-size:12px">Log weights</button>
+      <button class="nav-tab" onclick="showPostTab('preroll',this)" style="font-size:12px">Pre-roll priority</button>
+    </div>
+
+    <!-- TRIM QUEUE -->
+    <div id="postsub-queue">
+      <div class="row mb12">
+        <div style="font-size:13px;color:var(--text2)">Pat sets the order. Trimmers work top to bottom.</div>
+        <div style="flex:1"></div>
+        <button onclick="openAddTrimItem()" class="btn-primary" style="font-size:12px;padding:7px 14px">+ Add strain to queue</button>
+      </div>
+      <div id="trim-queue-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
+    </div>
+
+    <!-- LOG WEIGHTS -->
+    <div id="postsub-weights" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Enter final weights after trimming is complete for each strain.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:1.5rem" id="weight-cards"></div>
+    </div>
+
+    <!-- PRE-ROLL PRIORITY -->
+    <div id="postsub-preroll" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Sorted by Purpl Pro THC % — highest first. Shows available small bud weight per strain.</div>
+      <div id="preroll-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
+    </div>
+  </div>
+
+  <!-- ADD TO TRIM QUEUE MODAL -->
+  <div class="modal-bg" id="trim-modal-bg">
+    <div class="modal">
+      <h3 id="trim-modal-title">Add to trim queue</h3>
+      <label>Strain name</label>
+      <input id="tm-strain" placeholder="e.g. Kush Mintz 3"/>
+      <label>Room harvested from</label>
+      <select id="tm-room">
+        <option value="">— select room —</option>
+      </select>
+      <label>Harvest date</label>
+      <input id="tm-date" type="date"/>
+      <label>Priority</label>
+      <select id="tm-priority">
+        <option value="high">High — trim first</option>
+        <option value="normal" selected>Normal</option>
+        <option value="low">Low — trim last</option>
+      </select>
+      <label>Notes for trim crew</label>
+      <input id="tm-notes" placeholder="e.g. Handle gently, very frosty"/>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeTrimModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmTrimItem()">Add to queue</button>
+      </div>
+    </div>
+  </div>
+
+
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <h3 id="modal-title">Mark task complete</h3>
@@ -786,12 +851,13 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['rooms','assignments','clonetracker','today-log','additive','checks','slack','settings'], roomView:'full'},
-  defoliator: {pages:['rooms','assignments','today-log'], roomView:'defol'},
-  fertigator: {pages:['rooms','assignments','today-log','additive'], roomView:'basic'},
-  cloner:     {pages:['rooms','assignments','clonetracker','today-log'], roomView:'basic'},
-  ipm:        {pages:['rooms','assignments','today-log','checks'], roomView:'basic'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings'], roomView:'full'},
+  defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
+  fertigator: {pages:['assignments','rooms','today-log','additive'], roomView:'basic'},
+  cloner:     {pages:['assignments','rooms','clonetracker','today-log'], roomView:'basic'},
+  ipm:        {pages:['assignments','rooms','today-log','checks'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
+  postprod:   {pages:['assignments','postprod','today-log'], roomView:'none'},
 };
 
 function canSee(role, page){
@@ -910,9 +976,8 @@ function renderRooms(){
     if(stage==='harvest'&&(roomView==='full')) taskList.push(`<div class="task-item-sm"><span class="task-dot dot-red"></span><div class="task-text"><span class="alert-txt">Harvest day — authorize entry in #harvest</span></div></div>`);
     if(taskList.length) taskHTML=`<div class="task-strip"><div class="task-strip-head">Today</div>${taskList.join('')}</div>`;
 
-    // badges — tall is background logic only, not shown to crew
+    // badges — tall and paired are background logic only, not shown to crew
     const badges=[`<span class="stage-badge ${badgeClass}">${badgeText}</span>`];
-    if(room.paired) badges.push(`<span class="stage-badge badge-paired">paired</span>`);
 
     card.innerHTML=`
       <div class="card-head">
@@ -1687,6 +1752,29 @@ function buildSlackMessage(role){
     lines.push(`_Record: RH, room temp, leaf temp, dewpoint, PPFD + runoff EC/pH per table._`);
   }
 
+  if(role==='postprod'){
+    const tq=L('wg_trim_queue',[]);
+    const tw=L('wg_trim_weights',{});
+    lines.push(`*Westside Growers — Trim queue*`);
+    lines.push(`_${date}_`);lines.push('');
+    const pending=tq.filter(i=>i.status!=='done');
+    if(!pending.length){
+      lines.push('_No strains currently in trim queue._');
+    } else {
+      pending.forEach((item,i)=>{
+        const priLabel={high:'🔴 HIGH PRIORITY',normal:'',low:'⬇ Low priority'};
+        const statusLabel={pending:'Pending',trimming:'• *Trimming now*'};
+        lines.push(`${i+1}. *${item.strain}*${priLabel[item.priority||'normal']?' — '+priLabel[item.priority||'normal']:''}`);
+        if(item.status==='trimming') lines.push(`   ${statusLabel.trimming}`);
+        if(item.notes) lines.push(`   _${item.notes}_`);
+        const w=tw[item.id]||{};
+        if(w.purplTHC) lines.push(`   THC: ${w.purplTHC}% · Small buds: ${w.smallBuds||'—'}g`);
+        lines.push('');
+      });
+    }
+    lines.push(`_Log final weights in the dashboard Post Production tab when trimming is complete._`);
+  }
+
   return lines.join('\n');
 }
 
@@ -1699,6 +1787,7 @@ function renderSlackPanels(){
     {role:'ipm',channel:'#ipm',key:'ipm',label:'IPM tech',color:'green'},
     {role:'cloner',channel:'#veg-clone',key:'vegclone',label:'Cloners',color:'blue'},
     {role:'checker',channel:'#flower-rooms',key:'checker',label:'Room checkers',color:'green'},
+    {role:'postprod',channel:'#post-production',key:'postprod',label:'Post production',color:'green'},
   ];
   panels.forEach(p=>{
     const div=document.createElement('div');
@@ -1746,8 +1835,9 @@ async function sendSlack(key,role){
 // TEAM ROSTER & PERMISSIONS
 // ══════════════════════════════════════════════
 const ALL_PAGES=[
-  {key:'rooms',label:'Rooms'},
   {key:'assignments',label:'My Tasks'},
+  {key:'rooms',label:'Rooms'},
+  {key:'postprod',label:'Post Production'},
   {key:'clonetracker',label:'Clone Tracker'},
   {key:'today-log',label:'Today\'s Log'},
   {key:'additive',label:'Additive Schedule'},
@@ -1763,17 +1853,27 @@ const ROLE_LABELS={
   cloner:'Cloner',
   ipm:'IPM Tech',
   checker:'Room Check',
+  postprod:'Post Production',
 };
 
 const DEFAULT_TEAM=[
-  {id:'u1',name:'Pat',role:'lead',pin:''},
-  {id:'u2',name:'Devo',role:'lead',pin:''},
-  {id:'u3',name:'Chris',role:'fertigator',pin:''},
-  {id:'u4',name:'Chef Devin',role:'fertigator',pin:''},
-  {id:'u5',name:'Jordan',role:'lead',pin:''},
-  {id:'u6',name:'Tinhe',role:'ipm',pin:''},
-  {id:'u7',name:'Zech',role:'checker',pin:''},
-  {id:'u8',name:'Brett',role:'cloner',pin:''},
+  {id:'u1',name:'Pat',role:'lead',agtId:''},
+  {id:'u2',name:'Devo',role:'lead',agtId:''},
+  {id:'u3',name:'Chris',role:'fertigator',agtId:''},
+  {id:'u4',name:'Chef Devin',role:'fertigator',agtId:''},
+  {id:'u5',name:'Jordan',role:'lead',agtId:''},
+  {id:'u6',name:'Tinhe',role:'ipm',agtId:''},
+  {id:'u7',name:'Zech',role:'checker',agtId:''},
+  {id:'u8',name:'Brett',role:'cloner',agtId:''},
+  {id:'u9',name:'Todd',role:'postprod',agtId:''},
+  {id:'u10',name:'Leanne',role:'postprod',agtId:''},
+  {id:'u11',name:'Randy',role:'postprod',agtId:''},
+  {id:'u12',name:'Roman',role:'postprod',agtId:''},
+  {id:'u13',name:'Aaron',role:'postprod',agtId:''},
+  {id:'u14',name:'Mary Ann',role:'lead',agtId:''},
+  {id:'u15',name:'Jesse',role:'lead',agtId:''},
+  {id:'u16',name:'Zac',role:'lead',agtId:''},
+  {id:'u17',name:'Joel',role:'lead',agtId:''},
 ];
 
 let team=L('wg_team',DEFAULT_TEAM);
@@ -1795,7 +1895,7 @@ function applyRolePerms(){
 }
 
 function addTeamMember(){
-  team.push({id:'u'+Date.now(),name:'',role:'defoliator',pin:''});
+  team.push({id:'u'+Date.now(),name:'',role:'defoliator',agtId:''});
   S('wg_team',team);
   renderTeamRoster();
 }
@@ -1824,8 +1924,8 @@ function renderTeamRoster(){
       <select onchange="team[${i}].role=this.value;S('wg_team',team);renderTeamRoster()">
         ${Object.entries(ROLE_LABELS).map(([r,l])=>`<option value="${r}"${r===member.role?' selected':''}>${l}</option>`).join('')}
       </select>
-      <label>PIN (optional — leave blank for no PIN)</label>
-      <input type="password" maxlength="6" value="${member.pin||''}" placeholder="e.g. 1234" onchange="team[${i}].pin=this.value;S('wg_team',team)" style="letter-spacing:.15em"/>
+      <label>AGT employee ID (leave blank to skip verification)</label>
+      <input type="password" maxlength="10" value="${member.agtId||''}" placeholder="e.g. 005963" onchange="team[${i}].agtId=this.value;S('wg_team',team)" style="letter-spacing:.15em"/>
     `;
     grid.appendChild(cell);
   });
@@ -1907,13 +2007,12 @@ function showLoginModal(){
 function selectLoginMember(id){
   pendingLoginMember=team.find(m=>m.id===id);
   if(!pendingLoginMember) return;
-  if(pendingLoginMember.pin){
+  if(pendingLoginMember.agtId){
     document.getElementById('login-pin-row').style.display='block';
     document.getElementById('login-pin-input').value='';
     document.getElementById('login-pin-error').style.display='none';
     setTimeout(()=>document.getElementById('login-pin-input').focus(),100);
   } else {
-    // no PIN — log in directly
     finishLogin(pendingLoginMember);
   }
 }
@@ -1921,7 +2020,7 @@ function selectLoginMember(id){
 function confirmLogin(){
   const entered=document.getElementById('login-pin-input').value;
   if(!pendingLoginMember) return;
-  if(entered===pendingLoginMember.pin){
+  if(entered===pendingLoginMember.agtId){
     finishLogin(pendingLoginMember);
   } else {
     document.getElementById('login-pin-error').style.display='block';
@@ -1986,6 +2085,7 @@ function renderSettings(){
     {key:'flower',label:'#flower-rooms',desc:'Fertigators & room checks (Tier 2)'},
     {key:'ipm',label:'#ipm',desc:'IPM tech'},
     {key:'vegclone',label:'#veg-clone',desc:'Cloners'},
+    {key:'postprod',label:'#post-production',desc:'Trim crew & post production'},
   ];
   whDefs.forEach(wh=>{
     const cell=document.createElement('div');
@@ -2002,13 +2102,254 @@ function renderSettings(){
 
 
 // ══════════════════════════════════════════════
-// NAV
+// POST PRODUCTION
 // ══════════════════════════════════════════════
+let trimQueue=L('wg_trim_queue',[]);
+let trimWeights=L('wg_trim_weights',{});
+
+function openAddTrimItem(editId){
+  document.getElementById('trim-modal-title').textContent=editId?'Edit queue item':'Add to trim queue';
+  document.getElementById('tm-strain').value='';
+  document.getElementById('tm-notes').value='';
+  document.getElementById('tm-priority').value='normal';
+  document.getElementById('tm-date').value=dateToIso(TODAY);
+  const sel=document.getElementById('tm-room');
+  sel.innerHTML='<option value="">— select room —</option>';
+  rooms.forEach(r=>{sel.appendChild(Object.assign(document.createElement('option'),{value:r.id,textContent:r.name}));});
+  if(editId){
+    const item=trimQueue.find(i=>i.id===editId);
+    if(item){
+      document.getElementById('tm-strain').value=item.strain||'';
+      document.getElementById('tm-room').value=item.roomId||'';
+      document.getElementById('tm-date').value=item.harvestDate||'';
+      document.getElementById('tm-priority').value=item.priority||'normal';
+      document.getElementById('tm-notes').value=item.notes||'';
+    }
+    document.getElementById('trim-modal-bg').dataset.editId=editId;
+  } else {
+    delete document.getElementById('trim-modal-bg').dataset.editId;
+  }
+  document.getElementById('trim-modal-bg').classList.add('open');
+}
+function closeTrimModal(){document.getElementById('trim-modal-bg').classList.remove('open');}
+
+function confirmTrimItem(){
+  const strain=document.getElementById('tm-strain').value.trim();
+  if(!strain)return;
+  const item={
+    id:document.getElementById('trim-modal-bg').dataset.editId||('tq'+Date.now()),
+    strain,
+    roomId:document.getElementById('tm-room').value,
+    harvestDate:document.getElementById('tm-date').value,
+    priority:document.getElementById('tm-priority').value,
+    notes:document.getElementById('tm-notes').value.trim(),
+    status:'pending',
+    addedDate:dateToIso(TODAY),
+  };
+  const editId=document.getElementById('trim-modal-bg').dataset.editId;
+  if(editId){
+    const i=trimQueue.findIndex(q=>q.id===editId);
+    if(i!==-1)trimQueue[i]={...trimQueue[i],...item};
+  } else {
+    // insert by priority order: high first, then normal, then low
+    const order={high:0,normal:1,low:2};
+    let insertAt=trimQueue.length;
+    for(let i=0;i<trimQueue.length;i++){
+      if(order[item.priority]<order[trimQueue[i].priority||'normal']){insertAt=i;break;}
+    }
+    trimQueue.splice(insertAt,0,item);
+  }
+  S('wg_trim_queue',trimQueue);
+  closeTrimModal();
+  renderTrimQueue();
+}
+
+function markTrimDone(id){
+  const item=trimQueue.find(i=>i.id===id);
+  if(item)item.status='done';
+  S('wg_trim_queue',trimQueue);
+  renderTrimQueue();
+}
+function markTrimInProgress(id){
+  const item=trimQueue.find(i=>i.id===id);
+  if(item)item.status='trimming';
+  S('wg_trim_queue',trimQueue);
+  renderTrimQueue();
+}
+function removeTrimItem(id){
+  trimQueue=trimQueue.filter(i=>i.id!==id);
+  S('wg_trim_queue',trimQueue);
+  renderTrimQueue();
+}
+function moveTrimItem(id,dir){
+  const idx=trimQueue.findIndex(i=>i.id===id);
+  const swap=idx+dir;
+  if(swap<0||swap>=trimQueue.length)return;
+  [trimQueue[idx],trimQueue[swap]]=[trimQueue[swap],trimQueue[idx]];
+  S('wg_trim_queue',trimQueue);
+  renderTrimQueue();
+}
+
+function renderTrimQueue(){
+  trimQueue=L('wg_trim_queue',[]);
+  const list=document.getElementById('trim-queue-list');
+  if(!list)return;
+  if(!trimQueue.length){
+    list.innerHTML=`<div class="empty-state">No strains in queue. Pat adds strains after each harvest.</div>`;
+    return;
+  }
+  const priColor={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
+  const priLabel={high:'High priority',normal:'Normal',low:'Low priority'};
+  const statusColor={pending:'var(--text3)',trimming:'var(--amber)',done:'var(--green)'};
+  const statusLabel={pending:'Pending',trimming:'Trimming now',done:'Complete'};
+  list.innerHTML='';
+  trimQueue.forEach((item,idx)=>{
+    const room=rooms.find(r=>r.id===item.roomId);
+    const w=trimWeights[item.id]||{};
+    const hasWeights=w.bigBuds||w.smallBuds||w.trim;
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.cssText=`border-left:3px solid ${priColor[item.priority||'normal']};opacity:${item.status==='done'?'0.6':'1'}`;
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px;font-weight:700;color:var(--text3);font-family:var(--mono);min-width:28px">${idx+1}</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+              <div style="font-size:11px;color:var(--text3)">${room?room.name:''}${item.harvestDate?' · Harvested '+fmtShort(isoToDate(item.harvestDate)):''}</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;color:${priColor[item.priority||'normal']}">${priLabel[item.priority||'normal']}</span>
+          <span style="font-size:11px;padding:2px 8px;border-radius:var(--r);background:var(--bg3);color:${statusColor[item.status||'pending']}">${statusLabel[item.status||'pending']}</span>
+        </div>
+      </div>
+      ${item.notes?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--r)">${item.notes}</div>`:''}
+      ${hasWeights?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        ${w.bigBuds?`<span style="font-size:12px;padding:3px 9px;background:var(--green-bg);color:var(--green);border-radius:var(--r)">Big buds: ${w.bigBuds}g</span>`:''}
+        ${w.smallBuds?`<span style="font-size:12px;padding:3px 9px;background:var(--blue-bg);color:var(--blue);border-radius:var(--r)">Small buds: ${w.smallBuds}g</span>`:''}
+        ${w.trim?`<span style="font-size:12px;padding:3px 9px;background:var(--bg3);color:var(--text3);border-radius:var(--r)">Trim: ${w.trim}g</span>`:''}
+        ${w.purplTHC?`<span style="font-size:12px;padding:3px 9px;background:var(--purple-dim);color:var(--purple);border-radius:var(--r)">THC: ${w.purplTHC}%</span>`:''}
+      </div>`:''}
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
+        ${item.status==='pending'?`<button onclick="markTrimInProgress('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">Start trimming</button>`:''}
+        ${item.status==='trimming'?`<button onclick="markTrimDone('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:none;color:var(--green);cursor:pointer">Mark complete</button>`:''}
+        <button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>
+        ${idx>0?`<button onclick="moveTrimItem('${item.id}',-1)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↑</button>`:''}
+        ${idx<trimQueue.length-1?`<button onclick="moveTrimItem('${item.id}',1)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↓</button>`:''}
+        <button onclick="removeTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function renderWeightCards(){
+  const wrap=document.getElementById('weight-cards');
+  if(!wrap)return;
+  if(!trimQueue.length){wrap.innerHTML=`<div class="empty-state">No strains in trim queue yet.</div>`;return;}
+  trimWeights=L('wg_trim_weights',{});
+  wrap.innerHTML='';
+  trimQueue.forEach(item=>{
+    const w=trimWeights[item.id]||{};
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.borderLeft='3px solid var(--purple)';
+    card.innerHTML=`
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">${item.strain}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${rooms.find(r=>r.id===item.roomId)?.name||''} · ${item.harvestDate?fmtShort(isoToDate(item.harvestDate)):''}</div>
+      <div style="display:grid;gap:8px">
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Big buds (g)</label>
+          <input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Small buds (g)</label>
+          <input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Trim + sugar leaf (g)</label>
+          <input type="number" min="0" step="0.1" value="${w.trim||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','trim',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label>
+          <input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro total cannabinoids %</label>
+          <input type="number" min="0" max="50" step="0.1" value="${w.purplTotal||''}" placeholder="e.g. 32.1" style="width:100%" onchange="saveWeight('${item.id}','purplTotal',this.value)"/></div>
+      </div>
+      ${(w.bigBuds||w.smallBuds||w.trim)?`<div style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px;color:var(--text2)">
+        Total: <strong style="color:var(--text)">${(+(w.bigBuds||0)+ +(w.smallBuds||0)+ +(w.trim||0)).toFixed(1)}g</strong>
+        ${w.purplTHC?`<span style="margin-left:12px">THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong></span>`:''}
+      </div>`:''}
+    `;
+    wrap.appendChild(card);
+  });
+}
+
+function saveWeight(itemId,field,value){
+  if(!trimWeights[itemId]) trimWeights[itemId]={};
+  trimWeights[itemId][field]=value?parseFloat(value):null;
+  S('wg_trim_weights',trimWeights);
+  // re-render queue card weights inline
+  renderTrimQueue();
+}
+
+function renderPrerollPriority(){
+  const list=document.getElementById('preroll-list');
+  if(!list)return;
+  trimWeights=L('wg_trim_weights',{});
+  const strains=trimQueue
+    .map(item=>({...item,w:trimWeights[item.id]||{}}))
+    .filter(item=>item.w.purplTHC)
+    .sort((a,b)=>parseFloat(b.w.purplTHC)-parseFloat(a.w.purplTHC));
+
+  if(!strains.length){
+    list.innerHTML=`<div class="empty-state">No Purpl Pro results entered yet. Add test results in the Log Weights tab.</div>`;
+    return;
+  }
+
+  list.innerHTML=strains.map((item,i)=>{
+    const w=item.w;
+    const smallBuds=w.smallBuds?parseFloat(w.smallBuds):null;
+    const rank=i+1;
+    const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
+    return`<div class="card" style="border-left:3px solid ${rankColor}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:28px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:36px">${rank}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${parseFloat(w.purplTHC).toFixed(1)}%</div>
+            <div style="font-size:10px;color:var(--text3)">THC</div>
+          </div>
+          ${w.purplTotal?`<div style="text-align:center">
+            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${parseFloat(w.purplTotal).toFixed(1)}%</div>
+            <div style="font-size:10px;color:var(--text3)">Total cannabinoids</div>
+          </div>`:''}
+          <div style="text-align:center">
+            <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${smallBuds!==null?smallBuds.toFixed(1)+'g':'—'}</div>
+            <div style="font-size:10px;color:var(--text3)">Small buds available</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showPostTab(tab,el){
+  document.querySelectorAll('#page-postprod .nav-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('postsub-queue').style.display=tab==='queue'?'block':'none';
+  document.getElementById('postsub-weights').style.display=tab==='weights'?'block':'none';
+  document.getElementById('postsub-preroll').style.display=tab==='preroll'?'block':'none';
+  if(tab==='queue') renderTrimQueue();
+  if(tab==='weights') renderWeightCards();
+  if(tab==='preroll') renderPrerollPriority();
+}
+
+
 function showPage(page){
-  // permission check
   if(!canSee(currentRole,page)) return;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab[data-page]').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+page)?.classList.add('active');
   document.querySelector(`.nav-tab[data-page="${page}"]`)?.classList.add('active');
   if(page==='settings') renderSettings();
@@ -2018,6 +2359,7 @@ function showPage(page){
   if(page==='today-log') renderTodayLog();
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
+  if(page==='postprod') renderTrimQueue();
 }
 
 // ══════════════════════════════════════════════
