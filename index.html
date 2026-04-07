@@ -1,0 +1,2044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Westside Growers — Grow Ops</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0f0d;
+  --bg2: #161714;
+  --bg3: #1e1f1c;
+  --bg4: #252622;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0efea;
+  --text2: #9a9990;
+  --text3: #5a5a55;
+  --green: #7ecb6f;
+  --green-dim: #2a4025;
+  --green-bg: #1a2b18;
+  --amber: #e8a93a;
+  --amber-dim: #3d2d0a;
+  --amber-bg: #271e08;
+  --red: #e05c5c;
+  --red-dim: #3d1515;
+  --red-bg: #261010;
+  --blue: #5ba3d9;
+  --blue-dim: #1a2d3d;
+  --blue-bg: #111f2b;
+  --purple: #9b7fe8;
+  --purple-dim: #2a1f45;
+  --teal: #4fc4a0;
+  --teal-dim: #0f3028;
+  --orange: #e07d3a;
+  --orange-dim: #3d2010;
+  --pink: #d96b9e;
+  --accent: #7ecb6f;
+  --font: 'Syne', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --r: 6px;
+  --r2: 10px;
+  --r3: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--text); font-family: var(--font); }
+body { min-height: 100vh; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 52px;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100; gap: 12px; flex-wrap: wrap;
+}
+.topbar-brand { font-size: 13px; font-weight: 600; letter-spacing: .08em; color: var(--text); white-space: nowrap; }
+.topbar-brand span { color: var(--green); }
+.topbar-date { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.role-select { display: flex; gap: 4px; flex-wrap: wrap; }
+.role-btn {
+  font-family: var(--font); font-size: 11px; font-weight: 500;
+  padding: 4px 10px; border-radius: var(--r);
+  border: 1px solid var(--border2); background: none;
+  color: var(--text2); cursor: pointer; transition: all .15s;
+}
+.role-btn:hover { border-color: var(--accent); color: var(--accent); }
+.role-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+/* ── NAV ── */
+.nav {
+  display: flex; gap: 2px; padding: 10px 16px 0;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  overflow-x: auto; flex-wrap: nowrap;
+}
+.nav-tab {
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  padding: 8px 14px; border: none; background: none;
+  color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent;
+  white-space: nowrap; transition: all .15s; border-radius: var(--r) var(--r) 0 0;
+}
+.nav-tab:hover { color: var(--text2); background: var(--bg3); }
+.nav-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--bg3); }
+
+/* ── MAIN ── */
+.main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── GRID ── */
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 14px;
+}
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.card-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ── ROOM CARDS ── */
+.room-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; border-left: 3px solid var(--border); position: relative; overflow: hidden; }
+.room-card.stage-veg { border-left-color: var(--blue); }
+.room-card.stage-flower { border-left-color: var(--green); }
+.room-card.stage-late { border-left-color: var(--amber); }
+.room-card.stage-dark { border-left-color: var(--text3); }
+.room-card.stage-harvest { border-left-color: var(--red); }
+.room-card.stage-empty { border-left-color: var(--border); }
+.room-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.room-meta { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.stage-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  padding: 3px 8px; border-radius: var(--r); white-space: nowrap;
+}
+.badge-veg { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-dim); }
+.badge-flower { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+.badge-late { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-dim); }
+.badge-dark { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.badge-harvest { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-dim); }
+.badge-empty { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.badge-tall { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-dim); font-size: 9px; padding: 2px 6px; }
+.badge-paired { background: var(--teal-dim); color: var(--teal); font-size: 9px; padding: 2px 6px; }
+
+.timeline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0; }
+.tl-item { background: var(--bg3); border-radius: var(--r); padding: 6px 8px; }
+.tl-label { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+.tl-val { font-size: 12px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+.tl-val.ok { color: var(--green); }
+.tl-val.warn { color: var(--amber); }
+.tl-val.urgent { color: var(--red); }
+
+.prog-wrap { margin: 8px 0 4px; }
+.prog-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.prog-track { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width .5s; }
+.fill-green { background: var(--green); }
+.fill-blue { background: var(--blue); }
+.fill-amber { background: var(--amber); }
+.fill-red { background: var(--red); }
+
+.flip-nudge { font-size: 11px; padding: 5px 8px; border-radius: var(--r); background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-dim); margin-top: 6px; }
+
+.task-strip { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+.task-strip-head { font-size: 10px; font-weight: 600; letter-spacing: .06em; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+.task-item-sm { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; padding: 3px 0; }
+.task-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.dot-green { background: var(--green); }
+.dot-amber { background: var(--amber); }
+.dot-red { background: var(--red); }
+.dot-blue { background: var(--blue); }
+.dot-purple { background: var(--purple); }
+.dot-teal { background: var(--teal); }
+.dot-orange { background: var(--orange); }
+.dot-gray { background: var(--text3); }
+.task-text { color: var(--text2); flex: 1; line-height: 1.4; }
+.task-text .sub { font-size: 10px; color: var(--text3); display: block; margin-top: 1px; }
+.task-text .warn-txt { color: var(--amber); font-weight: 600; }
+.task-text .alert-txt { color: var(--red); font-weight: 600; }
+
+.win-bar { height: 3px; background: var(--bg4); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.win-fill { height: 100%; border-radius: 2px; }
+
+/* ── ASSIGNMENTS (crew view) ── */
+.assign-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r2); margin-bottom: 10px; overflow: hidden;
+}
+.assign-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.assign-room { font-size: 14px; font-weight: 700; color: var(--text); }
+.assign-day { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.assign-body { padding: 10px 14px; }
+.assign-task {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.assign-task:last-child { border-bottom: none; }
+.assign-task-info { flex: 1; }
+.assign-task-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.assign-task-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.assign-task-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.complete-btn {
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  padding: 5px 12px; border-radius: var(--r); cursor: pointer;
+  border: 1px solid var(--green-dim); background: none; color: var(--green);
+  transition: all .15s; white-space: nowrap; flex-shrink: 0;
+}
+.complete-btn:hover { background: var(--green-dim); }
+.complete-btn.done { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+.complete-btn.done::before { content: '✓ '; }
+.skip-btn {
+  font-family: var(--font); font-size: 11px;
+  padding: 5px 10px; border-radius: var(--r); cursor: pointer;
+  border: 1px solid var(--border2); background: none; color: var(--text3);
+  transition: all .15s; flex-shrink: 0;
+}
+.skip-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+
+/* completion modal */
+.modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 200;
+  align-items: center; justify-content: center; padding: 16px;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--r3); padding: 20px; width: 100%; max-width: 420px;
+}
+.modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+.modal label { font-size: 12px; color: var(--text3); display: block; margin-bottom: 4px; margin-top: 10px; }
+.modal textarea, .modal input, .modal select {
+  width: 100%; font-family: var(--mono); font-size: 13px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); padding: 8px 10px;
+}
+.modal textarea { resize: vertical; min-height: 70px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+.btn-primary {
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  padding: 8px 18px; border-radius: var(--r);
+  background: var(--green-dim); border: 1px solid var(--green);
+  color: var(--green); cursor: pointer; transition: all .15s;
+}
+.btn-primary:hover { background: var(--green); color: var(--bg); }
+.btn-cancel {
+  font-family: var(--font); font-size: 13px;
+  padding: 8px 14px; border-radius: var(--r);
+  background: none; border: 1px solid var(--border2);
+  color: var(--text3); cursor: pointer;
+}
+
+/* ── TODAY LOG ── */
+.log-entry {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.log-info { flex: 1; }
+.log-title { font-weight: 600; color: var(--text); }
+.log-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.log-note { font-size: 12px; color: var(--text2); margin-top: 3px; font-style: italic; }
+.log-time { font-family: var(--mono); font-size: 11px; color: var(--text3); flex-shrink: 0; }
+
+/* ── ADDITIVE TABLE ── */
+.additive-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.additive-table th {
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text3); padding: 6px 10px; border-bottom: 1px solid var(--border2);
+  text-align: left;
+}
+.additive-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.additive-table tr:hover td { background: var(--bg3); }
+.additive-table tr.today-row td { background: var(--green-bg); }
+.additive-table tr.tier2-row td:first-child { border-left: 2px solid var(--amber); }
+.add-pill {
+  display: inline-block; font-size: 10px; padding: 2px 7px;
+  border-radius: var(--r); font-family: var(--mono);
+}
+.pill-stiky { background: var(--amber-bg); color: var(--amber); }
+.pill-amino { background: var(--purple-dim); color: var(--purple); }
+.pill-stack { background: var(--green-bg); color: var(--green); }
+.pill-slf { background: var(--blue-bg); color: var(--blue); }
+.pill-base { background: var(--bg3); color: var(--text3); }
+.pill-t2 { background: var(--amber-bg); color: var(--amber); font-size: 9px; }
+.pill-channel { background: var(--blue-bg); color: var(--blue); font-size: 9px; }
+
+/* ── ROOM CHECKS ── */
+.check-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 12px; }
+.check-card.ok { border-left: 3px solid var(--green); }
+.check-card.warn { border-left: 3px solid var(--amber); }
+.check-card.alert { border-left: 3px solid var(--red); }
+.check-card.no-data { border-left: 3px solid var(--border); }
+.env-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 8px 0; }
+.env-cell { background: var(--bg3); border-radius: var(--r); padding: 5px 4px; text-align: center; }
+.env-lbl { font-size: 9px; color: var(--text3); }
+.env-num { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+.env-num.ok { color: var(--green); }
+.env-num.warn { color: var(--amber); }
+.env-num.alert { color: var(--red); }
+.env-unit { font-size: 8px; color: var(--text3); }
+.runoff-row { display: flex; gap: 6px; font-size: 12px; align-items: center; padding: 3px 0; }
+.runoff-name { width: 60px; font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.runoff-cell { flex: 1; background: var(--bg3); border-radius: var(--r); padding: 3px 6px; text-align: center; }
+.runoff-cell-label { font-size: 9px; color: var(--text3); }
+.runoff-cell-val { font-family: var(--mono); font-size: 11px; font-weight: 500; }
+
+/* ── SETTINGS ── */
+.settings-section { margin-bottom: 20px; }
+.settings-section h3 { font-size: 13px; font-weight: 600; color: var(--text2); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.setting-cell { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 12px; }
+.setting-cell .room-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.setting-cell label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 3px; margin-top: 8px; }
+.setting-cell input, .setting-cell select {
+  width: 100%; font-family: var(--mono); font-size: 12px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); padding: 6px 8px;
+}
+.setting-cell input:first-of-type { margin-top: 0; }
+.calc-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+.calc-tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: var(--r); background: var(--bg3); color: var(--text3); }
+.calc-tag.highlight { background: var(--amber-bg); color: var(--amber); }
+
+/* ── SLACK PANEL ── */
+.slack-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; margin-bottom: 12px; }
+.slack-panel h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+.webhook-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.webhook-row label { font-size: 12px; color: var(--text3); white-space: nowrap; }
+.webhook-row input {
+  flex: 1; min-width: 200px; font-family: var(--mono); font-size: 12px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); padding: 6px 8px;
+}
+.send-btn {
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  padding: 7px 14px; border-radius: var(--r); cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.send-btn.green { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
+.send-btn.green:hover { background: var(--green); color: var(--bg); }
+.send-btn.blue { background: var(--blue-dim); border: 1px solid var(--blue); color: var(--blue); }
+.send-btn.amber { background: var(--amber-dim); border: 1px solid var(--amber); color: var(--amber); }
+.preview-box {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px; font-family: var(--mono); font-size: 12px; color: var(--text2);
+  white-space: pre-wrap; line-height: 1.7; margin-top: 8px; display: none;
+  max-height: 320px; overflow-y: auto;
+}
+.slack-status { font-size: 12px; padding: 6px 10px; border-radius: var(--r); margin-top: 6px; display: none; }
+.slack-status.ok { background: var(--green-bg); color: var(--green); display: block; }
+.slack-status.err { background: var(--red-bg); color: var(--red); display: block; }
+
+/* ── MISC ── */
+.section-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+.empty-state { text-align: center; padding: 32px 16px; color: var(--text3); font-size: 13px; }
+.tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: var(--r); font-family: var(--mono); }
+.tag-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+.tag-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-dim); }
+.tag-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-dim); }
+.tag-blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-dim); }
+.tag-gray { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.tag-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple-dim); }
+.tag-teal { background: var(--teal-dim); color: var(--teal); border: 1px solid var(--teal-dim); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mb8 { margin-bottom: 8px; } .mb12 { margin-bottom: 12px; } .mb16 { margin-bottom: 16px; }
+input[type=text], input[type=date], input[type=number], select, textarea {
+  font-family: var(--mono); font-size: 13px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); padding: 7px 10px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--green); }
+button { cursor: pointer; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">WESTSIDE<span> GROWERS</span></div>
+  <div class="topbar-date" id="topbar-date"></div>
+  <div class="role-select" id="role-select">
+    <button class="role-btn active" onclick="setRole('lead')" data-role="lead">Lead / Pat</button>
+    <button class="role-btn" onclick="setRole('defoliator')" data-role="defoliator">Defoliator</button>
+    <button class="role-btn" onclick="setRole('fertigator')" data-role="fertigator">Fertigator</button>
+    <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
+    <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
+    <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav" id="main-nav">
+  <button class="nav-tab active" onclick="showPage('rooms')" data-page="rooms" data-roles="lead,defoliator,fertigator,cloner,ipm">Rooms</button>
+  <button class="nav-tab" onclick="showPage('assignments')" data-page="assignments" data-roles="lead,defoliator,fertigator,cloner,ipm,checker">My Tasks</button>
+  <button class="nav-tab" onclick="showPage('clonetracker')" data-page="clonetracker" data-roles="lead,cloner">Clone Tracker</button>
+  <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker">Today's Log</button>
+  <button class="nav-tab" onclick="showPage('additive')" data-page="additive" data-roles="lead,fertigator">Additive Schedule</button>
+  <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
+  <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
+  <button class="nav-tab" onclick="showPage('settings')" data-page="settings" data-roles="lead">Settings</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ══ PAGE: ROOMS ══ -->
+  <div id="page-rooms" class="page active">
+    <div class="row mb12">
+      <div class="section-title">Room status</div>
+      <div style="flex:1"></div>
+      <span id="harvest-week-tag" style="font-size:12px;color:var(--text3)"></span>
+    </div>
+    <div class="grid-2" id="rooms-grid"></div>
+  </div>
+
+  <!-- ══ PAGE: CLONE TRACKER ══ -->
+  <div id="page-clonetracker" class="page">
+
+    <!-- SUB-TABS -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="nav-tab active" onclick="showCloneTab('weekly',this)" id="ctab-weekly" style="font-size:12px">Weekly cuts</button>
+      <button class="nav-tab" onclick="showCloneTab('mothers',this)" id="ctab-mothers" style="font-size:12px">Mother rotation</button>
+    </div>
+
+    <!-- WEEKLY CUTS SUB-PAGE -->
+    <div id="clone-sub-weekly">
+      <div class="row mb12">
+        <div class="section-title">Weekly clone cuts</div>
+        <div style="flex:1"></div>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text3)" id="clone-week-label"></span>
+        <button onclick="resetCloneWeek()" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);margin-left:8px">Reset week</button>
+      </div>
+      <div class="card mb12" style="border-left:3px solid var(--blue)">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Target: <strong style="color:var(--text)">450 clones/week total</strong> · cut throughout the week · enter each session below as you go.</div>
+        <div id="clone-totals" class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <hr class="divider">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label><input id="ce-strain" type="text" placeholder="e.g. Kush Mintz 3" style="width:100%"/></div>
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Clones cut</label><input id="ce-count" type="number" min="1" placeholder="e.g. 50" style="width:100%"/></div>
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Who</label><input id="ce-who" type="text" placeholder="Name" style="width:100%"/></div>
+          <button onclick="logCloneCut()" class="btn-primary" style="height:36px">Log cut</button>
+        </div>
+      </div>
+      <div class="section-title mb12">Strain breakdown this week</div>
+      <div id="clone-strain-breakdown" class="grid-3" style="margin-bottom:16px"></div>
+      <div class="section-title mb12">Cut sessions this week</div>
+      <div id="clone-sessions-list" class="card"></div>
+    </div>
+
+    <!-- MOTHER ROTATION SUB-PAGE -->
+    <div id="clone-sub-mothers" style="display:none">
+      <div class="row mb12">
+        <div class="section-title">Mother rotation</div>
+        <div style="flex:1"></div>
+        <button onclick="openMotherModal()" class="btn-primary">+ New mother gen</button>
+      </div>
+
+      <!-- Pipeline logic explainer -->
+      <div class="card mb16" style="border-left:3px solid var(--teal);font-size:13px;color:var(--text2);line-height:1.7">
+        <strong style="color:var(--text)">Pipeline:</strong> Cut 10 mother clones → 8 weeks grow → production-ready (~150 clones/gen) → 4 weeks clone pipeline → room launch.
+        <span style="color:var(--teal)"> Start a new mother gen 12 weeks before the target room launch.</span>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <strong style="color:var(--text);font-size:12px">Mother reference file</strong>
+          <span style="font-size:12px;color:var(--text3);margin-left:8px">Upload a current mother inventory file for cloner reference (CSV, XLSX, or image)</span>
+          <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="mother-file-upload" accept=".csv,.xlsx,.xls,.png,.jpg,.pdf" style="font-size:12px;color:var(--text2)" onchange="handleMotherFileUpload(this)"/>
+            <span id="mother-file-name" style="font-size:11px;color:var(--text3)"></span>
+          </div>
+          <div id="mother-file-preview" style="margin-top:8px;display:none"></div>
+        </div>
+      </div>
+
+      <!-- Flags -->
+      <div id="mother-flags" class="mb12"></div>
+
+      <!-- Active gens -->
+      <div class="section-title mb12">Active mother generations</div>
+      <div id="mother-gens-grid" class="grid-2 mb16"></div>
+
+      <!-- Retired -->
+      <div id="retired-section" style="display:none">
+        <div class="section-title mb12" style="color:var(--text3)">Retired generations</div>
+        <div id="mother-retired-grid" class="grid-3 mb16"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MOTHER GEN MODAL -->
+  <div class="modal-bg" id="mother-modal-bg">
+    <div class="modal">
+      <h3 id="mother-modal-title">New mother generation</h3>
+      <label>Strain</label>
+      <input id="mm-strain" type="text" placeholder="e.g. Kush Mintz 3"/>
+      <label>Cut date (date clones were taken to raise as mothers)</label>
+      <input id="mm-cutdate" type="date"/>
+      <label>Number of mothers</label>
+      <input id="mm-count" type="number" value="10" min="1" max="30"/>
+      <label>Target room launch (which room are these mothers supplying?)</label>
+      <select id="mm-room">
+        <option value="">— select room —</option>
+      </select>
+      <label>Notes</label>
+      <input id="mm-notes" placeholder="e.g. Gen 2 replacement for KM3"/>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeMotherModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmMotherGen()">Save generation</button>
+      </div>
+    </div>
+  </div>
+
+
+    <div class="row mb12">
+      <div class="section-title" id="assign-title">Today's assignments</div>
+      <div style="flex:1"></div>
+      <span id="assign-role-label" class="tag tag-green"></span>
+    </div>
+    <div id="assignments-content"></div>
+  </div>
+
+  <!-- ══ PAGE: TODAY LOG ══ -->
+  <div id="page-today-log" class="page">
+    <div class="row mb12">
+      <div class="section-title">Today's completion log</div>
+      <div style="flex:1"></div>
+      <button onclick="clearTodayLog()" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3)">Clear log</button>
+    </div>
+    <div class="card mb12">
+      <div class="row mb8">
+        <div id="log-summary" style="font-size:13px;color:var(--text2)"></div>
+      </div>
+      <div id="today-log-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: ADDITIVE SCHEDULE ══ -->
+  <div id="page-additive" class="page">
+    <div class="row mb12">
+      <div class="section-title">Resin OS additive schedule</div>
+      <span class="tag tag-amber">Tier 2 · #flower-rooms only</span>
+    </div>
+    <div class="card mb12" style="font-size:12px;color:var(--text2);line-height:1.7;border-left:3px solid var(--amber)">
+      Base: Athena ProLine Bloom throughout flower. <strong style="color:var(--red)">NO H₂O₂</strong> during weeks 5–7 and X1 phase. EC targets per EC Rainbow v1.0. Additive schedule does not move — missed day is a notification event, never a double-dose. Notes live in <span class="tag tag-amber" style="font-size:10px">#flower-rooms</span> only.
+    </div>
+    <div style="overflow-x:auto">
+      <table class="additive-table" id="additive-table">
+        <thead><tr><th>Day</th><th>Phase</th><th>Additive</th><th>Dose</th><th>Channel</th><th>Notes</th></tr></thead>
+        <tbody id="additive-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ PAGE: ROOM CHECKS ══ -->
+  <div id="page-checks" class="page">
+    <div class="row mb12">
+      <div class="section-title">Flower room checks</div>
+      <span class="tag tag-amber">Tier 2 · #flower-rooms</span>
+      <div style="flex:1"></div>
+      <button onclick="loadChecks()" class="send-btn green">Refresh</button>
+    </div>
+    <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+      <input id="csv-url" style="flex:1;min-width:200px;font-size:12px" placeholder="Google Sheet CSV URL" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vTjSQZCbmNGCNU5sKmwmEt6oHZw1rwvJF_vfOY3xsiWwJZSnlstJ3nVKJ366hOALncDN8U7gFVtSnLH/pub?gid=1259070290&single=true&output=csv"/>
+      <span id="check-refresh-note" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+    <div class="grid-2" id="checks-grid"></div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3)">Form: <a href="https://devdavinki.github.io/flower-room-checks/" target="_blank" style="color:var(--blue)">devdavinki.github.io/flower-room-checks</a></div>
+  </div>
+
+  <!-- ══ PAGE: SLACK ══ -->
+  <div id="page-slack" class="page">
+    <div class="section-title mb12">Slack dispatch</div>
+    <div id="slack-panels"></div>
+  </div>
+
+  <!-- ══ PAGE: SETTINGS ══ -->
+  <div id="page-settings" class="page">
+    <!-- TEAM ROSTER -->
+    <div class="section-title mb12">Team roster & access</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+      Add each team member, assign their role, and set an optional PIN. When someone opens the dashboard they select their name and enter their PIN to load their view automatically.
+    </div>
+    <div id="team-roster-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:12px"></div>
+    <button onclick="addTeamMember()" class="btn-primary" style="font-size:12px;padding:7px 14px;margin-bottom:24px">+ Add team member</button>
+
+    <!-- ROLE PERMISSIONS EDITOR -->
+    <div class="section-title mb12">Role permissions</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+      Toggle which pages each role can access. Changes take effect immediately.
+    </div>
+    <div id="role-permissions-grid" style="overflow-x:auto;margin-bottom:24px"></div>
+
+    <!-- ROOM CONFIG -->
+    <div class="section-title mb12">Room configuration</div>
+    <div class="settings-grid" id="settings-grid"></div>
+    <div class="section-title" style="margin-top:20px;margin-bottom:10px">Slack webhooks</div>
+    <div class="settings-grid" id="webhook-settings"></div>
+  </div>
+
+  <!-- LOGIN MODAL -->
+  <div class="modal-bg" id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300">
+    <div class="modal" style="max-width:340px;width:100%">
+      <h3 style="margin-bottom:4px">Who are you?</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Select your name to load your view</p>
+      <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
+      <div id="login-pin-row" style="display:none">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your PIN</label>
+        <div style="display:flex;gap:8px">
+          <input id="login-pin-input" type="password" maxlength="6" placeholder="PIN" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
+          <button onclick="confirmLogin()" class="btn-primary">Enter</button>
+        </div>
+        <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect PIN</div>
+      </div>
+      <button onclick="skipLogin()" style="width:100%;margin-top:10px;font-size:12px;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Skip — use role switcher instead</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- COMPLETION MODAL -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title">Mark task complete</h3>
+    <label>Who completed this?</label>
+    <input id="modal-who" type="text" placeholder="Your name"/>
+    <label>Notes (optional)</label>
+    <textarea id="modal-notes" placeholder="Any flags, observations, or split session notes..."></textarea>
+    <label>% canopy removed (defoliators only)</label>
+    <input id="modal-pct" type="number" min="0" max="100" placeholder="e.g. 20"/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="confirmComplete()">Mark complete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
+const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
+const PAIRED = ['r1','r2'];
+
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
+function diffDays(a,b){return Math.round((b-a)/86400000)}
+function fmtShort(d){if(!d)return '—';return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+function fmtFull(d){if(!d)return '—';return new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+function fmtTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+function isoToDate(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setHours(0,0,0,0);return dt}
+function dateToIso(d){return d.toISOString().split('T')[0]}
+function L(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}}
+function S(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+
+const DEFAULT_ROOMS=[
+  {id:'r1',name:'Room 1',tier:'Small',sqft:280,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Relaunched 4/7 — flip pending Room 8'},
+  {id:'r2',name:'Room 2',tier:'Full',sqft:432,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Paired with Room 1'},
+  {id:'r3',name:'Room 3',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-13',flipDate:'2026-03-25',note:''},
+  {id:'r4',name:'Room 4',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-03-05',flipDate:'2026-03-23',note:''},
+  {id:'r5',name:'Room 5',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-02-27',flipDate:'2026-03-05',note:''},
+  {id:'r6',name:'Room 6',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-08',flipDate:'2026-02-08',note:''},
+  {id:'r7',name:'Room 7',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-17',flipDate:'2026-03-30',note:''},
+  {id:'r8',name:'Room 8',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-04-02',flipDate:'',note:'Still vegging'},
+  {id:'r9',name:'Room 9',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-24',flipDate:'2026-03-03',note:''},
+  {id:'r10',name:'Room 10',tier:'Full',sqft:416,paired:false,tall:false,strain:'',launchDate:'2026-02-06',flipDate:'2026-02-06',note:''},
+  {id:'r11',name:'Room 11',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-02-19',flipDate:'2026-02-19',note:''},
+];
+
+let rooms = L('wg_rooms_v2', DEFAULT_ROOMS);
+rooms = rooms.map((r,i)=>({...DEFAULT_ROOMS[i],...r}));
+
+const ADDITIVES={
+  29:{name:'Supa Stiky',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
+  31:{name:'H&G Amino Treatment',dose:'0.3 ml/gal',pill:'pill-amino',tier2:true},
+  32:{name:'Supa Stiky',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
+  33:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  35:{name:'SLF-100',dose:'2.0 ml/gal',pill:'pill-slf',tier2:true},
+  36:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
+  38:{name:'H&G Amino Treatment',dose:'0.3 ml/gal',pill:'pill-amino',tier2:true},
+  39:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
+  40:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  42:{name:'SLF-100',dose:'2.0 ml/gal',pill:'pill-slf',tier2:true},
+  43:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
+  45:{name:'H&G Amino Treatment',dose:'0.3 ml/gal',pill:'pill-amino',tier2:true},
+  46:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
+  47:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  49:{name:'SLF-100 + Drip Clean',dose:'2.0 + 0.4 ml/gal',pill:'pill-slf',tier2:true},
+  50:{name:'Supa Stiky (X1)',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
+  56:{name:'Supa Stiky (X1)',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
+};
+
+const DEFOL_WINDOWS=[
+  {id:'dw1',label:'Delarfing round 1',start:1,end:14,type:'delarf'},
+  {id:'dw2',label:'Defoliation round 1 — light cleanup',start:15,end:21,type:'light'},
+  {id:'dw3',label:'Defoliation round 1 — closing',start:22,end:27,type:'closing'},
+  {id:'dw4',label:'HARD CUTOFF — last day round 1',start:28,end:28,type:'hardstop'},
+  {id:'dw5',label:'Round 2 — light defol only',start:42,end:49,type:'light'},
+  {id:'dw6',label:'Pre-harvest defol clean',start:60,end:63,type:'preharvest'},
+];
+
+let todayLog = L('wg_log_'+dateToIso(TODAY), []);
+let roomOverrides = L('wg_overrides_'+dateToIso(TODAY), {});
+let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:''});
+let currentRole = L('wg_role','lead');
+let pendingComplete = null;
+
+// ══════════════════════════════════════════════
+// COMPUTED
+// ══════════════════════════════════════════════
+function calcDates(room){
+  const launch=isoToDate(room.launchDate);
+  const flip=isoToDate(room.flipDate);
+  if(!flip)return{launch,flip:null,darkStart:null,harvestDate:null,nextLaunch:null,cloneCutDate:null};
+  const darkStart=addDays(flip,FLOWER_DAYS);
+  const harvestDate=addDays(darkStart,DARK_DAYS);
+  const cleanDays=room.paired?2:1;
+  const nextLaunch=addDays(harvestDate,cleanDays);
+  const cloneCutDate=addDays(nextLaunch,-CLONE_LEAD);
+  return{launch,flip,darkStart,harvestDate,nextLaunch,cloneCutDate};
+}
+
+function flowerDay(room){
+  const flip=isoToDate(room.flipDate);
+  if(!flip)return null;
+  return diffDays(flip,TODAY)+1;
+}
+
+function vegDay(room){
+  const launch=isoToDate(room.launchDate);
+  if(!launch)return null;
+  return diffDays(launch,TODAY)+1;
+}
+
+function getStage(room){
+  const fd=flowerDay(room);
+  const launch=isoToDate(room.launchDate);
+  if(!launch)return'empty';
+  if(fd===null)return'veg';
+  if(fd<1)return'veg';
+  if(fd>=1&&fd<=FLOWER_DAYS)return fd>=50?'late':'flower';
+  if(fd>FLOWER_DAYS&&fd<CYCLE)return'dark';
+  return'harvest';
+}
+
+function flipNudge(room){
+  const launch=isoToDate(room.launchDate);
+  if(!launch||room.flipDate)return null;
+  const vd=diffDays(launch,TODAY)+1;
+  if(vd<5)return null;
+  const days=[0,1,2,3];
+  return days.map(offset=>{
+    const flipD=addDays(TODAY,offset);
+    const harv=addDays(flipD,CYCLE-1);
+    const dow=harv.toLocaleDateString('en-US',{weekday:'short'});
+    return{label:offset===0?'Flip today':`Flip in ${offset}d`,harvest:fmtShort(harv),dow,good:['Wed','Thu','Tue'].includes(dow)};
+  });
+}
+
+function getDefolTasksForRoom(room){
+  const fd=flowerDay(room);
+  if(fd===null||fd<1)return[];
+  const tasks=[];
+  for(const dw of DEFOL_WINDOWS){
+    if(fd>=dw.start&&fd<=dw.end){
+      const daysIn=fd-dw.start+1;
+      const winLen=dw.end-dw.start+1;
+      const daysLeft=dw.end-fd;
+      const pct=Math.round((daysIn/winLen)*100);
+      tasks.push({...dw,daysIn,winLen,daysLeft,pct,fd});
+    }
+  }
+  // pre-flip window
+  const flip=isoToDate(room.flipDate);
+  if(flip){
+    const daysToFlip=diffDays(TODAY,flip);
+    if(daysToFlip>=0&&daysToFlip<=4){
+      tasks.push({id:'pre-flip',label:'Pre-flip defoliation',type:'preflight',daysToFlip});
+    }
+  }
+  return tasks;
+}
+
+function getAdditiveForRoom(room){
+  const fd=flowerDay(room);
+  if(fd===null||fd<1||fd>57)return null;
+  return ADDITIVES[fd]||{name:'Base feed only',dose:'—',pill:'pill-base',tier2:false};
+}
+
+// ══════════════════════════════════════════════
+// ROLE
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// ROLE PERMISSIONS
+// ══════════════════════════════════════════════
+const ROLE_PERMISSIONS = {
+  lead:       {pages:['rooms','assignments','clonetracker','today-log','additive','checks','slack','settings'], roomView:'full'},
+  defoliator: {pages:['rooms','assignments','today-log'], roomView:'defol'},
+  fertigator: {pages:['rooms','assignments','today-log','additive'], roomView:'basic'},
+  cloner:     {pages:['rooms','assignments','clonetracker','today-log'], roomView:'basic'},
+  ipm:        {pages:['rooms','assignments','today-log','checks'], roomView:'basic'},
+  checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
+};
+
+function canSee(role, page){
+  return (ROLE_PERMISSIONS[role]?.pages||[]).includes(page);
+}
+
+function setRole(role){
+  currentRole=role;
+  S('wg_role',role);
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active',b.dataset.role===role));
+
+  // show/hide nav tabs based on role permissions
+  const perms=ROLE_PERMISSIONS[role]||ROLE_PERMISSIONS.lead;
+  document.querySelectorAll('.nav-tab[data-page]').forEach(tab=>{
+    const page=tab.dataset.page;
+    tab.style.display=canSee(role,page)?'':'none';
+  });
+
+  // if current active page is now hidden, redirect to first allowed page
+  const activePage=document.querySelector('.nav-tab.active')?.dataset?.page;
+  if(activePage&&!canSee(role,activePage)){
+    const firstAllowed=perms.pages[0]||'assignments';
+    showPage(firstAllowed);
+  }
+
+  renderRooms();
+  renderAssignments();
+}
+
+// ══════════════════════════════════════════════
+// ROOMS PAGE
+// ══════════════════════════════════════════════
+function renderRooms(){
+  const grid=document.getElementById('rooms-grid');
+  grid.innerHTML='';
+  rooms.forEach((room,i)=>{
+    const d=calcDates(room);
+    const fd=flowerDay(room);
+    const vd=vegDay(room);
+    const stage=getStage(room);
+    const nudges=flipNudge(room);
+    const defolTasks=getDefolTasksForRoom(room);
+    const additive=getAdditiveForRoom(room);
+    const overrides=roomOverrides[room.id]||{};
+
+    let stageClass='stage-'+stage;
+    let badgeClass='badge-'+stage;
+    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='dark'?'Dark period':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
+
+    const card=document.createElement('div');
+    card.className=`room-card ${stageClass}`;
+
+    // timeline
+    let tlHTML='';
+    const tlItems=[];
+    if(room.launchDate) tlItems.push(['Plants in',fmtShort(isoToDate(room.launchDate)),'']);
+    if(room.flipDate) tlItems.push(['Flipped',fmtShort(isoToDate(room.flipDate)),'Day 1']);
+    if(fd!==null&&fd>=1) tlItems.push(['Flower day','Day '+fd+' / '+CYCLE,'']);
+    if(d.harvestDate){
+      const hd=diffDays(TODAY,d.harvestDate);
+      tlItems.push(['Est. harvest',fmtShort(d.harvestDate),hd>0?'in '+hd+'d':hd===0?'Today!':Math.abs(hd)+'d ago']);
+    }
+    if(d.cloneCutDate){
+      const cd=diffDays(TODAY,d.cloneCutDate);
+      tlItems.push(['Clone cut',fmtShort(d.cloneCutDate),cd<0?'OVERDUE':cd===0?'Today!':'in '+cd+'d']);
+    }
+
+    tlHTML=`<div class="timeline-grid">${tlItems.slice(0,4).map(([l,v,s])=>`
+      <div class="tl-item">
+        <div class="tl-label">${l}</div>
+        <div class="tl-val ${s.includes('OVERDUE')?'urgent':s.includes('Today')?'warn':''}">${v}</div>
+        ${s?`<div style="font-size:9px;color:var(--text3)">${s}</div>`:''}
+      </div>`).join('')}</div>`;
+
+    // progress bar
+    let progHTML='';
+    if(fd!==null&&fd>=1&&fd<=CYCLE){
+      const pct=Math.min(100,Math.round((fd/CYCLE)*100));
+      const fillCls=fd>=63?'fill-red':fd>=50?'fill-amber':'fill-green';
+      progHTML=`<div class="prog-wrap"><div class="prog-label"><span>Flower progress</span><span>${fd} / ${CYCLE} days</span></div><div class="prog-track"><div class="prog-fill ${fillCls}" style="width:${pct}%"></div></div></div>`;
+    } else if(stage==='veg'&&room.launchDate&&room.flipDate){
+      const launch=isoToDate(room.launchDate);const flip=isoToDate(room.flipDate);
+      const total=diffDays(launch,flip);const cur=vd||1;
+      const pct=Math.min(100,Math.round((cur/total)*100));
+      progHTML=`<div class="prog-wrap"><div class="prog-label"><span>Veg progress</span><span>Day ${cur} / ${total}</span></div><div class="prog-track"><div class="prog-fill fill-blue" style="width:${pct}%"></div></div></div>`;
+    }
+
+    // flip nudge
+    let nudgeHTML='';
+    if(nudges&&nudges.length){
+      nudgeHTML=`<div class="flip-nudge" style="font-size:10px">
+        Flip timing: ${nudges.slice(0,3).map(n=>`<span style="margin-right:8px;color:${n.good?'var(--green)':'var(--text3)'}">${n.label} → harvest ${n.dow} ${n.harvest}${n.good?' ✓':''}</span>`).join('')}
+      </div>`;
+    }
+
+    // today tasks — filtered by role
+    let taskHTML='';
+    const taskList=[];
+    const roomView=ROLE_PERMISSIONS[currentRole]?.roomView||'basic';
+
+    // defoliators and lead see defol tasks
+    if(roomView==='full'||roomView==='defol'){
+      for(const dt of defolTasks){
+        if(overrides['done_'+dt.id]||overrides['skip_'+dt.id]) continue;
+        const dotCls=dt.type==='hardstop'?'dot-red':dt.type==='closing'?'dot-amber':'dot-green';
+        const winBar=dt.pct!==undefined?`<div class="win-bar"><div class="win-fill" style="width:${dt.pct}%;background:${dt.pct>=85?'var(--red)':dt.pct>=60?'var(--amber)':'var(--green)'}"></div></div>`:'';
+        taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${dt.label}${dt.daysLeft!==undefined?`<span class="sub">${dt.daysLeft===0?'<span class="alert-txt">Last day</span>':dt.daysLeft+' days remaining'}</span>`:''}${winBar}</div></div>`);
+      }
+    }
+    // lead and fertigator see additive
+    if((roomView==='full')&&additive&&stage==='flower'){
+      const dotCls=additive.tier2?'dot-amber':'dot-gray';
+      taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${additive.name}<span class="sub">${additive.dose}${additive.tier2?' · Tier 2':''}</span></div></div>`);
+    }
+    if(stage==='dark') taskList.push(`<div class="task-item-sm"><span class="task-dot dot-gray"></span><div class="task-text" style="color:var(--text3)">Dark period — no entry</div></div>`);
+    if(stage==='harvest'&&(roomView==='full')) taskList.push(`<div class="task-item-sm"><span class="task-dot dot-red"></span><div class="task-text"><span class="alert-txt">Harvest day — authorize entry in #harvest</span></div></div>`);
+    if(taskList.length) taskHTML=`<div class="task-strip"><div class="task-strip-head">Today</div>${taskList.join('')}</div>`;
+
+    // badges — tall is background logic only, not shown to crew
+    const badges=[`<span class="stage-badge ${badgeClass}">${badgeText}</span>`];
+    if(room.paired) badges.push(`<span class="stage-badge badge-paired">paired</span>`);
+
+    card.innerHTML=`
+      <div class="card-head">
+        <div>
+          <div class="room-name">${room.name}</div>
+          <div class="room-meta">${room.tier} · ${room.sqft} sq ft${room.strain?' · '+room.strain:''}</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
+      </div>
+      ${tlHTML}${progHTML}${nudgeHTML}${taskHTML}
+      ${room.note?`<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${room.note}</div>`:''}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════
+// ASSIGNMENTS PAGE
+// ══════════════════════════════════════════════
+function renderAssignments(){
+  const content=document.getElementById('assignments-content');
+  const roleLabel=document.getElementById('assign-role-label');
+  const roleNames={lead:'Lead / Pat',defoliator:'Defoliator',fertigator:'Fertigator',cloner:'Cloner',ipm:'IPM Tech',checker:'Room Checker'};
+  roleLabel.textContent=roleNames[currentRole]||currentRole;
+  content.innerHTML='';
+
+  const assignments=buildAssignments(currentRole);
+  if(!assignments.length){
+    content.innerHTML=`<div class="empty-state">No tasks assigned to this role today.</div>`;
+    return;
+  }
+
+  assignments.forEach(group=>{
+    const card=document.createElement('div');
+    card.className='assign-card';
+    const overrides=roomOverrides[group.roomId]||{};
+    const tasksHTML=group.tasks.map(task=>{
+      const isDone=overrides['done_'+task.id];
+      const isSkipped=overrides['skip_'+task.id];
+      if(isSkipped) return '';
+      return`<div class="assign-task">
+        <div class="assign-task-info">
+          <div class="assign-task-name" style="${isDone?'text-decoration:line-through;color:var(--text3)':''}">${task.name}</div>
+          <div class="assign-task-desc">${task.desc}</div>
+          ${task.sub?`<div class="assign-task-sub">${task.sub}</div>`:''}
+        </div>
+        <div style="display:flex;gap:5px;flex-direction:column;align-items:flex-end">
+          ${!isDone?`<button class="complete-btn" onclick="openModal('${group.roomId}','${task.id}','${task.name} — ${group.roomName}')">Mark done</button>`:`<button class="complete-btn done" disabled>Done</button>`}
+          ${!isDone?`<button class="skip-btn" onclick="skipTask('${group.roomId}','${task.id}')">Skip</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+
+    if(!tasksHTML.trim()){return;}
+    card.innerHTML=`
+      <div class="assign-head">
+        <div>
+          <div class="assign-room">${group.roomName}</div>
+          <div class="assign-day">${group.stageLine}</div>
+        </div>
+        ${group.badge?`<span class="tag ${group.badgeCls}">${group.badge}</span>`:''}
+      </div>
+      <div class="assign-body">${tasksHTML}</div>
+    `;
+    content.appendChild(card);
+  });
+
+  if(!content.children.length){
+    content.innerHTML=`<div class="empty-state">All tasks complete for today.</div>`;
+  }
+}
+
+function buildAssignments(role){
+  const groups=[];
+  const overrides=roomOverrides;
+
+  rooms.forEach(room=>{
+    const fd=flowerDay(room);
+    const vd=vegDay(room);
+    const stage=getStage(room);
+    const d=calcDates(room);
+    const rov=overrides[room.id]||{};
+    const tasks=[];
+
+    if(role==='defoliator'||role==='lead'){
+      const defolTasks=getDefolTasksForRoom(room);
+      defolTasks.forEach(dt=>{
+        if(rov['done_'+dt.id]||rov['skip_'+dt.id]) return;
+        let desc='',sub='';
+        if(dt.type==='delarf'){desc='Remove lower larf, popcorn sites, zero-light bud sites only. Fan leaves stay — this is not a defoliation pass.';sub=`Window day ${dt.daysIn} of ${dt.winLen} · ${dt.daysLeft} days remaining`;}
+        else if(dt.type==='light'){desc='Light cleanup only. Obvious blockers and dying material. No aggressive pulls.';sub=`Window day ${dt.daysIn} of ${dt.winLen} · ${dt.daysLeft} days remaining`;}
+        else if(dt.type==='closing'){desc='Complete any remaining round 1 work. Hard cutoff is Day 28.';sub=`⚠ Window closing · ${dt.daysLeft} days left`;}
+        else if(dt.type==='hardstop'){desc='Last day for any canopy work. After today: Cultivation Director auth required.';sub='HARD CUTOFF — no exceptions';}
+        else if(dt.type==='preharvest'){desc='Final tidy pass for harvest crew access. Notify #harvest.';sub=`Day ${dt.fd} of flower`;}
+        else if(dt.type==='preflight'){desc='Full defoliation + larf removal. Complete before flip.';sub=`Flip in ${dt.daysToFlip} day${dt.daysToFlip!==1?'s':''}`;}
+        tasks.push({id:dt.id,name:dt.label,desc,sub});
+      });
+    }
+
+    if(role==='fertigator'||role==='lead'){
+      if(stage==='flower'&&fd!==null){
+        const add=ADDITIVES[fd];
+        if(add){
+          tasks.push({id:'add_'+fd,name:'Apply '+add.name,desc:`Dose: ${add.dose} · Base: Athena ProLine Bloom · NO H₂O₂`,sub:'Tier 2 · Post confirmation in #flower-rooms'});
+        }
+        if(fd>=52&&fd<64){
+          tasks.push({id:'flush_check',name:'Flush period active',desc:`Day ${fd-51} of flush — monitor EC runoff. Automated watering running.`,sub:'Log any runoff anomalies in #flower-rooms'});
+        }
+      }
+    }
+
+    if(role==='ipm'||role==='lead'){
+      if(stage==='flower'&&fd!==null&&fd<=42){
+        if(!rov['ipm_scout']){
+          tasks.push({id:'ipm_scout',name:'Scout '+room.name,desc:'Check undersides of leaves, lower canopy, and soil surface. Immediate flag required on any finding.',sub:'Post to #ipm before leaving the room · Full spray rotation schedule uploading soon'});
+        }
+      }
+    }
+
+    if(role==='cloner'||role==='lead'){
+      if(d.cloneCutDate){
+        const daysOut=diffDays(TODAY,d.cloneCutDate);
+        if(daysOut>=0&&daysOut<=14&&!rov['clone_cut']){
+          const twoTrayRooms=['r1','r6','r9'];
+          const isTwoTray=twoTrayRooms.includes(room.id);
+          const isPaired=room.paired;
+          const strainCount=isPaired?3:isTwoTray?2:3;
+          const target=strainCount*150;
+          const perStrain=150;
+          tasks.push({id:'clone_cut',name:'Clone cut — '+room.name,desc:`${target} clones · ${strainCount} strains · ${perStrain} each. Log weekly progress in Clone Tracker.`,sub:`${daysOut===0?'Due today!':daysOut<=3?'⚠ '+daysOut+'d until deadline':daysOut+' days until deadline'} · ${fmtShort(d.cloneCutDate)}`});
+        }
+      }
+    }
+
+    if(role==='checker'||role==='lead'){
+      if(stage==='flower'||stage==='late'){
+        if(!rov['room_check']){
+          tasks.push({id:'room_check',name:'Daily check — '+room.name,desc:'Complete flower room check form: environment readings, runoff EC and pH per table.',sub:'Form: devdavinki.github.io/flower-room-checks'});
+        }
+      }
+    }
+
+    if(!tasks.length) return;
+
+    let stageLine=stage==='flower'?`Flower day ${fd} / ${CYCLE}`:stage==='veg'?`Veg day ${vd}`:stage==='late'?`Late flower day ${fd}`:stage;
+    let badge='',badgeCls='';
+    const defolWins=getDefolTasksForRoom(room);
+    if(defolWins.some(d=>d.type==='hardstop')){badge='Hard cutoff today';badgeCls='tag-red';}
+    else if(defolWins.some(d=>d.type==='closing')){badge='Window closing';badgeCls='tag-amber';}
+    else if(defolWins.length){badge='Defol window';badgeCls='tag-green';}
+
+    groups.push({roomId:room.id,roomName:room.name,stageLine,badge,badgeCls,tasks});
+  });
+
+  return groups;
+}
+
+// ══════════════════════════════════════════════
+// CLONE TRACKER
+// ══════════════════════════════════════════════
+function getWeekKey(){
+  const d=new Date(TODAY);
+  const day=d.getDay();
+  const diff=d.getDate()-day+(day===0?-6:1);
+  const mon=new Date(d.setDate(diff));
+  return 'cloneweek_'+mon.toISOString().split('T')[0];
+}
+let cloneSessions=L(getWeekKey(),[]);
+
+const STRAIN_TARGETS=[
+  {strain:'Strain 1',target:150},
+  {strain:'Strain 2',target:150},
+  {strain:'Strain 3',target:150},
+];
+const WEEKLY_TARGET=450;
+
+function logCloneCut(){
+  const strain=document.getElementById('ce-strain').value.trim();
+  const count=parseInt(document.getElementById('ce-count').value)||0;
+  const who=document.getElementById('ce-who').value.trim()||'Unknown';
+  if(!strain||!count)return;
+  cloneSessions.push({strain,count,who,time:fmtTime(),date:dateToIso(TODAY)});
+  S(getWeekKey(),cloneSessions);
+  document.getElementById('ce-strain').value='';
+  document.getElementById('ce-count').value='';
+  renderCloneTracker();
+}
+
+function resetCloneWeek(){
+  if(!confirm('Reset this week\'s clone log?'))return;
+  cloneSessions=[];S(getWeekKey(),cloneSessions);renderCloneTracker();
+}
+
+function renderCloneTracker(){
+  cloneSessions=L(getWeekKey(),[]);
+  const weekKey=getWeekKey().replace('cloneweek_','');
+  document.getElementById('clone-week-label').textContent='Week of '+weekKey;
+
+  const totalCut=cloneSessions.reduce((a,s)=>a+s.count,0);
+  const remaining=Math.max(0,WEEKLY_TARGET-totalCut);
+  const pct=Math.min(100,Math.round((totalCut/WEEKLY_TARGET)*100));
+  const fillColor=pct>=100?'var(--green)':pct>=60?'var(--amber)':'var(--blue)';
+
+  document.getElementById('clone-totals').innerHTML=`
+    <div style="background:var(--bg3);border-radius:var(--r);padding:10px 14px;flex:1;min-width:120px">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Cut this week</div>
+      <div style="font-size:22px;font-weight:700;color:var(--text);font-family:var(--mono)">${totalCut}</div>
+      <div style="font-size:10px;color:var(--text3)">of ${WEEKLY_TARGET} target</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--r);padding:10px 14px;flex:1;min-width:120px">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Still needed</div>
+      <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${remaining===0?'var(--green)':remaining<50?'var(--amber)':'var(--text)'}">${remaining}</div>
+      <div style="font-size:10px;color:var(--text3)">clones</div>
+    </div>
+    <div style="flex:2;min-width:180px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px"><span>Weekly progress</span><span>${pct}%</span></div>
+      <div class="prog-track" style="height:8px"><div class="prog-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">${pct>=100?'Weekly target met':''+Math.round(WEEKLY_TARGET/7)+' per day on pace'}</div>
+    </div>
+  `;
+
+  // strain breakdown
+  const byStrain={};
+  cloneSessions.forEach(s=>{
+    const k=s.strain.toLowerCase().trim();
+    if(!byStrain[k])byStrain[k]={strain:s.strain,count:0};
+    byStrain[k].count+=s.count;
+  });
+  const breakdown=document.getElementById('clone-strain-breakdown');
+  breakdown.innerHTML='';
+  const strainEntries=Object.values(byStrain).sort((a,b)=>b.count-a.count);
+  if(!strainEntries.length){
+    breakdown.innerHTML=`<div class="empty-state" style="grid-column:1/-1">No cuts logged yet this week.</div>`;
+  } else {
+    strainEntries.forEach(se=>{
+      const pctS=Math.min(100,Math.round((se.count/150)*100));
+      const needed=Math.max(0,150-se.count);
+      const div=document.createElement('div');
+      div.className='card';
+      div.innerHTML=`
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">${se.strain}</div>
+        <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:${pctS>=100?'var(--green)':pctS>=60?'var(--amber)':'var(--text)'}">${se.count}</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${needed===0?'Target met ✓':'Need '+needed+' more'} · target 150</div>
+        <div class="prog-track"><div class="prog-fill" style="width:${pctS}%;background:${pctS>=100?'var(--green)':pctS>=60?'var(--amber)':'var(--blue)'}"></div></div>
+      `;
+      breakdown.appendChild(div);
+    });
+  }
+
+  // sessions list
+  const list=document.getElementById('clone-sessions-list');
+  if(!cloneSessions.length){
+    list.innerHTML=`<div class="empty-state">No sessions logged this week.</div>`;
+  } else {
+    list.innerHTML=[...cloneSessions].reverse().map(s=>`
+      <div class="log-entry">
+        <div class="log-status" style="background:var(--green)"></div>
+        <div class="log-info">
+          <div class="log-title">${s.count} clones — ${s.strain}</div>
+          <div class="log-meta">${s.who} · ${s.date}</div>
+        </div>
+        <div class="log-time">${s.time}</div>
+      </div>`).join('');
+  }
+}
+
+// ══════════════════════════════════════════════
+// MOTHER ROTATION
+// ══════════════════════════════════════════════
+const MOTHER_MATURE_WEEKS=8;
+const MOTHER_CLONE_YIELD=150;
+
+let motherGens=L('wg_mother_gens',[]);
+
+function motherReadyDate(cutDate){return addDays(isoToDate(cutDate),MOTHER_MATURE_WEEKS*7);}
+function weeksUntilReady(cutDate){return Math.ceil(diffDays(TODAY,motherReadyDate(cutDate))/7);}
+function isMotherReady(cutDate){return motherReadyDate(cutDate)<=TODAY;}
+
+function openMotherModal(editId){
+  document.getElementById('mother-modal-title').textContent=editId?'Edit mother generation':'New mother generation';
+  document.getElementById('mm-cutdate').value=dateToIso(TODAY);
+  document.getElementById('mm-count').value='10';
+  document.getElementById('mm-notes').value='';
+  document.getElementById('mm-strain').value='';
+  const sel=document.getElementById('mm-room');
+  sel.innerHTML='<option value="">— select room —</option>';
+  rooms.forEach(r=>{
+    const d=calcDates(r);
+    const opt=document.createElement('option');
+    opt.value=r.id;
+    opt.textContent=r.name+(d.nextLaunch?' (next launch ~'+fmtShort(d.nextLaunch)+')':'');
+    sel.appendChild(opt);
+  });
+  if(editId){
+    const gen=motherGens.find(g=>g.id===editId);
+    if(gen){
+      document.getElementById('mm-strain').value=gen.strain;
+      document.getElementById('mm-cutdate').value=gen.cutDate;
+      document.getElementById('mm-count').value=gen.count;
+      document.getElementById('mm-room').value=gen.targetRoom||'';
+      document.getElementById('mm-notes').value=gen.notes||'';
+    }
+    document.getElementById('mother-modal-bg').dataset.editId=editId;
+  } else {
+    delete document.getElementById('mother-modal-bg').dataset.editId;
+  }
+  document.getElementById('mother-modal-bg').classList.add('open');
+}
+function closeMotherModal(){document.getElementById('mother-modal-bg').classList.remove('open');}
+
+function confirmMotherGen(){
+  const strain=document.getElementById('mm-strain').value.trim();
+  const cutDate=document.getElementById('mm-cutdate').value;
+  const count=parseInt(document.getElementById('mm-count').value)||10;
+  const targetRoom=document.getElementById('mm-room').value;
+  const notes=document.getElementById('mm-notes').value.trim();
+  if(!strain||!cutDate)return;
+  const editId=document.getElementById('mother-modal-bg').dataset.editId;
+  if(editId){
+    const i=motherGens.findIndex(g=>g.id===editId);
+    if(i!==-1)motherGens[i]={...motherGens[i],strain,cutDate,count,targetRoom,notes};
+  } else {
+    motherGens.push({id:'mg'+Date.now(),strain,cutDate,count,targetRoom,notes,retired:false,runsSupplied:0});
+  }
+  S('wg_mother_gens',motherGens);
+  closeMotherModal();
+  renderMotherRotation();
+}
+
+function retireMotherGen(id){const g=motherGens.find(g=>g.id===id);if(g){g.retired=true;S('wg_mother_gens',motherGens);renderMotherRotation();}}
+function deleteMotherGen(id){motherGens=motherGens.filter(g=>g.id!==id);S('wg_mother_gens',motherGens);renderMotherRotation();}
+function markGenRun(id){const g=motherGens.find(g=>g.id===id);if(g){g.runsSupplied=(g.runsSupplied||0)+1;S('wg_mother_gens',motherGens);renderMotherRotation();}}
+
+function renderMotherRotation(){
+  motherGens=L('wg_mother_gens',[]);
+  const active=motherGens.filter(g=>!g.retired);
+  const retired=motherGens.filter(g=>g.retired);
+
+  // flags
+  const flagsEl=document.getElementById('mother-flags');
+  const flags=[];
+  rooms.forEach(room=>{
+    const d=calcDates(room);
+    if(!d.nextLaunch)return;
+    const wkToLaunch=Math.ceil(diffDays(TODAY,d.nextLaunch)/7);
+    if(wkToLaunch>16||wkToLaunch<0)return;
+    const gensForRoom=active.filter(g=>g.targetRoom===room.id);
+    const readyGens=gensForRoom.filter(g=>isMotherReady(g.cutDate));
+    const growingGens=gensForRoom.filter(g=>!isMotherReady(g.cutDate));
+    if(!gensForRoom.length&&wkToLaunch<=14){
+      flags.push({type:'alert',msg:`No mother gen assigned to ${room.name} — next launch ~${fmtShort(d.nextLaunch)} (${wkToLaunch}wk away). Start a gen now — needs 8wks to mature + 4wk clone pipeline.`});
+    } else if(!readyGens.length&&growingGens.length){
+      const wk=weeksUntilReady(growingGens[0].cutDate);
+      if(wk>wkToLaunch-4){flags.push({type:'warn',msg:`${room.name}: ${growingGens[0].strain} gen won't be ready for ${wk}wk but launch is in ${wkToLaunch}wk — may be tight.`});}
+    }
+  });
+  active.forEach(g=>{
+    if((g.runsSupplied||0)>=2)flags.push({type:'warn',msg:`${g.strain} (cut ${fmtShort(isoToDate(g.cutDate))}) has supplied ${g.runsSupplied} rooms — assess for retirement.`});
+  });
+  flagsEl.innerHTML=flags.map(f=>`<div style="font-size:12px;padding:8px 12px;border-radius:var(--r);margin-bottom:6px;background:${f.type==='alert'?'var(--red-bg)':'var(--amber-bg)'};color:${f.type==='alert'?'var(--red)':'var(--amber)'};border:1px solid ${f.type==='alert'?'var(--red-dim)':'var(--amber-dim)'}">${f.msg}</div>`).join('');
+
+  // active gens grid
+  const genGrid=document.getElementById('mother-gens-grid');
+  genGrid.innerHTML='';
+  if(!active.length){
+    genGrid.innerHTML=`<div class="empty-state" style="grid-column:1/-1">No active mother generations. Add one with the button above.</div>`;
+  } else {
+    active.sort((a,b)=>new Date(a.cutDate)-new Date(b.cutDate)).forEach(gen=>{
+      const ready=isMotherReady(gen.cutDate);
+      const wkLeft=weeksUntilReady(gen.cutDate);
+      const readyDate=motherReadyDate(gen.cutDate);
+      const targetRoomObj=rooms.find(r=>r.id===gen.targetRoom);
+      const targetLaunch=targetRoomObj?calcDates(targetRoomObj).nextLaunch:null;
+      const runs=gen.runsSupplied||0;
+      const borderColor=ready?(runs>=2?'var(--amber)':'var(--green)'):'var(--blue)';
+      const statusText=ready?(runs>=2?'Assess retirement':'Production ready'):`Ready in ${wkLeft}wk`;
+      const statusColor=ready?(runs>=2?'var(--amber)':'var(--green)'):'var(--blue)';
+      const pct=Math.min(100,Math.round((diffDays(isoToDate(gen.cutDate),TODAY)/(MOTHER_MATURE_WEEKS*7))*100));
+      const card=document.createElement('div');
+      card.className='card';
+      card.style.borderLeft=`3px solid ${borderColor}`;
+      card.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${gen.strain}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${gen.count} mothers · cut ${fmtShort(isoToDate(gen.cutDate))}</div>
+          </div>
+          <span style="font-size:11px;font-weight:600;color:${statusColor};font-family:var(--mono);white-space:nowrap">${statusText}</span>
+        </div>
+        <div class="timeline-grid" style="margin-bottom:10px">
+          <div class="tl-item"><div class="tl-label">Cut date</div><div class="tl-val">${fmtShort(isoToDate(gen.cutDate))}</div></div>
+          <div class="tl-item"><div class="tl-label">Ready date</div><div class="tl-val ${ready?'ok':''}">${fmtShort(readyDate)}</div></div>
+          <div class="tl-item"><div class="tl-label">Target room</div><div class="tl-val">${targetRoomObj?targetRoomObj.name:'—'}</div></div>
+          <div class="tl-item"><div class="tl-label">Room launch</div><div class="tl-val">${targetLaunch?fmtShort(targetLaunch):'—'}</div></div>
+        </div>
+        ${!ready?`<div class="prog-wrap"><div class="prog-label"><span>Maturity</span><span>${pct}%</span></div><div class="prog-track"><div class="prog-fill fill-blue" style="width:${pct}%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:3px">~${wkLeft} weeks until production-ready (${MOTHER_CLONE_YIELD} clones)</div></div>`:`<div style="font-size:12px;padding:5px 8px;background:var(--green-bg);color:var(--green);border-radius:var(--r);margin-bottom:8px">Production ready · ~${MOTHER_CLONE_YIELD} clones available from this gen</div>`}
+        ${runs>0?`<div style="font-size:11px;color:var(--text3);margin-top:4px">${runs} room run${runs!==1?'s':''} supplied</div>`:''}
+        ${gen.notes?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">${gen.notes}</div>`:''}
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          ${ready?`<button onclick="markGenRun('${gen.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:none;color:var(--green);cursor:pointer">+ Mark room run</button>`:''}
+          <button onclick="openMotherModal('${gen.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>
+          <button onclick="retireMotherGen('${gen.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Retire</button>
+          <button onclick="deleteMotherGen('${gen.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Delete</button>
+        </div>
+      `;
+      genGrid.appendChild(card);
+    });
+  }
+
+  // retired
+  const retiredSection=document.getElementById('retired-section');
+  const retiredGrid=document.getElementById('mother-retired-grid');
+  retiredSection.style.display=retired.length?'block':'none';
+  retiredGrid.innerHTML=retired.map(gen=>`
+    <div class="card" style="opacity:0.5;border-left:3px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;color:var(--text3)">${gen.strain}</div>
+      <div style="font-size:11px;color:var(--text3)">${gen.count} mothers · cut ${fmtShort(isoToDate(gen.cutDate))} · ${gen.runsSupplied||0} runs</div>
+      <button onclick="deleteMotherGen('${gen.id}')" style="font-size:11px;margin-top:8px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Remove</button>
+    </div>`).join('');
+}
+
+function handleMotherFileUpload(input){
+  const file=input.files[0];
+  if(!file)return;
+  document.getElementById('mother-file-name').textContent=file.name+' ('+Math.round(file.size/1024)+'KB)';
+  const preview=document.getElementById('mother-file-preview');
+  preview.style.display='block';
+  // image preview
+  if(file.type.startsWith('image/')){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      preview.innerHTML=`<img src="${e.target.result}" style="max-width:100%;border-radius:var(--r);border:1px solid var(--border)"/>`;
+    };
+    reader.readAsDataURL(file);
+  } else if(file.type==='text/csv'||file.name.endsWith('.csv')){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const rows=e.target.result.trim().split('\n').slice(0,20);
+      preview.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)">${rows.map((r,i)=>`<tr>${r.split(',').map(c=>`<${i===0?'th':'td'} style="padding:4px 8px;border:1px solid var(--border);color:${i===0?'var(--text2)':'var(--text3)'};background:${i===0?'var(--bg3)':'var(--bg)'}">${c.replace(/"/g,'')}</${i===0?'th':'td'}>`).join('')}</tr>`).join('')}</table></div>`;
+    };
+    reader.readAsText(file);
+  } else {
+    preview.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px;background:var(--bg3);border-radius:var(--r)">${file.name} uploaded — open in your file viewer to review.</div>`;
+  }
+}
+
+function showCloneTab(tab,el){
+  document.querySelectorAll('#page-clonetracker .nav-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('clone-sub-weekly').style.display=tab==='weekly'?'block':'none';
+  document.getElementById('clone-sub-mothers').style.display=tab==='mothers'?'block':'none';
+  if(tab==='mothers')renderMotherRotation();
+  if(tab==='weekly')renderCloneTracker();
+}
+
+function openModal(roomId,taskId,taskName){
+  pendingComplete={roomId,taskId,taskName};
+  document.getElementById('modal-title').textContent='Complete: '+taskName;
+  document.getElementById('modal-who').value='';
+  document.getElementById('modal-notes').value='';
+  document.getElementById('modal-pct').value='';
+  document.getElementById('modal-bg').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-bg').classList.remove('open');pendingComplete=null;}
+function confirmComplete(){
+  if(!pendingComplete) return;
+  const {roomId,taskId,taskName}=pendingComplete;
+  const who=document.getElementById('modal-who').value.trim()||'Unknown';
+  const notes=document.getElementById('modal-notes').value.trim();
+  const pct=document.getElementById('modal-pct').value;
+  if(!roomOverrides[roomId]) roomOverrides[roomId]={};
+  roomOverrides[roomId]['done_'+taskId]=true;
+  S('wg_overrides_'+dateToIso(TODAY),roomOverrides);
+  const entry={id:Date.now(),roomId,taskId,taskName,who,notes,pct,time:fmtTime(),status:'done'};
+  todayLog.push(entry);
+  S('wg_log_'+dateToIso(TODAY),todayLog);
+  closeModal();
+  renderAssignments();
+  renderRooms();
+  renderTodayLog();
+}
+function skipTask(roomId,taskId){
+  if(!roomOverrides[roomId]) roomOverrides[roomId]={};
+  roomOverrides[roomId]['skip_'+taskId]=true;
+  S('wg_overrides_'+dateToIso(TODAY),roomOverrides);
+  renderAssignments();
+  renderRooms();
+}
+
+// ══════════════════════════════════════════════
+// TODAY LOG
+// ══════════════════════════════════════════════
+function renderTodayLog(){
+  const list=document.getElementById('today-log-list');
+  const summary=document.getElementById('log-summary');
+  const done=todayLog.filter(e=>e.status==='done').length;
+  summary.innerHTML=`<span style="color:var(--green)">${done} completed</span><span style="color:var(--text3);margin-left:10px">${todayLog.length} total entries today</span>`;
+  if(!todayLog.length){list.innerHTML=`<div class="empty-state">No tasks logged yet today.</div>`;return;}
+  list.innerHTML=[...todayLog].reverse().map(e=>`
+    <div class="log-entry">
+      <div class="log-status" style="background:${e.status==='done'?'var(--green)':'var(--text3)'}"></div>
+      <div class="log-info">
+        <div class="log-title">${e.taskName}</div>
+        <div class="log-meta">${e.who} · ${rooms.find(r=>r.id===e.roomId)?.name||e.roomId}${e.pct?' · '+e.pct+'% canopy':''}</div>
+        ${e.notes?`<div class="log-note">"${e.notes}"</div>`:''}
+      </div>
+      <div class="log-time">${e.time}</div>
+    </div>`).join('');
+}
+function clearTodayLog(){todayLog=[];S('wg_log_'+dateToIso(TODAY),todayLog);renderTodayLog();}
+
+// ══════════════════════════════════════════════
+// ADDITIVE TABLE
+// ══════════════════════════════════════════════
+function renderAdditiveTable(){
+  const tbody=document.getElementById('additive-tbody');
+  tbody.innerHTML='';
+  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Dark period'};
+  for(let d=1;d<=CYCLE;d++){
+    const ad=ADDITIVES[d]||null;
+    const fd=rooms.map(r=>flowerDay(r)).find(fd=>fd===d);
+    const isToday=rooms.some(r=>flowerDay(r)===d);
+    const phaseKey=Object.keys(phases).filter(k=>+k<=d).pop();
+    const phase=phases[phaseKey]||'';
+    const tr=document.createElement('tr');
+    if(isToday) tr.className='today-row';
+    else if(ad?.tier2) tr.className='tier2-row';
+    if(d>=64&&d<=65) tr.style.opacity='0.5';
+    tr.innerHTML=`
+      <td style="font-family:var(--mono);font-weight:600">D${d}${isToday?` <span class="tag tag-green" style="font-size:9px">today</span>`:''}${d===CYCLE?` <span class="tag tag-red" style="font-size:9px">harvest</span>`:''}</td>
+      <td style="color:var(--text3);font-size:12px">${phase}</td>
+      <td>${ad?`<span class="add-pill ${ad.pill}">${ad.name}</span>`:`<span class="add-pill pill-base">Base feed only</span>`}</td>
+      <td style="font-family:var(--mono);font-size:12px">${ad?.dose||'—'}</td>
+      <td>${ad?.tier2?`<span class="tag tag-amber" style="font-size:9px">#flower-rooms</span>`:d<64?`<span class="tag tag-blue" style="font-size:9px">#daily-dispatch</span>`:''}</td>
+      <td style="font-size:11px;color:var(--text3)">${d===28?'<span style="color:var(--red)">Hard cutoff defol</span>':d>=64&&d<=65?'No entry':d===CYCLE?'Harvest day — notify #harvest':''}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ══════════════════════════════════════════════
+// ROOM CHECKS
+// ══════════════════════════════════════════════
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line=>{
+    const vals=[];let cur='';let inQ=false;
+    for(const ch of line){if(ch==='"'){inQ=!inQ}else if(ch===','&&!inQ){vals.push(cur.trim());cur='';}else cur+=ch;}
+    vals.push(cur.trim());
+    const row={};headers.forEach((h,i)=>row[h]=(vals[i]||'').replace(/^"|"$/g,''));
+    return row;
+  }).filter(r=>Object.values(r).some(v=>v));
+}
+function findCol(row,...candidates){for(const c of candidates){const k=Object.keys(row).find(k=>k.toLowerCase().includes(c.toLowerCase()));if(k&&row[k])return row[k];}return '';}
+function numOrNull(v){if(!v||v===''||v==='—')return null;const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?null:n;}
+
+async function loadChecks(){
+  const url=document.getElementById('csv-url').value.trim();
+  const note=document.getElementById('check-refresh-note');
+  note.textContent='Loading...';
+  try{
+    const resp=await fetch(url);
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const text=await resp.text();
+    const rows=parseCSV(text);
+    if(!rows.length){note.textContent='No data found';return;}
+    const latest={};
+    rows.forEach(row=>{
+      const rm=(findCol(row,'room','Room')||'').toUpperCase().replace(/\s/g,'');
+      if(!rm)return;
+      const dt=r=>new Date((findCol(r,'date','Date')||'')+'T'+(findCol(r,'time','Time')||''));
+      if(!latest[rm]||dt(row)>dt(latest[rm]))latest[rm]=row;
+    });
+    // auto-mark room_check done for any room that has a submission today
+    const todayIso=dateToIso(TODAY);
+    let autoMarked=0;
+    Object.entries(latest).forEach(([rk,row])=>{
+      const rowDate=(findCol(row,'date','Date')||'').trim();
+      // match date formats like 04/07/2026 or 2026-04-07
+      const rowDateNorm=rowDate.replace(/(\d{2})\/(\d{2})\/(\d{4})/,'$3-$1-$2');
+      if(rowDateNorm===todayIso){
+        const room=rooms.find(r=>r.name.toUpperCase().replace(/\s/g,'').includes(rk.replace('R','GROWROOM')));
+        const roomById=rooms.find(r=>'R'+r.id.replace('r','')===rk);
+        const matchedRoom=room||roomById;
+        if(matchedRoom){
+          if(!roomOverrides[matchedRoom.id]) roomOverrides[matchedRoom.id]={};
+          if(!roomOverrides[matchedRoom.id]['done_room_check']){
+            roomOverrides[matchedRoom.id]['done_room_check']=true;
+            todayLog.push({id:Date.now(),roomId:matchedRoom.id,taskId:'room_check',taskName:'Daily check — '+matchedRoom.name,who:'Auto (form submitted)',notes:'',pct:'',time:fmtTime(),status:'done'});
+            autoMarked++;
+          }
+        }
+      }
+    });
+    if(autoMarked>0){
+      S('wg_overrides_'+todayIso,roomOverrides);
+      S('wg_log_'+todayIso,todayLog);
+      renderAssignments();renderRooms();renderTodayLog();
+    }
+    renderChecks(latest);
+    note.textContent=`Refreshed ${fmtTime()} · ${rows.length} entries${autoMarked?' · '+autoMarked+' check(s) auto-marked done':''}`;
+    S('rc_csv_url',url);
+  }catch(e){
+    note.textContent='Could not load. Check URL.';
+    renderChecks({});
+  }
+}
+
+function renderChecks(latest){
+  const grid=document.getElementById('checks-grid');
+  grid.innerHTML='';
+  const ROOMS_LIST=['R1','R2','R3','R4','R5','R6','R7','R8','R9','R10','R11'];
+  ROOMS_LIST.forEach(rk=>{
+    const row=latest[rk];
+    const card=document.createElement('div');
+    if(!row){
+      card.className='check-card no-data';
+      card.innerHTML=`<div style="font-weight:700;font-size:13px;margin-bottom:4px">${rk}</div><div style="font-size:12px;color:var(--text3)">No check submitted yet</div>`;
+      grid.appendChild(card);return;
+    }
+    const rh=numOrNull(findCol(row,'humidity','rh'));
+    const temp=numOrNull(findCol(row,'room temp','temp'));
+    const leaf=numOrNull(findCol(row,'leaf','surface'));
+    const dew=numOrNull(findCol(row,'dew'));
+    const ppfd=numOrNull(findCol(row,'ppfd'));
+    const dateStr=findCol(row,'date');const timeStr=findCol(row,'time');
+    const flags=[];
+    if(rh!==null&&(rh<45||rh>65)) flags.push('RH out of range');
+    if(temp!==null&&(temp<72||temp>82)) flags.push('Temp out of range');
+    const cardCls=flags.length?'warn':'ok';
+    const envCells=[
+      {l:'RH',v:rh,u:'%'},
+      {l:'Temp',v:temp,u:'°F'},
+      {l:'Leaf',v:leaf,u:'°F'},
+      {l:'Dew',v:dew,u:'°F'},
+      {l:'PPFD',v:ppfd,u:'µmol'},
+    ];
+    // get table data
+    const tableData={};
+    Object.keys(row).forEach(k=>{
+      const m=k.match(/table\s*(\d+)/i);if(!m)return;
+      const tn=m[1];if(!tableData[tn])tableData[tn]={ec:[],ph:[],vol:[]};
+      if(k.toLowerCase().includes('ec')){const v=numOrNull(row[k]);if(v!==null)tableData[tn].ec.push(v);}
+      if(k.toLowerCase().includes('ph')){const v=numOrNull(row[k]);if(v!==null)tableData[tn].ph.push(v);}
+      if(k.toLowerCase().includes('vol')){const v=numOrNull(row[k]);if(v!==null)tableData[tn].vol.push(v);}
+    });
+    const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+    const tableNums=Object.keys(tableData).sort();
+    card.className=`check-card ${cardCls}`;
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div style="font-weight:700;font-size:13px">${rk}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">${dateStr} ${timeStr}</div>
+      </div>
+      <div class="env-grid">${envCells.map(e=>`<div class="env-cell"><div class="env-lbl">${e.l}</div><div class="env-num">${e.v!==null?e.v:'—'}</div><div class="env-unit">${e.u}</div></div>`).join('')}</div>
+      ${tableNums.length?`<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Runoff</div>
+      ${tableNums.map(tn=>{
+        const t=tableData[tn];
+        const aEC=avg(t.ec);const aPH=avg(t.ph);const aV=avg(t.vol);
+        const ecCls=aEC!==null&&aEC>4000?'alert':aEC!==null&&aEC>3000?'warn':'ok';
+        const phCls=aPH!==null&&(aPH<5.3||aPH>7.1)?'alert':aPH!==null&&(aPH<5.6||aPH>6.8)?'warn':'ok';
+        return`<div class="runoff-row"><span class="runoff-name">Table ${tn}</span>
+          <div class="runoff-cell"><div class="runoff-cell-label">EC</div><div class="runoff-cell-val" style="color:${ecCls==='alert'?'var(--red)':ecCls==='warn'?'var(--amber)':'var(--green)'}">${aEC!==null?Math.round(aEC)+'ppm':'—'}</div></div>
+          <div class="runoff-cell"><div class="runoff-cell-label">pH</div><div class="runoff-cell-val" style="color:${phCls==='alert'?'var(--red)':phCls==='warn'?'var(--amber)':'var(--green)'}">${aPH!==null?aPH.toFixed(1):'—'}</div></div>
+          <div class="runoff-cell"><div class="runoff-cell-label">Vol</div><div class="runoff-cell-val">${aV!==null?Math.round(aV)+'mL':'—'}</div></div>
+        </div>`;
+      }).join('')}`:''}
+      ${flags.map(f=>`<div style="font-size:11px;margin-top:4px;color:var(--amber)">⚠ ${f}</div>`).join('')}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════
+// SLACK
+// ══════════════════════════════════════════════
+function buildSlackMessage(role){
+  const date=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const lines=[];
+
+  if(role==='defoliator'){
+    lines.push(`*Westside Growers — Defoliation assignments*`);
+    lines.push(`_${date}_`);lines.push('');
+    rooms.forEach(room=>{
+      const tasks=getDefolTasksForRoom(room);
+      if(!tasks.length)return;
+      const fd=flowerDay(room);
+      lines.push(`*${room.name}* (${room.tier}) — Day ${fd}`);
+      tasks.forEach(dt=>{
+        if(dt.type==='delarf') lines.push(`  • Delarfing — remove larf, popcorn sites, zero-light bud sites only. Fan leaves stay.${dt.daysLeft!==undefined?' Window: '+dt.daysLeft+'d remaining':''}`);
+        else if(dt.type==='light') lines.push(`  • Light cleanup only — obvious blockers and dying material. ${dt.daysLeft}d remaining.`);
+        else if(dt.type==='closing') lines.push(`  • ⚠ Round 1 closing — ${dt.daysLeft} day${dt.daysLeft!==1?'s':''} left. Complete before Day 28.`);
+        else if(dt.type==='hardstop') lines.push(`  • 🔴 HARD CUTOFF — last day for canopy work. After today: Cultivation Director auth required.`);
+        else if(dt.type==='preharvest') lines.push(`  • Pre-harvest defol clean. Notify #harvest when complete.`);
+        else if(dt.type==='preflight') lines.push(`  • Pre-flip defoliation — complete before lights change. Flip in ${dt.daysToFlip}d.`);
+      });
+      lines.push('');
+    });
+    const noWork=rooms.filter(r=>!getDefolTasksForRoom(r).length).map(r=>r.name).join(', ');
+    if(noWork) lines.push(`_No active defol window: ${noWork}_`);
+    lines.push(`_Max 20–25% canopy per session. Split sessions if more needed (48hr between). Log completions in the dashboard._`);
+  }
+
+  if(role==='fertigator'){
+    lines.push(`*Westside Growers — Fertigation schedule*`);
+    lines.push(`_${date}_`);lines.push('');
+    const addRooms=rooms.filter(r=>{const fd=flowerDay(r);return fd!==null&&fd>=29&&fd<=56;});
+    if(!addRooms.length){lines.push('_No additive applications today. Base feed only across all rooms._');}
+    else{
+      addRooms.forEach(room=>{
+        const fd=flowerDay(room);
+        const ad=ADDITIVES[fd];
+        if(ad&&ad.tier2){
+          lines.push(`*${room.name}* — Day ${fd}`);
+          lines.push(`  • ${ad.name} · ${ad.dose}`);
+          lines.push('');
+        }
+      });
+    }
+    lines.push(`_Base: Athena ProLine Bloom. NO H₂O₂. EC per Rainbow v1.0._`);
+    lines.push(`_Missed application → notify lead immediately. Never double-dose._`);
+    lines.push(`_Weekend (Sat–Sun): Chef Devin owns all additives._`);
+  }
+
+  if(role==='ipm'){
+    lines.push(`*Westside Growers — IPM scouting*`);
+    lines.push(`_${date}_`);lines.push('');
+    const scoutRooms=rooms.filter(r=>{const fd=flowerDay(r);const s=getStage(r);return (s==='flower'||s==='late'||s==='veg')&&(fd===null||fd<=42);});
+    scoutRooms.forEach(room=>{
+      const fd=flowerDay(room);const vd=vegDay(room);
+      lines.push(`*${room.name}* — ${fd?'Day '+fd+' flower':'Veg day '+(vd||'?')}`);
+      lines.push(`  • Scout undersides, lower canopy, soil surface`);
+      if(fd!==null&&fd>35) lines.push(`  • ⚠ Approaching Day 42 — spray window closes at Day 42`);
+      lines.push('');
+    });
+    lines.push(`_Immediate flag required on any finding → #ipm before leaving the room._`);
+    lines.push(`_No spray after Day 42 without Pat authorization._`);
+  }
+
+  if(role==='cloner'){
+    lines.push(`*Westside Growers — Clone & veg schedule*`);
+    lines.push(`_${date}_`);lines.push('');
+    rooms.forEach(room=>{
+      const d=calcDates(room);
+      if(!d.cloneCutDate)return;
+      const daysOut=diffDays(TODAY,d.cloneCutDate);
+      if(daysOut>=0&&daysOut<=14){
+        const twoTrayRooms=['r1','r6','r9'];
+        const isTwoTray=twoTrayRooms.includes(room.id);
+        const strainCount=room.paired?3:isTwoTray?2:3;
+        const target=strainCount*150;
+        lines.push(`*${room.name}* — clone cut ${daysOut===0?'TODAY':daysOut===1?'TOMORROW':'in '+daysOut+'d'} (${fmtShort(d.cloneCutDate)})`);
+        lines.push(`  • ${target} clones · 3 strains · ~${Math.round(target/3)} per strain`);
+        lines.push(`  • Next launch: ${fmtShort(d.nextLaunch)}`);
+        lines.push('');
+      }
+    });
+    lines.push(`_Pipeline: 2wks rooting → 2wks veg → launch room. Cut = 4 weeks before launch._`);
+  }
+
+  if(role==='checker'){
+    lines.push(`*Westside Growers — Room checks due*`);
+    lines.push(`_${date}_`);lines.push('');
+    const checkRooms=rooms.filter(r=>{const s=getStage(r);return s==='flower'||s==='late'||s==='dark';});
+    checkRooms.forEach(room=>{
+      const fd=flowerDay(room);
+      lines.push(`*${room.name}* — Day ${fd}`);
+    });
+    lines.push('');
+    lines.push(`Form: https://devdavinki.github.io/flower-room-checks/`);
+    lines.push(`_Record: RH, room temp, leaf temp, dewpoint, PPFD + runoff EC/pH per table._`);
+  }
+
+  return lines.join('\n');
+}
+
+function renderSlackPanels(){
+  const wrap=document.getElementById('slack-panels');
+  wrap.innerHTML='';
+  const panels=[
+    {role:'defoliator',channel:'#daily-dispatch',key:'dispatch',label:'Defoliators',color:'green'},
+    {role:'fertigator',channel:'#flower-rooms',key:'flower',label:'Fertigators (Tier 2)',color:'amber'},
+    {role:'ipm',channel:'#ipm',key:'ipm',label:'IPM tech',color:'green'},
+    {role:'cloner',channel:'#veg-clone',key:'vegclone',label:'Cloners',color:'blue'},
+    {role:'checker',channel:'#flower-rooms',key:'checker',label:'Room checkers',color:'green'},
+  ];
+  panels.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='slack-panel';
+    div.innerHTML=`
+      <h3>${p.label} → <span style="font-family:var(--mono);color:var(--blue)">${p.channel}</span></h3>
+      <div class="webhook-row">
+        <label>Webhook URL</label>
+        <input id="wh-${p.key}" type="text" placeholder="https://hooks.slack.com/..." value="${webhooks[p.key]||''}" onchange="webhooks['${p.key}']=this.value;S('wg_webhooks',webhooks)"/>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="send-btn ${p.color}" onclick="togglePreview('prev-${p.key}','${p.role}')">Preview</button>
+        <button class="send-btn ${p.color}" onclick="sendSlack('${p.key}','${p.role}')">Send to ${p.channel}</button>
+        <span id="status-${p.key}" class="slack-status"></span>
+      </div>
+      <pre class="preview-box" id="prev-${p.key}"></pre>
+    `;
+    wrap.appendChild(div);
+  });
+}
+
+function togglePreview(id,role){
+  const el=document.getElementById(id);
+  if(el.style.display==='block'){el.style.display='none';return;}
+  el.textContent=buildSlackMessage(role);
+  el.style.display='block';
+}
+
+async function sendSlack(key,role){
+  const wh=document.getElementById('wh-'+key)?.value.trim()||webhooks[key];
+  const st=document.getElementById('status-'+key);
+  st.className='slack-status';
+  if(!wh||!wh.startsWith('https://hooks.slack.com/')){
+    st.textContent='Paste a valid Slack webhook URL';st.className='slack-status err';return;
+  }
+  const text=buildSlackMessage(role);
+  try{
+    const r=await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    if(r.ok){st.textContent='Sent ✓';st.className='slack-status ok';}
+    else{st.textContent='Slack error '+r.status;st.className='slack-status err';}
+  }catch(e){st.textContent='Could not reach Slack';st.className='slack-status err';}
+}
+
+// ══════════════════════════════════════════════
+// TEAM ROSTER & PERMISSIONS
+// ══════════════════════════════════════════════
+const ALL_PAGES=[
+  {key:'rooms',label:'Rooms'},
+  {key:'assignments',label:'My Tasks'},
+  {key:'clonetracker',label:'Clone Tracker'},
+  {key:'today-log',label:'Today\'s Log'},
+  {key:'additive',label:'Additive Schedule'},
+  {key:'checks',label:'Room Checks'},
+  {key:'slack',label:'Slack Dispatch'},
+  {key:'settings',label:'Settings'},
+];
+
+const ROLE_LABELS={
+  lead:'Lead / Pat',
+  defoliator:'Defoliator',
+  fertigator:'Fertigator',
+  cloner:'Cloner',
+  ipm:'IPM Tech',
+  checker:'Room Check',
+};
+
+const DEFAULT_TEAM=[
+  {id:'u1',name:'Pat',role:'lead',pin:''},
+  {id:'u2',name:'Devo',role:'lead',pin:''},
+  {id:'u3',name:'Chris',role:'fertigator',pin:''},
+  {id:'u4',name:'Chef Devin',role:'fertigator',pin:''},
+  {id:'u5',name:'Jordan',role:'lead',pin:''},
+  {id:'u6',name:'Tinhe',role:'ipm',pin:''},
+  {id:'u7',name:'Zech',role:'checker',pin:''},
+  {id:'u8',name:'Brett',role:'cloner',pin:''},
+];
+
+let team=L('wg_team',DEFAULT_TEAM);
+// rolePerms is the editable version — starts from ROLE_PERMISSIONS
+let rolePerms=L('wg_role_perms',null);
+if(!rolePerms){
+  rolePerms={};
+  Object.entries(ROLE_PERMISSIONS).forEach(([role,cfg])=>{
+    rolePerms[role]=cfg.pages.slice();
+  });
+  S('wg_role_perms',rolePerms);
+}
+
+function applyRolePerms(){
+  // merge rolePerms back into ROLE_PERMISSIONS.pages
+  Object.keys(rolePerms).forEach(role=>{
+    if(ROLE_PERMISSIONS[role]) ROLE_PERMISSIONS[role].pages=rolePerms[role].slice();
+  });
+}
+
+function addTeamMember(){
+  team.push({id:'u'+Date.now(),name:'',role:'defoliator',pin:''});
+  S('wg_team',team);
+  renderTeamRoster();
+}
+
+function removeTeamMember(id){
+  team=team.filter(m=>m.id!==id);
+  S('wg_team',team);
+  renderTeamRoster();
+}
+
+function renderTeamRoster(){
+  const grid=document.getElementById('team-roster-grid');
+  if(!grid) return;
+  grid.innerHTML='';
+  team.forEach((member,i)=>{
+    const cell=document.createElement('div');
+    cell.className='setting-cell';
+    cell.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${member.name||'New member'}</div>
+        <button onclick="removeTeamMember('${member.id}')" style="font-size:11px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
+      </div>
+      <label>Name</label>
+      <input value="${member.name||''}" placeholder="Full name" onchange="team[${i}].name=this.value;S('wg_team',team);renderTeamRoster()"/>
+      <label>Role</label>
+      <select onchange="team[${i}].role=this.value;S('wg_team',team);renderTeamRoster()">
+        ${Object.entries(ROLE_LABELS).map(([r,l])=>`<option value="${r}"${r===member.role?' selected':''}>${l}</option>`).join('')}
+      </select>
+      <label>PIN (optional — leave blank for no PIN)</label>
+      <input type="password" maxlength="6" value="${member.pin||''}" placeholder="e.g. 1234" onchange="team[${i}].pin=this.value;S('wg_team',team)" style="letter-spacing:.15em"/>
+    `;
+    grid.appendChild(cell);
+  });
+}
+
+function renderRolePermissions(){
+  const wrap=document.getElementById('role-permissions-grid');
+  if(!wrap) return;
+  const roles=Object.keys(ROLE_LABELS).filter(r=>r!=='lead');
+  const tableStyle='border-collapse:collapse;width:100%;font-size:12px;min-width:600px';
+  const thStyle='padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border2);white-space:nowrap';
+  const tdStyle='padding:8px 12px;border-bottom:1px solid var(--border);text-align:center';
+  const tdLabelStyle='padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);white-space:nowrap';
+
+  let html=`<table style="${tableStyle}"><thead><tr>
+    <th style="${thStyle}">Page</th>
+    ${roles.map(r=>`<th style="${thStyle}">${ROLE_LABELS[r]}</th>`).join('')}
+  </tr></thead><tbody>`;
+
+  ALL_PAGES.forEach(page=>{
+    const isLeadOnly=page.key==='slack'||page.key==='settings';
+    html+=`<tr>
+      <td style="${tdLabelStyle}">${page.label}${isLeadOnly?'<span style="font-size:10px;color:var(--text3);margin-left:6px">(Lead always)</span>':''}</td>
+      ${roles.map(role=>{
+        if(isLeadOnly) return `<td style="${tdStyle}"><span style="color:var(--border2)">—</span></td>`;
+        const checked=(rolePerms[role]||[]).includes(page.key);
+        return`<td style="${tdStyle}">
+          <label style="cursor:pointer;display:flex;align-items:center;justify-content:center">
+            <input type="checkbox" ${checked?'checked':''} onchange="toggleRolePerm('${role}','${page.key}',this.checked)"
+              style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
+          </label>
+        </td>`;
+      }).join('')}
+    </tr>`;
+  });
+
+  html+=`</tbody></table>`;
+  wrap.innerHTML=html;
+}
+
+function toggleRolePerm(role,page,enabled){
+  if(!rolePerms[role]) rolePerms[role]=[];
+  if(enabled){
+    if(!rolePerms[role].includes(page)) rolePerms[role].push(page);
+  } else {
+    rolePerms[role]=rolePerms[role].filter(p=>p!==page);
+  }
+  S('wg_role_perms',rolePerms);
+  applyRolePerms();
+  // re-apply nav visibility for current role
+  setRole(currentRole);
+}
+
+// ══════════════════════════════════════════════
+// LOGIN SYSTEM
+// ══════════════════════════════════════════════
+let pendingLoginMember=null;
+
+function showLoginModal(){
+  const modal=document.getElementById('login-modal-bg');
+  const list=document.getElementById('login-name-list');
+  modal.style.display='flex';
+  document.getElementById('login-pin-row').style.display='none';
+  document.getElementById('login-pin-error').style.display='none';
+  list.innerHTML=team.map(m=>`
+    <button onclick="selectLoginMember('${m.id}')" style="
+      width:100%;padding:10px 14px;border-radius:var(--r);
+      border:1px solid var(--border2);background:var(--bg3);
+      color:var(--text);font-family:var(--font);font-size:14px;
+      font-weight:600;cursor:pointer;text-align:left;
+      display:flex;justify-content:space-between;align-items:center;
+      transition:border-color .15s
+    " onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border2)'">
+      <span>${m.name}</span>
+      <span style="font-size:11px;font-weight:400;color:var(--text3)">${ROLE_LABELS[m.role]||m.role}</span>
+    </button>`).join('');
+}
+
+function selectLoginMember(id){
+  pendingLoginMember=team.find(m=>m.id===id);
+  if(!pendingLoginMember) return;
+  if(pendingLoginMember.pin){
+    document.getElementById('login-pin-row').style.display='block';
+    document.getElementById('login-pin-input').value='';
+    document.getElementById('login-pin-error').style.display='none';
+    setTimeout(()=>document.getElementById('login-pin-input').focus(),100);
+  } else {
+    // no PIN — log in directly
+    finishLogin(pendingLoginMember);
+  }
+}
+
+function confirmLogin(){
+  const entered=document.getElementById('login-pin-input').value;
+  if(!pendingLoginMember) return;
+  if(entered===pendingLoginMember.pin){
+    finishLogin(pendingLoginMember);
+  } else {
+    document.getElementById('login-pin-error').style.display='block';
+    document.getElementById('login-pin-input').value='';
+    document.getElementById('login-pin-input').focus();
+  }
+}
+
+function finishLogin(member){
+  document.getElementById('login-modal-bg').style.display='none';
+  setRole(member.role);
+  // update topbar to show name
+  document.getElementById('topbar-date').innerHTML=
+    TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+
+    ` <span style="margin-left:10px;color:var(--green);font-size:11px">${member.name}</span>`;
+  pendingLoginMember=null;
+}
+
+function skipLogin(){
+  document.getElementById('login-modal-bg').style.display='none';
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════
+function renderSettings(){
+  renderTeamRoster();
+  renderRolePermissions();
+
+  const grid=document.getElementById('settings-grid');
+  grid.innerHTML='';
+  rooms.forEach((room,i)=>{
+    const d=calcDates(room);
+    const cell=document.createElement('div');
+    cell.className='setting-cell';
+    cell.innerHTML=`
+      <div class="room-label">${room.name}
+        ${room.tall?'<span class="tag tag-blue" style="font-size:9px">tall</span>':''}
+        ${room.paired?'<span class="tag tag-teal" style="font-size:9px">paired</span>':''}
+      </div>
+      <label>Strain</label>
+      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <label>Launch date (plants in)</label>
+      <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <label>Flip date (day 1 of flower)</label>
+      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <label>Note</label>
+      <input value="${room.note||''}" placeholder="e.g. Harvested Fri" onchange="rooms[${i}].note=this.value;S('wg_rooms_v2',rooms)"/>
+      ${d.harvestDate?`<div class="calc-row">
+        <span class="calc-tag">Harvest: ${fmtShort(d.harvestDate)}</span>
+        <span class="calc-tag">Launch: ${fmtShort(d.nextLaunch)}</span>
+        <span class="calc-tag highlight">Clone cut: ${fmtShort(d.cloneCutDate)}</span>
+      </div>`:''}
+    `;
+    grid.appendChild(cell);
+  });
+
+  const whGrid=document.getElementById('webhook-settings');
+  whGrid.innerHTML='';
+  const whDefs=[
+    {key:'dispatch',label:'#daily-dispatch',desc:'Defoliators & general crew'},
+    {key:'flower',label:'#flower-rooms',desc:'Fertigators & room checks (Tier 2)'},
+    {key:'ipm',label:'#ipm',desc:'IPM tech'},
+    {key:'vegclone',label:'#veg-clone',desc:'Cloners'},
+  ];
+  whDefs.forEach(wh=>{
+    const cell=document.createElement('div');
+    cell.className='setting-cell';
+    cell.innerHTML=`
+      <div class="room-label" style="font-family:var(--mono);font-size:12px;color:var(--blue)">${wh.label}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${wh.desc}</div>
+      <label>Webhook URL</label>
+      <input value="${webhooks[wh.key]||''}" placeholder="https://hooks.slack.com/..." onchange="webhooks['${wh.key}']=this.value;S('wg_webhooks',webhooks)"/>
+    `;
+    whGrid.appendChild(cell);
+  });
+}
+
+
+// ══════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════
+function showPage(page){
+  // permission check
+  if(!canSee(currentRole,page)) return;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+page)?.classList.add('active');
+  document.querySelector(`.nav-tab[data-page="${page}"]`)?.classList.add('active');
+  if(page==='settings') renderSettings();
+  if(page==='additive') renderAdditiveTable();
+  if(page==='slack') renderSlackPanels();
+  if(page==='assignments') renderAssignments();
+  if(page==='today-log') renderTodayLog();
+  if(page==='checks') loadChecks();
+  if(page==='clonetracker') renderCloneTracker();
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+applyRolePerms();
+document.getElementById('topbar-date').textContent = TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+// add login button to topbar
+const loginBtn=document.createElement('button');
+loginBtn.className='role-btn';
+loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:6px';
+loginBtn.textContent='Sign in';
+loginBtn.onclick=showLoginModal;
+document.getElementById('role-select').prepend(loginBtn);
+setRole(currentRole);
+renderRooms();
+renderTodayLog();
+// show login modal on first load if team has members
+if(team.length) showLoginModal();
+// auto-refresh checks silently on load to catch today's submissions
+setTimeout(()=>loadChecks(),800);
+</script>
+</body>
+</html>
