@@ -429,10 +429,9 @@ button { cursor: pointer; }
         <div id="clone-totals" class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
         <hr class="divider">
         <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
           <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label><input id="ce-strain" type="text" placeholder="e.g. Kush Mintz 3" style="width:100%"/></div>
           <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Clones cut</label><input id="ce-count" type="number" min="1" placeholder="e.g. 50" style="width:100%"/></div>
-          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Who</label><input id="ce-who" type="text" placeholder="Name" style="width:100%"/></div>
           <button onclick="logCloneCut()" class="btn-primary" style="height:36px">Log cut</button>
         </div>
       </div>
@@ -505,6 +504,8 @@ button { cursor: pointer; }
   </div>
 
 
+  <!-- ══ PAGE: ASSIGNMENTS ══ -->
+  <div id="page-assignments" class="page">
     <div class="row mb12">
       <div class="section-title" id="assign-title">Today's assignments</div>
       <div style="flex:1"></div>
@@ -587,18 +588,6 @@ button { cursor: pointer; }
     <!-- ROOM CONFIG -->
     <div class="section-title mb12">Room configuration</div>
     <div class="settings-grid" id="settings-grid"></div>
-    <!-- GOOGLE SHEET URL -->
-    <div class="section-title" style="margin-top:20px;margin-bottom:10px">Google Sheet integration</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">
-      Paste your deployed Apps Script Web App URL below. All sheet writes (clone log, weight log, etc.) will POST to this endpoint.
-    </div>
-    <div class="webhook-row" style="margin-bottom:20px">
-      <label>Apps Script URL</label>
-      <input id="gs-url-input" type="text" style="flex:1;min-width:260px;font-size:12px" placeholder="https://script.google.com/macros/s/..." value="" onchange="saveGsUrl(this.value)"/>
-      <button onclick="testGsUrl()" class="send-btn" style="font-size:12px;padding:6px 12px">Test</button>
-      <span id="gs-url-status" style="font-size:11px;color:var(--text3)"></span>
-    </div>
-
     <div class="section-title" style="margin-top:20px;margin-bottom:10px">Slack webhooks</div>
     <div class="settings-grid" id="webhook-settings"></div>
   </div>
@@ -669,8 +658,8 @@ button { cursor: pointer; }
       <select id="tm-room">
         <option value="">— select room —</option>
       </select>
-      <label>Harvest date</label>
-      <input id="tm-date" type="date"/>
+      <label>Harvest date (MMDDYY)</label>
+      <input id="tm-date" type="text" placeholder="e.g. 040826" maxlength="6"/>
       <label>Priority</label>
       <select id="tm-priority">
         <option value="high">High — trim first</option>
@@ -690,8 +679,6 @@ button { cursor: pointer; }
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <h3 id="modal-title">Mark task complete</h3>
-    <label>Who completed this?</label>
-    <input id="modal-who" type="text" placeholder="Your name"/>
     <label>Notes (optional)</label>
     <textarea id="modal-notes" placeholder="Any flags, observations, or split session notes..."></textarea>
     <label>% canopy removed (defoliators only)</label>
@@ -771,9 +758,9 @@ const DEFOL_WINDOWS=[
 let todayLog = L('wg_log_'+dateToIso(TODAY), []);
 let roomOverrides = L('wg_overrides_'+dateToIso(TODAY), {});
 let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:''});
-let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbz7-pRO6encj5j8vP6KlqA6vsWhJIFDrcrnzSwPGfKNZAj42_gLhrP6x265wk6FANaP/exec');
 let currentRole = L('wg_role','lead');
 let pendingComplete = null;
+let loggedInMember = null;
 
 // ══════════════════════════════════════════════
 // COMPUTED
@@ -1170,10 +1157,13 @@ const WEEKLY_TARGET=450;
 function logCloneCut(){
   const strain=document.getElementById('ce-strain').value.trim();
   const count=parseInt(document.getElementById('ce-count').value)||0;
-  const who=document.getElementById('ce-who').value.trim()||'Unknown';
+  const who=loggedInMember?loggedInMember.name:'Unknown';
   if(!strain||!count)return;
-  cloneSessions.push({strain,count,who,time:fmtTime(),date:dateToIso(TODAY)});
+  const session={strain,count,who,time:fmtTime(),date:dateToIso(TODAY)};
+  cloneSessions.push(session);
   S(getWeekKey(),cloneSessions);
+  // post to sheet
+  postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count]);
   document.getElementById('ce-strain').value='';
   document.getElementById('ce-count').value='';
   renderCloneTracker();
@@ -1458,7 +1448,7 @@ function closeModal(){document.getElementById('modal-bg').classList.remove('open
 function confirmComplete(){
   if(!pendingComplete) return;
   const {roomId,taskId,taskName}=pendingComplete;
-  const who=document.getElementById('modal-who').value.trim()||'Unknown';
+  const who=loggedInMember?loggedInMember.name:'Unknown';
   const notes=document.getElementById('modal-notes').value.trim();
   const pct=document.getElementById('modal-pct').value;
   if(!roomOverrides[roomId]) roomOverrides[roomId]={};
@@ -1570,12 +1560,11 @@ async function loadChecks(){
     let autoMarked=0;
     Object.entries(latest).forEach(([rk,row])=>{
       const rowDate=(findCol(row,'date','Date')||'').trim();
-      // match date formats like 04/07/2026 or 2026-04-07
       const rowDateNorm=rowDate.replace(/(\d{2})\/(\d{2})\/(\d{4})/,'$3-$1-$2');
       if(rowDateNorm===todayIso){
-        const room=rooms.find(r=>r.name.toUpperCase().replace(/\s/g,'').includes(rk.replace('R','GROWROOM')));
-        const roomById=rooms.find(r=>'R'+r.id.replace('r','')===rk);
-        const matchedRoom=room||roomById;
+        // normalize rk: strip all non-digits to get room number, match against room id
+        const rkNum=rk.replace(/\D/g,'');
+        const matchedRoom=rooms.find(r=>r.id==='r'+rkNum||r.id===rkNum.toLowerCase());
         if(matchedRoom){
           if(!roomOverrides[matchedRoom.id]) roomOverrides[matchedRoom.id]={};
           if(!roomOverrides[matchedRoom.id]['done_room_check']){
@@ -1870,26 +1859,42 @@ const ROLE_LABELS={
 };
 
 const DEFAULT_TEAM=[
-  {id:'u1',name:'Pat',role:'lead',agtId:''},
-  {id:'u2',name:'Devo',role:'lead',agtId:''},
-  {id:'u3',name:'Chris',role:'fertigator',agtId:''},
-  {id:'u4',name:'Chef Devin',role:'fertigator',agtId:''},
-  {id:'u5',name:'Jordan',role:'lead',agtId:''},
-  {id:'u6',name:'Tinhe',role:'ipm',agtId:''},
-  {id:'u7',name:'Zech',role:'checker',agtId:''},
-  {id:'u8',name:'Brett',role:'cloner',agtId:''},
-  {id:'u9',name:'Todd',role:'postprod',agtId:''},
-  {id:'u10',name:'Leanne',role:'postprod',agtId:''},
-  {id:'u11',name:'Randy',role:'postprod',agtId:''},
-  {id:'u12',name:'Roman',role:'postprod',agtId:''},
-  {id:'u13',name:'Aaron',role:'postprod',agtId:''},
-  {id:'u14',name:'Mary Ann',role:'lead',agtId:''},
-  {id:'u15',name:'Jesse',role:'lead',agtId:''},
-  {id:'u16',name:'Zac',role:'lead',agtId:''},
-  {id:'u17',name:'Joel',role:'lead',agtId:''},
+  {id:'u1',name:'Pat',role:'lead',agtId:'001586'},
+  {id:'u2',name:'Devon',role:'lead',agtId:'005963'},
+  {id:'u3',name:'Jordan',role:'lead',agtId:'012319'},
+  {id:'u4',name:'Zach',role:'lead',agtId:'027925'},
+  {id:'u5',name:'Joel',role:'lead',agtId:'027675'},
+  {id:'u6',name:'Jesse',role:'lead',agtId:'023062'},
+  {id:'u7',name:'Hy',role:'ipm',agtId:'027420'},
+  {id:'u8',name:'Leanne',role:'postprod',agtId:'017936'},
+  {id:'u9',name:'Todd',role:'postprod',agtId:'012240'},
+  {id:'u10',name:'Roman',role:'postprod',agtId:'024997'},
+  {id:'u11',name:'Chris',role:'fertigator',agtId:'025421'},
+  {id:'u12',name:'Devin',role:'fertigator',agtId:'025639'},
+  {id:'u13',name:'Randy',role:'postprod',agtId:'013277'},
+  {id:'u14',name:'Aaron',role:'postprod',agtId:'002110'},
+  {id:'u15',name:'Brett',role:'cloner',agtId:'008236'},
+  {id:'u16',name:'Zec',role:'checker',agtId:'024905'},
 ];
 
-let team=L('wg_team',DEFAULT_TEAM);
+let team=L('wg_team',null);
+// Migration: if team is null or doesn't have AGT IDs set, reset to DEFAULT_TEAM
+if(!team||team.length===0||team.every(m=>!m.agtId)){
+  team=DEFAULT_TEAM.slice();
+  S('wg_team',team);
+} else {
+  // merge in any new members from DEFAULT_TEAM not already present by name
+  DEFAULT_TEAM.forEach(dt=>{
+    if(!team.find(m=>m.name===dt.name)){
+      team.push(dt);
+    } else {
+      // update agtId if blank
+      const existing=team.find(m=>m.name===dt.name);
+      if(existing&&!existing.agtId) existing.agtId=dt.agtId;
+    }
+  });
+  S('wg_team',team);
+}
 // rolePerms is the editable version — starts from ROLE_PERMISSIONS
 let rolePerms=L('wg_role_perms',null);
 if(!rolePerms){
@@ -2043,13 +2048,42 @@ function confirmLogin(){
 }
 
 function finishLogin(member){
+  loggedInMember=member;
   document.getElementById('login-modal-bg').style.display='none';
   setRole(member.role);
-  // update topbar to show name
-  document.getElementById('topbar-date').innerHTML=
-    TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+
-    ` <span style="margin-left:10px;color:var(--green);font-size:11px">${member.name}</span>`;
+  // hide all role buttons, show logged-in identity row
+  const roleSelect=document.getElementById('role-select');
+  roleSelect.innerHTML=`
+    <span style="font-size:12px;font-weight:600;color:var(--text);margin-right:4px">${member.name}</span>
+    <span style="font-size:11px;color:var(--text3);margin-right:10px">${ROLE_LABELS[member.role]||member.role}</span>
+    <button onclick="switchUser()" class="role-btn" style="border-color:var(--teal);color:var(--teal)">Switch user</button>
+  `;
+  document.getElementById('topbar-date').textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   pendingLoginMember=null;
+}
+
+function switchUser(){
+  loggedInMember=null;
+  // restore full role switcher
+  const roleSelect=document.getElementById('role-select');
+  roleSelect.innerHTML=`
+    <button class="role-btn" onclick="setRole('lead')" data-role="lead">Lead / Pat</button>
+    <button class="role-btn" onclick="setRole('defoliator')" data-role="defoliator">Defoliator</button>
+    <button class="role-btn" onclick="setRole('fertigator')" data-role="fertigator">Fertigator</button>
+    <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
+    <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
+    <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
+    <button class="role-btn" onclick="setRole('postprod')" data-role="postprod">Post Prod</button>
+  `;
+  // re-prepend sign in button
+  const loginBtn=document.createElement('button');
+  loginBtn.className='role-btn';
+  loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:6px';
+  loginBtn.textContent='Sign in';
+  loginBtn.onclick=showLoginModal;
+  roleSelect.prepend(loginBtn);
+  setRole(currentRole);
+  showLoginModal();
 }
 
 function skipLogin(){
@@ -2063,9 +2097,6 @@ function renderSettings(){
   renderTeamRoster();
   renderRolePermissions();
 
-  // Pre-fill Apps Script URL
-  const gsInput = document.getElementById('gs-url-input');
-  if(gsInput) gsInput.value = gsUrl || '';
   const grid=document.getElementById('settings-grid');
   grid.innerHTML='';
   rooms.forEach((room,i)=>{
@@ -2128,7 +2159,12 @@ function openAddTrimItem(editId){
   document.getElementById('tm-strain').value='';
   document.getElementById('tm-notes').value='';
   document.getElementById('tm-priority').value='normal';
-  document.getElementById('tm-date').value=dateToIso(TODAY);
+  // default to today in MMDDYY format
+  const n=new Date();
+  const mm=String(n.getMonth()+1).padStart(2,'0');
+  const dd=String(n.getDate()).padStart(2,'0');
+  const yy=String(n.getFullYear()).slice(-2);
+  document.getElementById('tm-date').value=mm+dd+yy;
   const sel=document.getElementById('tm-room');
   sel.innerHTML='<option value="">— select room —</option>';
   rooms.forEach(r=>{sel.appendChild(Object.assign(document.createElement('option'),{value:r.id,textContent:r.name}));});
@@ -2270,28 +2306,53 @@ function renderWeightCards(){
   wrap.innerHTML='';
   trimQueue.forEach(item=>{
     const w=trimWeights[item.id]||{};
+    const status=w.status||'entry'; // entry | pending | approved
+    const enteredBy=w.enteredBy||'';
+    const approvedBy=w.approvedBy||'';
     const card=document.createElement('div');
     card.className='card';
-    card.style.borderLeft='3px solid var(--purple)';
+    card.style.borderLeft=`3px solid ${status==='approved'?'var(--green)':status==='pending'?'var(--amber)':'var(--purple)'}`;
+
+    const statusBadge=status==='approved'
+      ?`<span class="tag tag-green">Approved ✓</span>`
+      :status==='pending'
+      ?`<span class="tag tag-amber">Pending verification</span>`
+      :`<span class="tag tag-gray">Entry</span>`;
+
+    const fieldsDisabled=status==='approved'?'disabled':status==='pending'?'disabled':'';
+
     card.innerHTML=`
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">${item.strain}</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${rooms.find(r=>r.id===item.roomId)?.name||''} · ${item.harvestDate?fmtShort(isoToDate(item.harvestDate)):''}</div>
-      <div style="display:grid;gap:8px">
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Big buds (g)</label>
-          <input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Small buds (g)</label>
-          <input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Trim + sugar leaf (g)</label>
-          <input type="number" min="0" step="0.1" value="${w.trim||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','trim',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label>
-          <input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro total cannabinoids %</label>
-          <input type="number" min="0" max="50" step="0.1" value="${w.purplTotal||''}" placeholder="e.g. 32.1" style="width:100%" onchange="saveWeight('${item.id}','purplTotal',this.value)"/></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''} · ${item.harvestDate||''}</div>
+        </div>
+        ${statusBadge}
       </div>
-      ${(w.bigBuds||w.smallBuds||w.trim)?`<div style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px;color:var(--text2)">
-        Total: <strong style="color:var(--text)">${(+(w.bigBuds||0)+ +(w.smallBuds||0)+ +(w.trim||0)).toFixed(1)}g</strong>
-        ${w.purplTHC?`<span style="margin-left:12px">THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong></span>`:''}
+      <div style="display:grid;gap:8px">
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Bigs total (g)</label>
+          <input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" ${fieldsDisabled} onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls + trim total (g)</label>
+          <input type="number" min="0" step="0.1" value="${w.smallsAndTrim||''}" placeholder="0.0" style="width:100%" ${fieldsDisabled} onchange="saveWeight('${item.id}','smallsAndTrim',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls only (g) — pre-roll stock</label>
+          <input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" ${fieldsDisabled} onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Moisture %</label>
+          <input type="number" min="0" max="100" step="0.1" value="${w.moisture||''}" placeholder="e.g. 11.2" style="width:100%" ${fieldsDisabled} onchange="saveWeight('${item.id}','moisture',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label>
+          <input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" ${fieldsDisabled} onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
+      </div>
+      ${(w.bigBuds||w.smallBuds)?`<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px;color:var(--text2)">
+        Bigs: <strong>${w.bigBuds||0}g</strong> · Smalls+trim: <strong>${w.smallsAndTrim||0}g</strong>
+        ${w.purplTHC?` · THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong>`:''}
       </div>`:''}
+      ${enteredBy?`<div style="font-size:11px;color:var(--text3);margin-top:6px">Entered by: ${enteredBy}</div>`:''}
+      ${approvedBy?`<div style="font-size:11px;color:var(--green);margin-top:2px">Approved by: ${approvedBy}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${status==='entry'?`<button onclick="submitWeightForVerification('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">Submit for verification</button>`:''}
+        ${status==='pending'&&loggedInMember&&loggedInMember.name!==enteredBy?`<button onclick="approveWeight('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green-dim);background:none;color:var(--green);cursor:pointer">Approve ✓</button>`:''}
+        ${status==='pending'&&loggedInMember&&loggedInMember.name===enteredBy?`<span style="font-size:11px;color:var(--text3);padding:5px 0">Waiting for a different employee to approve</span>`:''}
+        ${status==='pending'?`<button onclick="rejectWeight('${item.id}')" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit weights</button>`:''}
+      </div>
     `;
     wrap.appendChild(card);
   });
@@ -2301,8 +2362,54 @@ function saveWeight(itemId,field,value){
   if(!trimWeights[itemId]) trimWeights[itemId]={};
   trimWeights[itemId][field]=value?parseFloat(value):null;
   S('wg_trim_weights',trimWeights);
-  // re-render queue card weights inline
   renderTrimQueue();
+}
+
+function submitWeightForVerification(itemId){
+  if(!loggedInMember){alert('Sign in first to submit weights.');return;}
+  if(!trimWeights[itemId]){alert('Enter weights before submitting.');return;}
+  const w=trimWeights[itemId];
+  if(!w.bigBuds&&!w.smallsAndTrim){alert('Enter at least big bud and smalls+trim weights before submitting.');return;}
+  trimWeights[itemId].status='pending';
+  trimWeights[itemId].enteredBy=loggedInMember.name;
+  trimWeights[itemId].approvedBy='';
+  S('wg_trim_weights',trimWeights);
+  renderWeightCards();
+}
+
+function approveWeight(itemId){
+  if(!loggedInMember){alert('Sign in first to approve.');return;}
+  const w=trimWeights[itemId]||{};
+  if(loggedInMember.name===w.enteredBy){alert('A different employee must approve — you entered these weights.');return;}
+  trimWeights[itemId].status='approved';
+  trimWeights[itemId].approvedBy=loggedInMember.name;
+  S('wg_trim_weights',trimWeights);
+  // post to Weight_Log sheet
+  const item=trimQueue.find(i=>i.id===itemId);
+  if(item){
+    postToSheet('Weight_Log',[
+      item.strain, item.harvestDate||'',
+      w.bigBuds||'', w.smallsAndTrim||'', w.smallBuds||'',
+      w.moisture||'', w.purplTHC||'',
+      w.enteredBy, loggedInMember.name,
+      new Date().toISOString()
+    ]);
+  }
+  // fire Slack to #post-production if webhook set
+  const wh=webhooks['postprod'];
+  if(wh&&wh.startsWith('https://hooks.slack.com/')){
+    const msg=`*Weight log approved* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
+    fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
+  }
+  renderWeightCards();
+}
+
+function rejectWeight(itemId){
+  trimWeights[itemId].status='entry';
+  trimWeights[itemId].enteredBy='';
+  trimWeights[itemId].approvedBy='';
+  S('wg_trim_weights',trimWeights);
+  renderWeightCards();
 }
 
 function renderPrerollPriority(){
@@ -2376,45 +2483,6 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='postprod') renderTrimQueue();
-}
-
-// ══════════════════════════════════════════════
-// GOOGLE SHEET POST HELPERS
-// ══════════════════════════════════════════════
-function saveGsUrl(val){
-  gsUrl = val.trim();
-  S('wg_gs_url', gsUrl);
-  const st = document.getElementById('gs-url-status');
-  if(st) st.textContent = 'Saved';
-}
-
-async function testGsUrl(){
-  const st = document.getElementById('gs-url-status');
-  const url = document.getElementById('gs-url-input')?.value.trim() || gsUrl;
-  if(!url){ if(st) st.textContent='No URL set'; return; }
-  if(st){ st.textContent='Testing…'; st.style.color='var(--text3)'; }
-  try{
-    await fetch(url, {method:'POST', mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({sheet:'_ping', timestamp: new Date().toISOString(), row:['ping']})
-    });
-    if(st){ st.textContent='✓ Reachable'; st.style.color='var(--green)'; }
-  } catch(e){
-    if(st){ st.textContent='✗ Error: '+e.message; st.style.color='var(--red)'; }
-  }
-}
-
-async function postToSheet(sheetName, rowData){
-  if(!gsUrl) return;
-  try{
-    await fetch(gsUrl, {
-      method:'POST', mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({sheet: sheetName, timestamp: new Date().toISOString(), row: rowData})
-    });
-  } catch(e){
-    console.warn('Sheet POST failed:', e);
-  }
 }
 
 // ══════════════════════════════════════════════
