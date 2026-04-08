@@ -587,6 +587,18 @@ button { cursor: pointer; }
     <!-- ROOM CONFIG -->
     <div class="section-title mb12">Room configuration</div>
     <div class="settings-grid" id="settings-grid"></div>
+    <!-- GOOGLE SHEET URL -->
+    <div class="section-title" style="margin-top:20px;margin-bottom:10px">Google Sheet integration</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">
+      Paste your deployed Apps Script Web App URL below. All sheet writes (clone log, weight log, etc.) will POST to this endpoint.
+    </div>
+    <div class="webhook-row" style="margin-bottom:20px">
+      <label>Apps Script URL</label>
+      <input id="gs-url-input" type="text" style="flex:1;min-width:260px;font-size:12px" placeholder="https://script.google.com/macros/s/..." value="" onchange="saveGsUrl(this.value)"/>
+      <button onclick="testGsUrl()" class="send-btn" style="font-size:12px;padding:6px 12px">Test</button>
+      <span id="gs-url-status" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+
     <div class="section-title" style="margin-top:20px;margin-bottom:10px">Slack webhooks</div>
     <div class="settings-grid" id="webhook-settings"></div>
   </div>
@@ -759,6 +771,7 @@ const DEFOL_WINDOWS=[
 let todayLog = L('wg_log_'+dateToIso(TODAY), []);
 let roomOverrides = L('wg_overrides_'+dateToIso(TODAY), {});
 let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:''});
+let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbz7-pRO6encj5j8vP6KlqA6vsWhJIFDrcrnzSwPGfKNZAj42_gLhrP6x265wk6FANaP/exec');
 let currentRole = L('wg_role','lead');
 let pendingComplete = null;
 
@@ -2050,6 +2063,9 @@ function renderSettings(){
   renderTeamRoster();
   renderRolePermissions();
 
+  // Pre-fill Apps Script URL
+  const gsInput = document.getElementById('gs-url-input');
+  if(gsInput) gsInput.value = gsUrl || '';
   const grid=document.getElementById('settings-grid');
   grid.innerHTML='';
   rooms.forEach((room,i)=>{
@@ -2360,6 +2376,45 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='postprod') renderTrimQueue();
+}
+
+// ══════════════════════════════════════════════
+// GOOGLE SHEET POST HELPERS
+// ══════════════════════════════════════════════
+function saveGsUrl(val){
+  gsUrl = val.trim();
+  S('wg_gs_url', gsUrl);
+  const st = document.getElementById('gs-url-status');
+  if(st) st.textContent = 'Saved';
+}
+
+async function testGsUrl(){
+  const st = document.getElementById('gs-url-status');
+  const url = document.getElementById('gs-url-input')?.value.trim() || gsUrl;
+  if(!url){ if(st) st.textContent='No URL set'; return; }
+  if(st){ st.textContent='Testing…'; st.style.color='var(--text3)'; }
+  try{
+    await fetch(url, {method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({sheet:'_ping', timestamp: new Date().toISOString(), row:['ping']})
+    });
+    if(st){ st.textContent='✓ Reachable'; st.style.color='var(--green)'; }
+  } catch(e){
+    if(st){ st.textContent='✗ Error: '+e.message; st.style.color='var(--red)'; }
+  }
+}
+
+async function postToSheet(sheetName, rowData){
+  if(!gsUrl) return;
+  try{
+    await fetch(gsUrl, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({sheet: sheetName, timestamp: new Date().toISOString(), row: rowData})
+    });
+  } catch(e){
+    console.warn('Sheet POST failed:', e);
+  }
 }
 
 // ══════════════════════════════════════════════
