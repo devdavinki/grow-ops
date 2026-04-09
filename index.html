@@ -446,14 +446,19 @@ button { cursor: pointer; }
         <div id="clone-totals" class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
         <hr class="divider">
         <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;flex-wrap:wrap">
           <div style="position:relative">
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label>
-            <input id="ce-strain" type="text" placeholder="e.g. Kush Mintz 3" style="width:100%" oninput="showStrainAutocomplete(this.value)" autocomplete="off"/>
+            <input id="ce-strain" type="text" placeholder="Type to search mothers…" style="width:100%" oninput="showStrainAutocomplete(this.value)" autocomplete="off"/>
             <div id="strain-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto"></div>
           </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Mother tag (last 4)</label>
+            <input id="ce-mother-tag" type="text" maxlength="4" placeholder="e.g. 2184" style="width:100%;letter-spacing:.1em;font-family:var(--mono)" oninput="onMotherTagInput(this.value)"/>
+            <div id="ce-mother-hint" style="font-size:10px;color:var(--text3);margin-top:2px;min-height:14px"></div>
+          </div>
           <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Clones cut</label><input id="ce-count" type="number" min="1" placeholder="e.g. 50" style="width:100%"/></div>
-          <button onclick="logCloneCut()" class="btn-primary" style="height:36px">Log cut</button>
+          <button onclick="logCloneCut()" class="btn-primary" style="height:36px;align-self:flex-start;margin-top:19px">Log cut</button>
         </div>
       </div>
       <div class="section-title mb12">Strain breakdown this week</div>
@@ -611,6 +616,18 @@ button { cursor: pointer; }
     <!-- ROOM CONFIG -->
     <div class="section-title mb12">Room configuration</div>
     <div class="settings-grid" id="settings-grid"></div>
+    <!-- CHORES EDITOR -->
+    <div class="section-title" style="margin-top:28px;margin-bottom:10px">Facility chores</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Edit, add, or remove facility chores. Changes affect all roles immediately.</div>
+    <div id="chores-editor-grid" style="display:grid;gap:6px;margin-bottom:10px"></div>
+    <button onclick="addCustomChore()" class="btn-primary" style="font-size:12px;padding:6px 14px;margin-bottom:24px">+ Add chore</button>
+
+    <!-- CUSTOM TASKS EDITOR -->
+    <div class="section-title" style="margin-top:4px;margin-bottom:10px">Custom task rules</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Add standing tasks that appear every day for specific roles. These show in My Tasks alongside room-based tasks.</div>
+    <div id="custom-tasks-editor" style="display:grid;gap:6px;margin-bottom:10px"></div>
+    <button onclick="addCustomTask()" class="btn-primary" style="font-size:12px;padding:6px 14px;margin-bottom:24px">+ Add standing task</button>
+
     <!-- GOOGLE SHEET URL -->
     <div class="section-title" style="margin-top:20px;margin-bottom:10px">Google Sheet integration</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">Apps Script Web App URL for all sheet writes.</div>
@@ -730,14 +747,23 @@ button { cursor: pointer; }
       <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
     </div>
     <div class="card mb16" style="border-left:4px solid var(--blue)">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Upload daily METRC exports</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export from mo.metrc.com → Plants tab. Accepts .xlsx or .csv. Data stays in your browser.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
-        <div class="metrc-upload-cell" id="mup-mother"><div class="metrc-upload-label">Mother Plants</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('mother',this)"/><div class="metrc-upload-status" id="mup-mother-status"></div></div>
-        <div class="metrc-upload-cell" id="mup-immature"><div class="metrc-upload-label">Immature / Clones</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('immature',this)"/><div class="metrc-upload-status" id="mup-immature-status"></div></div>
-        <div class="metrc-upload-cell" id="mup-vegetative"><div class="metrc-upload-label">Vegetative</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('vegetative',this)"/><div class="metrc-upload-status" id="mup-vegetative-status"></div></div>
-        <div class="metrc-upload-cell" id="mup-flowering"><div class="metrc-upload-label">Flowering</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('flowering',this)"/><div class="metrc-upload-status" id="mup-flowering-status"></div></div>
-        <div class="metrc-upload-cell" id="mup-harvests"><div class="metrc-upload-label">Harvests</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('harvests',this)"/><div class="metrc-upload-status" id="mup-harvests-status"></div></div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Upload daily METRC exports</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export from mo.metrc.com → Plants tab. <strong style="color:var(--text)">Select all 5 files at once</strong> — the dashboard detects each type automatically by filename.</div>
+      <!-- BULK UPLOAD -->
+      <div style="margin-bottom:12px">
+        <label style="display:inline-block;padding:8px 16px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
+          📁 Select all METRC files
+          <input type="file" accept=".xlsx,.csv" multiple style="display:none" onchange="handleBulkMetrcUpload(this)"/>
+        </label>
+        <span id="bulk-upload-status" style="margin-left:10px;font-size:12px;color:var(--text3)"></span>
+      </div>
+      <!-- STATUS CELLS -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px">
+        <div class="metrc-upload-cell" id="mup-mother"><div class="metrc-upload-label">Mother Plants</div><div class="metrc-upload-status" id="mup-mother-status">Not loaded</div></div>
+        <div class="metrc-upload-cell" id="mup-immature"><div class="metrc-upload-label">Immature / Clones</div><div class="metrc-upload-status" id="mup-immature-status">Not loaded</div></div>
+        <div class="metrc-upload-cell" id="mup-vegetative"><div class="metrc-upload-label">Vegetative</div><div class="metrc-upload-status" id="mup-vegetative-status">Not loaded</div></div>
+        <div class="metrc-upload-cell" id="mup-flowering"><div class="metrc-upload-label">Flowering</div><div class="metrc-upload-status" id="mup-flowering-status">Not loaded</div></div>
+        <div class="metrc-upload-cell" id="mup-harvests"><div class="metrc-upload-label">Harvests</div><div class="metrc-upload-status" id="mup-harvests-status">Not loaded</div></div>
       </div>
     </div>
     <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)">
@@ -1217,6 +1243,15 @@ function buildAssignments(role){
       }
     }
 
+    // Custom standing tasks for this role
+    customTasks.forEach(ct=>{
+      if(ct.role!==role&&role!=='lead') return;
+      if(role==='lead'&&ct.role!==role) return; // leads only see their own custom tasks
+      const ctId='ct_'+ct.id;
+      if(rov['done_'+ctId]||rov['skip_'+ctId]) return;
+      tasks.push({id:ctId,name:ct.name,desc:ct.desc||'',sub:'Standing task · '+ROLE_LABELS[ct.role]});
+    });
+
     if(!tasks.length) return;
 
     let stageLine=stage==='flower'?`Flower day ${fd} / ${CYCLE}`:stage==='veg'?`Veg day ${vd}`:stage==='late'?`Late flower day ${fd}`:stage;
@@ -1253,16 +1288,37 @@ const WEEKLY_TARGET=450;
 
 function logCloneCut(){
   const strain=document.getElementById('ce-strain').value.trim();
+  const motherTag=document.getElementById('ce-mother-tag')?.value.trim()||'';
   const count=parseInt(document.getElementById('ce-count').value)||0;
   const who=loggedInMember?loggedInMember.name:'Unknown';
   if(!strain||!count)return;
-  cloneSessions.push({strain,count,who,time:fmtTime(),date:dateToIso(TODAY)});
+  // Validate mother tag against METRC data if available
+  let motherLabel='';
+  if(motherTag&&metrcData.mother.length){
+    const match=metrcData.mother.find(r=>(r['Tag']||'').endsWith(motherTag));
+    if(match){
+      motherLabel=match['Tag']||'';
+      // Verify strain matches
+      if(match['Strain']&&match['Strain'].toLowerCase()!==strain.toLowerCase()){
+        const hint=document.getElementById('ce-mother-hint');
+        if(hint) hint.style.color='var(--amber)';
+        if(hint) hint.textContent='⚠ Tag is '+match['Strain']+' not '+strain;
+      }
+    } else {
+      const hint=document.getElementById('ce-mother-hint');
+      if(hint){hint.textContent='Tag not found in mothers';hint.style.color='var(--amber)';}
+    }
+  }
+  cloneSessions.push({strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)});
   S(getWeekKey(),cloneSessions);
-  postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count]);
+  postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
   document.getElementById('ce-strain').value='';
+  if(document.getElementById('ce-mother-tag')) document.getElementById('ce-mother-tag').value='';
   document.getElementById('ce-count').value='';
   const box=document.getElementById('strain-autocomplete');
   if(box) box.style.display='none';
+  const hint=document.getElementById('ce-mother-hint');
+  if(hint) hint.textContent='';
   renderCloneTracker();
 }
 
@@ -1336,7 +1392,7 @@ function renderCloneTracker(){
       <div class="log-entry">
         <div class="log-status" style="background:var(--green)"></div>
         <div class="log-info">
-          <div class="log-title">${s.count} clones — ${s.strain}</div>
+          <div class="log-title">${s.count} clones — ${s.strain}${s.motherTag?` <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:6px">mother …${s.motherTag}</span>`:''}</div>
           <div class="log-meta">${s.who} · ${s.date}</div>
         </div>
         <div class="log-time">${s.time}</div>
@@ -2185,6 +2241,9 @@ function renderSettings(){
   const gsInput=document.getElementById('gs-url-input');
   if(gsInput) gsInput.value=gsUrl||'';
 
+  renderChoresEditor();
+  renderCustomTasksEditor();
+
   const grid=document.getElementById('settings-grid');
   grid.innerHTML='';
   rooms.forEach((room,i)=>{
@@ -2326,6 +2385,29 @@ function moveTrimItem(id,dir){
   renderTrimQueue();
 }
 
+
+function updateTrimItemPriority(id, priority) {
+  trimQueue = L('wg_trim_queue', []);
+  const item = trimQueue.find(q => q.id === id);
+  if (item) {
+    item.priority = priority;
+    // Sync to metrcHarvestPriority if fromMetrc
+    if (item.harvestBatch) {
+      metrcHarvestPriority[item.harvestBatch] = priority;
+      S(METRC_KEYS.harvestPriority, metrcHarvestPriority);
+    }
+    // Re-sort: priority first, then date
+    const priOrder = {high:0,normal:1,low:2};
+    trimQueue.sort((a,b)=>{
+      const pa=priOrder[a.priority||'normal'];
+      const pb=priOrder[b.priority||'normal'];
+      if(pa!==pb) return pa-pb;
+      return new Date(a.harvestDate||0)-new Date(b.harvestDate||0);
+    });
+    S('wg_trim_queue', trimQueue);
+  }
+  renderTrimQueue();
+}
 function renderTrimQueue(){
   trimQueue=L('wg_trim_queue',[]);
   const list=document.getElementById('trim-queue-list');
@@ -2353,7 +2435,7 @@ function renderTrimQueue(){
             <span style="font-size:16px;font-weight:700;color:var(--text3);font-family:var(--mono);min-width:28px">${idx+1}</span>
             <div>
               <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-              <div style="font-size:11px;color:var(--text3)">${room?room.name:''}${item.harvestDate?' · Harvested '+fmtShort(isoToDate(item.harvestDate)):''}</div>
+              <div style="font-size:11px;color:var(--text3)">${item.harvestBatch||item.strain}${item.harvestDate?' · '+item.harvestDate:''}</div>
             </div>
           </div>
         </div>
@@ -2372,7 +2454,12 @@ function renderTrimQueue(){
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
         ${item.status==='pending'?`<button onclick="markTrimInProgress('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">Start trimming</button>`:''}
         ${item.status==='trimming'?`<button onclick="markTrimDone('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:none;color:var(--green);cursor:pointer">Mark complete</button>`:''}
-        <button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>
+        ${currentRole==='lead'?`<select onchange="updateTrimItemPriority('${item.id}',this.value)" style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+          <option value="high"${item.priority==='high'?' selected':''}>Trim first</option>
+          <option value="normal"${item.priority==='normal'?' selected':''}>Normal</option>
+          <option value="low"${item.priority==='low'?' selected':''}>Low priority</option>
+        </select>`:''}
+        ${!item.fromMetrc?`<button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>`:``}
         ${idx>0?`<button onclick="moveTrimItem('${item.id}',-1)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↑</button>`:''}
         ${idx<trimQueue.length-1?`<button onclick="moveTrimItem('${item.id}',1)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↓</button>`:''}
         <button onclick="removeTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
@@ -2402,7 +2489,7 @@ function renderWeightCards(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div>
           <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''} · ${item.harvestDate||''}</div>
+          <div style="font-size:11px;color:var(--text3)">${item.harvestBatch||item.strain} · ${item.harvestDate||''}</div>
         </div>${statusBadge}
       </div>
       <div style="display:grid;gap:8px">
@@ -2749,8 +2836,86 @@ async function handleMetrcUpload(type,input){
     statusEl.textContent='✓ '+rows.length+' rows';
     cellEl.classList.add('loaded');
     updateMetrcSyncLabel();
+    // Auto-sync harvests → trim queue
+    if(type==='harvests') syncHarvestsToTrimQueue(rows);
     renderCurrentMetrcTab();
   }catch(err){statusEl.textContent='✗ '+err.message;console.error(err);}
+}
+
+
+async function handleBulkMetrcUpload(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const statusEl = document.getElementById('bulk-upload-status');
+  statusEl.textContent = 'Reading ' + files.length + ' file(s)…';
+
+  // Detect file type from filename
+  function detectType(name) {
+    const n = name.toLowerCase();
+    if (n.includes('mother')) return 'mother';
+    if (n.includes('planting') || n.includes('immature') || n.includes('clone')) return 'immature';
+    if (n.includes('vegetative') || n.includes('veg')) return 'vegetative';
+    if (n.includes('flower')) return 'flowering';
+    if (n.includes('harvest')) return 'harvests';
+    return null;
+  }
+
+  let loaded = 0;
+  for (const file of files) {
+    const type = detectType(file.name);
+    if (!type) {
+      console.warn('Could not detect type for:', file.name);
+      continue;
+    }
+    const fakeInput = { files: [file] };
+    await handleMetrcUpload(type, fakeInput);
+    loaded++;
+  }
+
+  statusEl.textContent = loaded + '/' + files.length + ' files loaded ✓';
+  if (loaded < files.length) {
+    statusEl.textContent += ' (' + (files.length - loaded) + ' unrecognized — rename to include Mother/Planting/Veg/Flower/Harvest)';
+  }
+  renderCurrentMetrcTab();
+}
+function syncHarvestsToTrimQueue(rows){
+  if(!rows||!rows.length) return;
+  trimQueue = L('wg_trim_queue',[]);
+  let added = 0;
+  rows.forEach(r=>{
+    const batch = r['Harvest Batch']||'';
+    const strain = r['Strain']||'';
+    const date = r['Date']||'';
+    if(!batch||!strain) return;
+    // Don't duplicate — match by harvest batch name
+    if(trimQueue.find(q=>q.harvestBatch===batch)) return;
+    // Parse date for sort key — METRC format is YYYY-MM-DD or ISO
+    const sortDate = date.split('T')[0]||date;
+    const item = {
+      id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
+      strain,
+      harvestBatch: batch,
+      harvestDate: sortDate,
+      roomId: '',
+      priority: metrcHarvestPriority[batch]||'normal',
+      notes: '',
+      status: 'pending',
+      addedDate: dateToIso(TODAY),
+      fromMetrc: true,
+    };
+    trimQueue.push(item);
+    added++;
+  });
+  // Sort: by lead priority first, then by date ascending (oldest first)
+  const priOrder={high:0,normal:1,low:2};
+  trimQueue.sort((a,b)=>{
+    const pa=priOrder[a.priority||'normal'];
+    const pb=priOrder[b.priority||'normal'];
+    if(pa!==pb) return pa-pb;
+    return new Date(a.harvestDate||0)-new Date(b.harvestDate||0);
+  });
+  S('wg_trim_queue',trimQueue);
+  if(added>0) console.log('Synced '+added+' harvests to trim queue');
 }
 
 function updateMetrcSyncLabel(){
@@ -2941,6 +3106,10 @@ function renderMetrcHarvests(){
 
 function setHarvestPriority(batch,priority){
   metrcHarvestPriority[batch]=priority; S(METRC_KEYS.harvestPriority,metrcHarvestPriority);
+  // Also update trim queue item priority
+  trimQueue=L('wg_trim_queue',[]);
+  const qi=trimQueue.find(q=>q.harvestBatch===batch||q.strain===batch);
+  if(qi){qi.priority=priority;S('wg_trim_queue',trimQueue);}
   renderMetrcHarvests();
 }
 
@@ -2961,6 +3130,24 @@ function getMetrcStrainSuggestions(query){
   }).sort((a,b)=>b.mothers-a.mothers);
 }
 
+
+function onMotherTagInput(val) {
+  const hint = document.getElementById('ce-mother-hint');
+  if (!hint) return;
+  if (!val || val.length < 4) { hint.textContent = ''; return; }
+  const match = metrcData.mother.find(r => (r['Tag']||'').endsWith(val));
+  if (match) {
+    const loc = (r['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
+    hint.style.color = 'var(--green)';
+    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'');
+    // Auto-fill strain if empty
+    const strainInput = document.getElementById('ce-strain');
+    if (strainInput && !strainInput.value) strainInput.value = match['Strain']||'';
+  } else {
+    hint.style.color = 'var(--text3)';
+    hint.textContent = val.length === 4 ? 'Tag not found' : '';
+  }
+}
 function showStrainAutocomplete(val){
   const box=document.getElementById('strain-autocomplete');
   if(!box)return;
@@ -2983,6 +3170,136 @@ document.addEventListener('click',e=>{
     const box=document.getElementById('strain-autocomplete');if(box)box.style.display='none';
   }
 });
+
+
+// ══════════════════════════════════════════════
+// CHORES EDITOR
+// ══════════════════════════════════════════════
+let customChores = L('wg_custom_chores', null);
+// If null, seed from DEFAULT_CHORES
+if (!customChores) {
+  customChores = CHORES.map(c => ({...c}));
+  S('wg_custom_chores', customChores);
+}
+
+function getActiveChores() {
+  return L('wg_custom_chores', CHORES.map(c=>({...c})));
+}
+
+// Override renderChores to use editable chores
+function renderChores() {
+  const wrap = document.getElementById('chores-section');
+  if (!wrap) return;
+  const chores = getActiveChores();
+  const daily = chores.filter(c => c.freq === 'daily');
+  const weekly = chores.filter(c => c.freq === 'weekly');
+  const monthly = chores.filter(c => c.freq === 'monthly');
+
+  function choreRow(ch) {
+    const log = getChoreLog(ch.id, ch.freq);
+    const done = !!log;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${done?'var(--green)':'var(--amber)'}"></div>
+      <div style="flex:1">
+        <span style="color:${done?'var(--text3)':'var(--text)'}${done?';text-decoration:line-through':''}">${ch.name}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:8px">${ch.cat}</span>
+        ${done?`<span style="font-size:10px;color:var(--text3);margin-left:6px">✓ ${log.who} ${log.time}</span>`:''}
+      </div>
+      ${!done?`<button onclick="markChoreDone('${ch.id}','${ch.freq}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Done</button>`:''}
+    </div>`;
+  }
+
+  function section(title, items) {
+    const doneCount = items.filter(ch => !!getChoreLog(ch.id, ch.freq)).length;
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 12px;background:var(--bg3);border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;border:1px solid var(--border)">
+        <span>${title}</span><span style="color:${doneCount===items.length?'var(--green)':'var(--text3)'}">${doneCount}/${items.length}</span>
+      </div>
+      <div class="card" style="padding:0;border-radius:0 0 var(--r) var(--r)">${items.map(choreRow).join('')}</div>
+    </div>`;
+  }
+
+  wrap.innerHTML = section('Daily', daily) + section('Weekly', weekly) + section('Monthly', monthly);
+}
+
+function renderChoresEditor() {
+  const grid = document.getElementById('chores-editor-grid');
+  if (!grid) return;
+  const chores = getActiveChores();
+  grid.innerHTML = chores.map((ch, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)">
+      <input value="${ch.name}" style="flex:2;font-size:12px;padding:4px 8px" onchange="updateChore(${i},'name',this.value)"/>
+      <input value="${ch.cat}" style="flex:1;font-size:12px;padding:4px 8px" placeholder="Category" onchange="updateChore(${i},'cat',this.value)"/>
+      <select style="font-size:12px;padding:4px 6px" onchange="updateChore(${i},'freq',this.value)">
+        <option value="daily"${ch.freq==='daily'?' selected':''}>Daily</option>
+        <option value="weekly"${ch.freq==='weekly'?' selected':''}>Weekly</option>
+        <option value="monthly"${ch.freq==='monthly'?' selected':''}>Monthly</option>
+      </select>
+      <button onclick="removeChore(${i})" style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer;flex-shrink:0">✕</button>
+    </div>`).join('');
+}
+
+function updateChore(i, field, val) {
+  customChores = getActiveChores();
+  customChores[i][field] = val;
+  S('wg_custom_chores', customChores);
+  renderChores();
+}
+
+function removeChore(i) {
+  customChores = getActiveChores();
+  customChores.splice(i, 1);
+  S('wg_custom_chores', customChores);
+  renderChoresEditor();
+  renderChores();
+}
+
+function addCustomChore() {
+  customChores = getActiveChores();
+  customChores.push({ id: 'ch_'+Date.now(), name: 'New chore', freq: 'daily', cat: 'Facility' });
+  S('wg_custom_chores', customChores);
+  renderChoresEditor();
+}
+
+// ══════════════════════════════════════════════
+// CUSTOM STANDING TASKS EDITOR
+// ══════════════════════════════════════════════
+let customTasks = L('wg_custom_tasks', []);
+
+function renderCustomTasksEditor() {
+  const wrap = document.getElementById('custom-tasks-editor');
+  if (!wrap) return;
+  if (!customTasks.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No custom tasks yet. Add tasks that should appear every day for a role.</div>';
+    return;
+  }
+  wrap.innerHTML = customTasks.map((t, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);flex-wrap:wrap">
+      <input value="${t.name}" placeholder="Task name" style="flex:2;min-width:160px;font-size:12px;padding:4px 8px" onchange="updateCustomTask(${i},'name',this.value)"/>
+      <input value="${t.desc||''}" placeholder="Description (optional)" style="flex:3;min-width:200px;font-size:12px;padding:4px 8px" onchange="updateCustomTask(${i},'desc',this.value)"/>
+      <select style="font-size:12px;padding:4px 6px" onchange="updateCustomTask(${i},'role',this.value)">
+        ${Object.entries(ROLE_LABELS).map(([r,l])=>`<option value="${r}"${r===t.role?' selected':''}>${l}</option>`).join('')}
+      </select>
+      <button onclick="removeCustomTask(${i})" style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer;flex-shrink:0">✕</button>
+    </div>`).join('');
+}
+
+function updateCustomTask(i, field, val) {
+  customTasks[i][field] = val;
+  S('wg_custom_tasks', customTasks);
+}
+
+function removeCustomTask(i) {
+  customTasks.splice(i, 1);
+  S('wg_custom_tasks', customTasks);
+  renderCustomTasksEditor();
+}
+
+function addCustomTask() {
+  customTasks.push({ id: 'ct_'+Date.now(), name: 'New task', desc: '', role: 'lead' });
+  S('wg_custom_tasks', customTasks);
+  renderCustomTasksEditor();
+}
 
 // ══════════════════════════════════════════════
 // INIT
