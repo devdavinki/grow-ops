@@ -813,7 +813,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '2.2'; // bumped - resets permissions, team, chores // Bump this to force permission/team reset on next load
+const APP_VERSION = '2.3'; // bumped - forces full localStorage reset on load
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -2060,10 +2060,12 @@ const DEFAULT_TEAM=[
 // ── VERSION CHECK: runs first, clears stale localStorage before anything initializes
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
-  localStorage.removeItem('wg_role_perms');
-  localStorage.removeItem('wg_team');
-  localStorage.removeItem('wg_custom_chores');
-  localStorage.removeItem('wg_custom_tasks');
+  // Preserve room config and settings, wipe everything else
+  const _keepKeys = ['wg_rooms_v2','wg_webhooks','wg_gs_url'];
+  const _keepData = {};
+  _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
+  localStorage.clear();
+  Object.entries(_keepData).forEach(([k,v])=>localStorage.setItem(k,v));
   S('wg_app_version', APP_VERSION);
 }
 
@@ -2099,6 +2101,7 @@ if(!rolePerms || !rolePerms.lead ||
 }
 
 function applyRolePerms(){
+  if(!rolePerms) return;
   // merge rolePerms back into ROLE_PERMISSIONS.pages
   Object.keys(rolePerms).forEach(role=>{
     if(ROLE_PERMISSIONS[role]) ROLE_PERMISSIONS[role].pages=rolePerms[role].slice();
@@ -3439,7 +3442,7 @@ renderTodayLog();
 renderChores();
 updateMetrcSyncLabel();
 // Blur content until logged in
-if(team.length){
+if(team && team.length){
   document.body.classList.add('pre-login');
   showLoginModal();
 }
