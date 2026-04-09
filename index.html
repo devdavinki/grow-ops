@@ -820,7 +820,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '2.4'; // bumped - forces trim queue re-sync oldest-first
+const APP_VERSION = '2.5'; // bumped - batch date parsing for correct oldest-first sort
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -2991,19 +2991,38 @@ async function handleBulkMetrcUpload(input) {
   }
   renderCurrentMetrcTab();
 }
+function parseBatchDate(batch){
+  // METRC batch names start with MMDDYY e.g. "033126 Apple Fritter R8"
+  const m=batch.match(/^(\d{2})(\d{2})(\d{2})\s/);
+  if(m){
+    const mm=parseInt(m[1]),dd=parseInt(m[2]),yy=parseInt(m[3]);
+    const year=yy<50?2000+yy:1900+yy;
+    return new Date(year,mm-1,dd);
+  }
+  return null;
+}
+
 function syncHarvestsToTrimQueue(rows){
   if(!rows||!rows.length) return;
   trimQueue = L('wg_trim_queue',[]);
   let added = 0;
   rows.forEach(r=>{
-    const batch = r['Harvest Batch']||r['Name']||'';
-    const plants = parseInt(r['Plants']||r['Plant Count']||0)||0;
-    const date = (r['Date']||r['Harvest Date']||'').split('T')[0];
+    const batch = r['Harvest Batch']||r['Name']||r['Batch']||'';
+    // Try every possible plant count field name METRC might use
+    const plants = parseInt(
+      r['Plants']||r['Plant Count']||r['PlantCount']||
+      r['# Plants']||r['Number of Plants']||r['Count']||0
+    )||0;
+    // Try date field, fall back to parsing batch name prefix
+    const rawDate = (r['Date']||r['Harvest Date']||r['HarvestDate']||'').split('T')[0];
+    const batchDate = parseBatchDate(batch);
+    const dateFromBatch = batchDate ? dateToIso(batchDate) : '';
+    const date = rawDate || dateFromBatch;
     if(!batch) return;
     if(trimQueue.find(q=>q.harvestBatch===batch)) return;
     const item = {
       id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
-      strain: batch,          // use harvest name as the display label
+      strain: batch,
       harvestBatch: batch,
       harvestDate: date,
       plantCount: plants,
@@ -3017,16 +3036,19 @@ function syncHarvestsToTrimQueue(rows){
     trimQueue.push(item);
     added++;
   });
-  // Sort: lead priority first, then oldest harvest date first
+  // Sort: priority first, then OLDEST first (ascending date)
   const priOrder={high:0,normal:1,low:2};
   trimQueue.sort((a,b)=>{
     const pa=priOrder[a.priority||'normal'];
     const pb=priOrder[b.priority||'normal'];
     if(pa!==pb) return pa-pb;
-    return new Date(a.harvestDate||0)-new Date(b.harvestDate||0);
+    // Parse dates — use batch name date as most reliable
+    const da=parseBatchDate(a.harvestBatch||a.strain)||new Date(a.harvestDate||0);
+    const db=parseBatchDate(b.harvestBatch||b.strain)||new Date(b.harvestDate||0);
+    return da-db; // ascending = oldest first
   });
   S('wg_trim_queue',trimQueue);
-  if(added>0) console.log('Synced '+added+' harvests to trim queue');
+  console.log('Synced '+added+' harvests. First item:', trimQueue[0]?.strain, trimQueue[0]?.harvestDate);
 }
 
 function updateMetrcSyncLabel(){
@@ -3242,40 +3264,44 @@ function renderMetrcHarvests(){
   const rows=metrcData.harvests;
   if(!rows.length){list.innerHTML='<div class="empty-state">Upload the Harvests export.</div>';return;}
   const isLead=currentRole==='lead';
-  const priOrder={high:0,normal:1,low:2};
-  // Use trim queue order if available, otherwise sort oldest first
+  // Use trim queue order if already set, otherwise sort oldest-first by batch date
   trimQueue=L('wg_trim_queue',[]);
   let sorted;
   if(trimQueue.length){
-    // Match harvest rows to trim queue order
     const queueOrder={};
     trimQueue.forEach((q,i)=>{ queueOrder[q.harvestBatch||q.strain]=i; });
     sorted=[...rows].sort((a,b)=>{
-      const batch_a=a['Harvest Batch']||a['Name']||'';
-      const batch_b=b['Harvest Batch']||b['Name']||'';
-      const ia=queueOrder[batch_a]!==undefined?queueOrder[batch_a]:9999;
-      const ib=queueOrder[batch_b]!==undefined?queueOrder[batch_b]:9999;
+      const ba=a['Harvest Batch']||a['Name']||a['Batch']||'';
+      const bb=b['Harvest Batch']||b['Name']||b['Batch']||'';
+      const ia=queueOrder[ba]!==undefined?queueOrder[ba]:9999;
+      const ib=queueOrder[bb]!==undefined?queueOrder[bb]:9999;
       if(ia!==ib) return ia-ib;
-      return new Date(a['Date']||0)-new Date(b['Date']||0);
+      const da=parseBatchDate(ba)||new Date(0);
+      const db=parseBatchDate(bb)||new Date(0);
+      return da-db;
     });
   } else {
     sorted=[...rows].sort((a,b)=>{
-      const pa=metrcHarvestPriority[a['Harvest Batch']]||'normal';
-      const pb=metrcHarvestPriority[b['Harvest Batch']]||'normal';
-      if(pa!==pb)return(priOrder[pa]||1)-(priOrder[pb]||1);
-      return new Date(a['Date']||0)-new Date(b['Date']||0);
+      const ba=a['Harvest Batch']||a['Name']||a['Batch']||'';
+      const bb=b['Harvest Batch']||b['Name']||b['Batch']||'';
+      const da=parseBatchDate(ba)||new Date(a['Date']||0);
+      const db=parseBatchDate(bb)||new Date(b['Date']||0);
+      return da-db; // oldest first
     });
   }
   const priColors={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
   const priLabels={high:'Trim first',normal:'Normal',low:'Low priority'};
   list.innerHTML=sorted.map((r,idx)=>{
-    const batch=r['Harvest Batch']||r['Name']||'—';
-    const plants=parseInt(r['Plants']||r['Plant Count']||0)||0;
-    const date=r['Date']||r['Harvest Date']||'';
+    const batch=r['Harvest Batch']||r['Name']||r['Batch']||'—';
+    const plants=parseInt(r['Plants']||r['Plant Count']||r['PlantCount']||r['# Plants']||r['Number of Plants']||r['Count']||0)||0;
+    // Get date from batch name prefix (most reliable) or Date field
+    const batchDate=parseBatchDate(batch);
+    const rawDate=(r['Date']||r['Harvest Date']||r['HarvestDate']||'').split('T')[0];
+    const displayDate=batchDate
+      ? batchDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : rawDate ? new Date(rawDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     const pri=metrcHarvestPriority[batch]||'normal';
     const bc=priColors[pri];
-    const dateObj=date?new Date(date):null;
-    const dateStr=dateObj&&!isNaN(dateObj)?dateObj.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):date;
     return`<div class="card" style="border-left:4px solid ${bc};margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px">
         ${isLead?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
@@ -3287,7 +3313,7 @@ function renderMetrcHarvests(){
           <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">${batch}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">
             ${plants?`<span style="font-size:11px;padding:1px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);font-family:var(--mono);color:var(--green)">${plants} plants</span>`:''}
-            ${dateStr?`<span style="font-size:11px;color:var(--text3)">${dateStr}</span>`:''}
+            ${displayDate?`<span style="font-size:11px;color:var(--text3)">${displayDate}</span>`:''}
             <span style="font-size:11px;font-weight:600;color:${bc}">${priLabels[pri]}</span>
           </div>
         </div>
