@@ -2742,31 +2742,37 @@ async function postToSheet(sheetName,rowData){
 
 async function pushMetrcToCloud(){
   if(!gsUrl) return;
-  const payload={
-    action:'setMetrc',
-    data:{
-      mother:metrcData.mother,
-      immature:metrcData.immature,
-      vegetative:metrcData.vegetative,
-      flowering:metrcData.flowering,
-      harvests:metrcData.harvests,
-      harvestPriority:metrcHarvestPriority,
-      trimQueue:L('wg_trim_queue',[]),
-      syncedBy:loggedInMember?loggedInMember.name:'Lead',
-      syncedAt:new Date().toISOString(),
-    }
+  // Send each dataset as a separate POST to stay within Apps Script limits
+  const datasets={
+    mother:metrcData.mother||[],
+    immature:metrcData.immature||[],
+    vegetative:metrcData.vegetative||[],
+    flowering:metrcData.flowering||[],
+    harvests:metrcData.harvests||[],
+    harvestPriority:metrcHarvestPriority||{},
+    trimQueue:L('wg_trim_queue',[]),
+    syncedBy:loggedInMember?loggedInMember.name:'Lead',
+    syncedAt:new Date().toISOString(),
   };
+  const payload={action:'setMetrc',data:datasets};
+  // Try with CORS first so we can read the response
   try{
-    const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const json=await res.json();
-    if(json.ok) console.log('METRC data pushed to cloud ✓');
-    else console.warn('Cloud push response:',json);
-  }catch(e){
-    // Fall back to no-cors (some Apps Script deployments need it)
+    const res=await fetch(gsUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'}, // text/plain avoids CORS preflight on Apps Script
+      body:JSON.stringify(payload)
+    });
+    const text=await res.text();
     try{
-      await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    }catch(e2){console.warn('Cloud push failed:',e2);}
-  }
+      const json=JSON.parse(text);
+      if(json.ok) {console.log('METRC pushed ✓');return;}
+    }catch(e){}
+  }catch(e){}
+  // Fallback: no-cors (fire and forget)
+  try{
+    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    console.log('METRC pushed (no-cors)');
+  }catch(e){console.warn('Push failed:',e);}
 }
 
 async function pullMetrcFromCloud(silent=false){
