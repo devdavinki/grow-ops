@@ -1130,7 +1130,31 @@ function renderRooms(){
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
       </div>
-      ${tlHTML}${progHTML}${phaseHTML}${nudgeHTML}${taskHTML}
+      ${tlHTML}${progHTML}${phaseHTML}${nudgeHTML}
+      ${(()=>{
+        // METRC strain breakdown for this room
+        const metrcRoomName=room.name.replace('Room ','Grow Room ');
+        const flowerRows=(metrcData&&metrcData.flowering)||[];
+        const roomPlants=flowerRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+        if(!roomPlants.length) return '';
+        const byStrain={};
+        roomPlants.forEach(r=>{const s=r['Strain']||'Unknown';byStrain[s]=(byStrain[s]||0)+1;});
+        const total=roomPlants.length;
+        const strainPills=Object.entries(byStrain).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
+          const isUnknown=s==='Unknown';
+          return`<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:11px;color:${isUnknown?'var(--text3)':'var(--text)'};font-style:${isUnknown?'italic':'normal'}">${s}</span>
+            <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--green)">${n}</span>
+          </div>`;
+        }).join('');
+        return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
+            <span>METRC Plants</span><span style="font-family:var(--mono);color:var(--green)">${total} total</span>
+          </div>
+          ${strainPills}
+        </div>`;
+      })()}
+      ${taskHTML}
       ${room.note?`<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${room.note}</div>`:''}
     `;
     grid.appendChild(card);
@@ -2940,19 +2964,17 @@ function syncHarvestsToTrimQueue(rows){
   trimQueue = L('wg_trim_queue',[]);
   let added = 0;
   rows.forEach(r=>{
-    const batch = r['Harvest Batch']||'';
-    const strain = r['Strain']||'';
-    const date = r['Date']||'';
-    if(!batch||!strain) return;
-    // Don't duplicate — match by harvest batch name
+    const batch = r['Harvest Batch']||r['Name']||'';
+    const plants = parseInt(r['Plants']||r['Plant Count']||0)||0;
+    const date = (r['Date']||r['Harvest Date']||'').split('T')[0];
+    if(!batch) return;
     if(trimQueue.find(q=>q.harvestBatch===batch)) return;
-    // Parse date for sort key — METRC format is YYYY-MM-DD or ISO
-    const sortDate = date.split('T')[0]||date;
     const item = {
       id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
-      strain,
+      strain: batch,          // use harvest name as the display label
       harvestBatch: batch,
-      harvestDate: sortDate,
+      harvestDate: date,
+      plantCount: plants,
       roomId: '',
       priority: metrcHarvestPriority[batch]||'normal',
       notes: '',
@@ -2963,7 +2985,7 @@ function syncHarvestsToTrimQueue(rows){
     trimQueue.push(item);
     added++;
   });
-  // Sort: by lead priority first, then by date ascending (oldest first)
+  // Sort: lead priority first, then oldest harvest date first
   const priOrder={high:0,normal:1,low:2};
   trimQueue.sort((a,b)=>{
     const pa=priOrder[a.priority||'normal'];
@@ -3037,19 +3059,29 @@ function renderMetrcVegetative(){
   if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative export.</div>';return;}
   const byStrain={};
   rows.forEach(r=>{
-    const s=r['Strain']||'—';
+    const s=r['Strain']||'Unknown';
     const loc=r['Location']||'Unknown';
     if(!byStrain[s])byStrain[s]={count:0,locations:{}};
     byStrain[s].count++;
     byStrain[s].locations[loc]=(byStrain[s].locations[loc]||0)+1;
   });
-  const strains=Object.keys(byStrain).sort();
-  grid.innerHTML=strains.map(strain=>{
+  const total=rows.length;
+  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].count-byStrain[a].count);
+  // Summary bar
+  const summary=`<div style="grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r2);margin-bottom:4px">
+    <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">${total}</div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text)">Vegetative plants total</div>
+      <div style="font-size:11px;color:var(--text3)">${strains.length} strain${strains.length!==1?'s':''}</div>
+    </div>
+  </div>`;
+  grid.innerHTML=summary+strains.map(strain=>{
     const d=byStrain[strain];
-    const locParts=Object.entries(d.locations).map(([loc,n])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc} (${n})</span>`).join('');
-    return`<div class="card" style="border-left:3px solid var(--blue)">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:6px">${d.count}</div>
+    const isUnknown=strain==='Unknown';
+    const locParts=Object.entries(d.locations).sort((a,b)=>b[1]-a[1]).map(([loc,n])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc} · ${n}</span>`).join('');
+    return`<div class="card" style="border-left:3px solid ${isUnknown?'var(--text3)':'var(--blue)'}">
+      <div style="font-size:13px;font-weight:700;color:${isUnknown?'var(--text3)':'var(--text)'};margin-bottom:4px">${strain}</div>
+      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${isUnknown?'var(--text3)':'var(--blue)'};margin-bottom:6px">${d.count}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px">${locParts}</div>
     </div>`;
   }).join('');
@@ -3129,10 +3161,23 @@ function renderMetrcFlowering(){
   const rows=metrcData.flowering;
   if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Flowering export.</div>';return;}
   const byRoom={};
-  rows.forEach(r=>{const loc=r['Location']||'Unknown';const strain=r['Strain']||'—';if(!byRoom[loc])byRoom[loc]={};byRoom[loc][strain]=(byRoom[loc][strain]||0)+1;});
+  rows.forEach(r=>{
+    const loc=r['Location']||'Unknown';
+    const strain=r['Strain']||'Unknown';
+    if(!byRoom[loc])byRoom[loc]={};
+    byRoom[loc][strain]=(byRoom[loc][strain]||0)+1;
+  });
   const roomOrder=['Grow Room 1','Grow Room 2','Grow Room 3','Grow Room 4','Grow Room 5','Grow Room 6','Grow Room 7','Grow Room 8','Grow Room 9','Grow Room 10','Grow Room 11'];
   const sortedRooms=[...roomOrder.filter(r=>byRoom[r]),...Object.keys(byRoom).filter(r=>!roomOrder.includes(r)).sort()];
-  grid.innerHTML=sortedRooms.map(room=>{
+  const grandTotal=rows.length;
+  const summary=`<div style="grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r2);margin-bottom:4px">
+    <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">${grandTotal}</div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text)">Flowering plants total</div>
+      <div style="font-size:11px;color:var(--text3)">${sortedRooms.length} room${sortedRooms.length!==1?'s':''}</div>
+    </div>
+  </div>`;
+  grid.innerHTML=summary+sortedRooms.map(room=>{
     const strains=byRoom[room];
     const total=Object.values(strains).reduce((a,b)=>a+b,0);
     const dashRoom=rooms.find(r=>r.name===room);
@@ -3140,10 +3185,11 @@ function renderMetrcFlowering(){
     const phase=fd?getPhaseForDay(fd):null;
     const strainRows=Object.entries(strains).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
       const pct=Math.round((n/total)*100);
+      const isUnknown=s==='Unknown';
       return`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div style="flex:1;font-size:12px;color:var(--text)">${s}</div>
+        <div style="flex:1;font-size:12px;color:${isUnknown?'var(--text3)':'var(--text)'};font-style:${isUnknown?'italic':'normal'}">${s}</div>
         <div style="font-family:var(--mono);font-size:12px;font-weight:600;min-width:28px;text-align:right">${n}</div>
-        <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px"><div style="width:${pct}%;height:100%;background:var(--green);border-radius:2px"></div></div>
+        <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px"><div style="width:${pct}%;height:100%;background:${isUnknown?'var(--text3)':'var(--green)'};border-radius:2px"></div></div>
       </div>`;
     }).join('');
     return`<div class="card">
@@ -3164,43 +3210,40 @@ function renderMetrcHarvests(){
   const rows=metrcData.harvests;
   if(!rows.length){list.innerHTML='<div class="empty-state">Upload the Harvests export.</div>';return;}
   const priOrder={high:0,normal:1,low:2};
+  // Sort: priority first, then oldest date first
   const sorted=[...rows].sort((a,b)=>{
     const pa=metrcHarvestPriority[a['Harvest Batch']]||'normal';
     const pb=metrcHarvestPriority[b['Harvest Batch']]||'normal';
     if(pa!==pb)return(priOrder[pa]||1)-(priOrder[pb]||1);
-    return new Date(b['Date']||0)-new Date(a['Date']||0);
+    return new Date(a['Date']||0)-new Date(b['Date']||0);
   });
   const priColors={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
   const priLabels={high:'Trim first',normal:'Normal',low:'Low priority'};
   const isLead=currentRole==='lead';
   list.innerHTML=sorted.map((r,idx)=>{
-    const batch=r['Harvest Batch']||'—';
-    const strain=r['Strain']||'—';
-    const plants=r['Plants']||'—';
-    const weightG=parseInt(r['Weight']||r['Wet Weight']||0)||0;
-    const weightLb=(weightG/453.592).toFixed(1);
-    const date=r['Date']||'';
-    const lab=r['Lab Testing']||'';
+    const batch=r['Harvest Batch']||r['Name']||'—';
+    const plants=parseInt(r['Plants']||r['Plant Count']||0)||0;
+    const date=r['Date']||r['Harvest Date']||'';
     const pri=metrcHarvestPriority[batch]||'normal';
     const bc=priColors[pri];
+    // Format date nicely
+    const dateObj=date?new Date(date):null;
+    const dateStr=dateObj&&!isNaN(dateObj)?dateObj.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):date;
     return`<div class="card" style="border-left:4px solid ${bc}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="flex:1;min-width:200px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <span style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:24px">${idx+1}</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:24px">${idx+1}</span>
             <div>
-              <div style="font-size:14px;font-weight:700">${strain}</div>
-              <div style="font-size:11px;color:var(--text3)">${batch}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">${batch}</div>
+              <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+                ${plants?`<span style="font-size:12px;padding:2px 8px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);font-family:var(--mono);color:var(--green)">${plants} plants</span>`:''}
+                ${dateStr?`<span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono);color:var(--text3)">${dateStr}</span>`:''}
+              </div>
             </div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${plants} plants</span>
-            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${weightLb} lb</span>
-            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${date}</span>
-            ${lab!=='NotSubmitted'?`<span style="font-size:11px;padding:2px 8px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);color:var(--blue)">${lab}</span>`:''}
-          </div>
         </div>
-        ${isLead?`<select onchange="setHarvestPriority('${batch.replace(/'/g,"\'")}',this.value)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+        ${isLead?`<select onchange="setHarvestPriority('${batch.replace(/'/g,"\\'")}',this.value)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
           <option value="high"${pri==='high'?' selected':''}>Trim first</option>
           <option value="normal"${pri==='normal'?' selected':''}>Normal</option>
           <option value="low"${pri==='low'?' selected':''}>Low priority</option>
