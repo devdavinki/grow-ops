@@ -2708,6 +2708,7 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
+  if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
   if(page==='postprod'){pullMetrcFromCloud(true);renderTrimQueue();}
 }
@@ -2790,7 +2791,9 @@ async function pullMetrcFromCloud(silent=false){
     if(d.flowering) { metrcData.flowering=d.flowering;S(METRC_KEYS.flowering,d.flowering); }
     if(d.harvests)  { metrcData.harvests=d.harvests;S(METRC_KEYS.harvests,d.harvests); }
     if(d.harvestPriority){ metrcHarvestPriority=d.harvestPriority;S(METRC_KEYS.harvestPriority,d.harvestPriority); }
-    if(d.trimQueue) { S('wg_trim_queue',d.trimQueue); }
+    // Use cloud trim queue if it has items, otherwise rebuild from harvests
+    if(d.trimQueue&&d.trimQueue.length){ S('wg_trim_queue',d.trimQueue); }
+    else if(d.harvests&&d.harvests.length){ syncHarvestsToTrimQueue(d.harvests); }
     // Update sync label
     const syncInfo={};
     ['mother','immature','vegetative','flowering','harvests'].forEach(k=>{
@@ -3675,8 +3678,25 @@ try { renderRooms(); } catch(e){ console.error('renderRooms:',e); }
 try { renderTodayLog(); } catch(e){ console.error('renderTodayLog:',e); }
 try { renderChores(); } catch(e){ console.error('renderChores:',e); }
 try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
-// auto-refresh checks silently on load to catch today's submissions
+// auto-refresh checks silently on load
 setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
+// Pull METRC data from cloud on every page load — runs silently in background
+// After pull: re-sync harvests→trimQueue and re-render everything that uses METRC data
+setTimeout(async ()=>{
+  try{
+    const pulled = await pullMetrcFromCloud(true);
+    if(pulled){
+      // Rebuild trim queue from harvests if queue was empty or stale
+      if(metrcData.harvests&&metrcData.harvests.length){
+        const tq=L('wg_trim_queue',[]);
+        // Add any harvests not yet in queue
+        syncHarvestsToTrimQueue(metrcData.harvests);
+      }
+      try{renderRooms();}catch(e){}
+      try{renderTrimQueue();}catch(e){}
+    }
+  }catch(e){console.warn('Background pull failed:',e);}
+},1200);
 </script>
 </body>
 </html>
