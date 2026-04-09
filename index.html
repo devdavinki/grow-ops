@@ -446,13 +446,17 @@ button { cursor: pointer; }
       </div>
       <div class="card mb12" style="border-left:3px solid var(--blue)">
         <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Target: <strong style="color:var(--text)">450 clones/week total</strong> · cut throughout the week · enter each session below as you go.</div>
+        <!-- STRAIN INFO PANEL — shows when strain is selected -->
+        <div id="clone-strain-info" style="display:none;padding:10px 12px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);margin-bottom:12px;font-size:12px">
+          <div id="clone-strain-info-text" style="color:var(--text)"></div>
+        </div>
         <div id="clone-totals" class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
         <hr class="divider">
         <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;flex-wrap:wrap">
           <div style="position:relative">
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label>
-            <input id="ce-strain" type="text" placeholder="Type to search mothers…" style="width:100%" oninput="showStrainAutocomplete(this.value)" autocomplete="off"/>
+            <input id="ce-strain" type="text" placeholder="Type to search mothers…" style="width:100%" oninput="showStrainAutocomplete(this.value);if(!this.value){const p=document.getElementById('clone-strain-info');if(p)p.style.display='none';}" autocomplete="off"/>
             <div id="strain-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto"></div>
           </div>
           <div>
@@ -461,7 +465,10 @@ button { cursor: pointer; }
             <div id="ce-mother-hint" style="font-size:10px;color:var(--text3);margin-top:2px;min-height:14px"></div>
           </div>
           <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Clones cut</label><input id="ce-count" type="number" min="1" placeholder="e.g. 50" style="width:100%"/></div>
-          <button onclick="logCloneCut()" class="btn-primary" style="height:36px;align-self:flex-start;margin-top:19px">Log cut</button>
+          <div style="display:flex;flex-direction:column;gap:5px;align-self:flex-start;margin-top:19px">
+          <button onclick="logCloneCut(false)" class="btn-primary" style="font-size:11px;padding:6px 10px;white-space:nowrap">Save + same strain</button>
+          <button onclick="logCloneCut(true)" style="font-size:11px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;white-space:nowrap">Save + new strain</button>
+        </div>
         </div>
       </div>
       <div class="section-title mb12">Strain breakdown this week</div>
@@ -631,6 +638,24 @@ button { cursor: pointer; }
     <div id="custom-tasks-editor" style="display:grid;gap:6px;margin-bottom:10px"></div>
     <button onclick="addCustomTask()" class="btn-primary" style="font-size:12px;padding:6px 14px;margin-bottom:24px">+ Add standing task</button>
 
+    <!-- METRC UPLOAD — lead only -->
+    <div class="section-title" style="margin-top:28px;margin-bottom:10px">METRC data upload</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Export from mo.metrc.com → Plants/Harvests tabs. Select all files at once — filenames are auto-detected.</div>
+    <div style="margin-bottom:10px">
+      <label style="display:inline-block;padding:8px 16px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
+        📁 Select all METRC files
+        <input type="file" accept=".xlsx,.csv" multiple style="display:none" onchange="handleBulkMetrcUpload(this)"/>
+      </label>
+      <span id="bulk-upload-status" style="margin-left:10px;font-size:12px;color:var(--text3)"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:24px">
+      <div class="metrc-upload-cell" id="mup-mother"><div class="metrc-upload-label">Mothers</div><div class="metrc-upload-status" id="mup-mother-status">Not loaded</div></div>
+      <div class="metrc-upload-cell" id="mup-immature"><div class="metrc-upload-label">Immature / Clones</div><div class="metrc-upload-status" id="mup-immature-status">Not loaded</div></div>
+      <div class="metrc-upload-cell" id="mup-vegetative"><div class="metrc-upload-label">Vegetative</div><div class="metrc-upload-status" id="mup-vegetative-status">Not loaded</div></div>
+      <div class="metrc-upload-cell" id="mup-flowering"><div class="metrc-upload-label">Flowering</div><div class="metrc-upload-status" id="mup-flowering-status">Not loaded</div></div>
+      <div class="metrc-upload-cell" id="mup-harvests"><div class="metrc-upload-label">Harvests</div><div class="metrc-upload-status" id="mup-harvests-status">Not loaded</div></div>
+    </div>
+
     <!-- GOOGLE SHEET URL -->
     <div class="section-title" style="margin-top:20px;margin-bottom:10px">Google Sheet integration</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">Apps Script Web App URL for all sheet writes.</div>
@@ -751,33 +776,10 @@ button { cursor: pointer; }
       <div style="flex:1"></div>
       <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
     </div>
-    <div class="card mb16" style="border-left:4px solid var(--blue)">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Upload daily METRC exports</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export from mo.metrc.com → Plants tab. <strong style="color:var(--text)">Select all 5 files at once</strong> — the dashboard detects each type automatically by filename.</div>
-      <!-- BULK UPLOAD -->
-      <div style="margin-bottom:12px">
-        <label style="display:inline-block;padding:8px 16px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
-          📁 Select all METRC files
-          <input type="file" accept=".xlsx,.csv" multiple style="display:none" onchange="handleBulkMetrcUpload(this)"/>
-        </label>
-        <span id="bulk-upload-status" style="margin-left:10px;font-size:12px;color:var(--text3)"></span>
-      </div>
-      <!-- STATUS CELLS -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px">
-        <div class="metrc-upload-cell" id="mup-mother"><div class="metrc-upload-label">Mother Plants</div><div class="metrc-upload-status" id="mup-mother-status">Not loaded</div></div>
-        <div class="metrc-upload-cell" id="mup-immature"><div class="metrc-upload-label">Immature / Clones</div><div class="metrc-upload-status" id="mup-immature-status">Not loaded</div></div>
-        <div class="metrc-upload-cell" id="mup-vegetative"><div class="metrc-upload-label">Vegetative</div><div class="metrc-upload-status" id="mup-vegetative-status">Not loaded</div></div>
-        <div class="metrc-upload-cell" id="mup-flowering"><div class="metrc-upload-label">Flowering</div><div class="metrc-upload-status" id="mup-flowering-status">Not loaded</div></div>
-        <div class="metrc-upload-cell" id="mup-harvests"><div class="metrc-upload-label">Harvests</div><div class="metrc-upload-status" id="mup-harvests-status">Not loaded</div></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)">
-      <button class="nav-tab active" onclick="showMetrcTab('mothers',this)" style="font-size:12px">Mothers</button>
-      <button class="nav-tab" onclick="showMetrcTab('clones',this)" style="font-size:12px">Clone batches</button>
-      <button class="nav-tab" onclick="showMetrcTab('flowering',this)" style="font-size:12px">Flowering</button>
-      <button class="nav-tab" onclick="showMetrcTab('harvests',this)" style="font-size:12px">Harvests / Trim queue</button>
-    </div>
-    <div id="metrc-sub-mothers">
+    <!-- SUBTAB NAV — rendered by JS based on role -->
+    <div id="metrc-tab-nav" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)"></div>
+    <!-- SUBTAB CONTENT -->
+    <div id="metrc-sub-mothers" style="display:none">
       <div class="row mb12">
         <input id="metrc-strain-search" type="text" placeholder="Search strain..." style="max-width:280px;font-size:13px" oninput="renderMetrcMothers()"/>
         <div style="flex:1"></div>
@@ -793,11 +795,14 @@ button { cursor: pointer; }
       </div>
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
+    <div id="metrc-sub-vegetative" style="display:none">
+      <div id="metrc-vegetative-grid" class="grid-3"></div>
+    </div>
     <div id="metrc-sub-flowering" style="display:none">
       <div id="metrc-flowering-grid" class="grid-2"></div>
     </div>
     <div id="metrc-sub-harvests" style="display:none">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Active harvests drying / awaiting trim. Leads set trim priority.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Active harvests — awaiting trim. <span id="metrc-harvest-lead-note"></span></div>
       <div id="metrc-harvests-list" style="display:grid;gap:8px"></div>
     </div>
   </div>
@@ -808,7 +813,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '2.1'; // Bump this to force permission/team reset on next load
+const APP_VERSION = '2.2'; // bumped - resets permissions, team, chores // Bump this to force permission/team reset on next load
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -973,6 +978,12 @@ const ROLE_PERMISSIONS = {
   ipm:        {pages:['assignments','rooms','today-log','checks'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
   postprod:   {pages:['assignments','postprod','today-log','metrc'], roomView:'none'},
+};
+// Which METRC subtabs each role can see
+const METRC_ROLE_TABS = {
+  lead:     ['mothers','clones','vegetative','flowering','harvests'],
+  cloner:   ['mothers','clones','vegetative','flowering'],
+  postprod: ['harvests'],
 };
 
 function canSee(role, page){
@@ -1292,7 +1303,7 @@ const STRAIN_TARGETS=[
 ];
 const WEEKLY_TARGET=450;
 
-function logCloneCut(){
+function logCloneCut(clearStrain=false){
   const strain=document.getElementById('ce-strain').value.trim();
   const motherTag=document.getElementById('ce-mother-tag')?.value.trim()||'';
   const count=parseInt(document.getElementById('ce-count').value)||0;
@@ -1318,13 +1329,23 @@ function logCloneCut(){
   cloneSessions.push({strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)});
   S(getWeekKey(),cloneSessions);
   postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
-  document.getElementById('ce-strain').value='';
+  // Always clear count and mother tag
   if(document.getElementById('ce-mother-tag')) document.getElementById('ce-mother-tag').value='';
   document.getElementById('ce-count').value='';
   const box=document.getElementById('strain-autocomplete');
   if(box) box.style.display='none';
   const hint=document.getElementById('ce-mother-hint');
   if(hint) hint.textContent='';
+  if(clearStrain){
+    document.getElementById('ce-strain').value='';
+    const panel=document.getElementById('clone-strain-info');
+    if(panel) panel.style.display='none';
+  }
+  // Refocus on count field for same strain, strain field for new strain
+  setTimeout(()=>{
+    const focusEl=document.getElementById(clearStrain?'ce-strain':'ce-count');
+    if(focusEl) focusEl.focus();
+  },50);
   renderCloneTracker();
 }
 
@@ -2058,12 +2079,14 @@ if(_needsReset){
 let rolePerms=L('wg_role_perms',null);
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
-  // New version — reset permissions and team
+  // New version — reset permissions, team, and custom chores to defaults
   localStorage.removeItem('wg_role_perms');
   localStorage.removeItem('wg_team');
+  localStorage.removeItem('wg_custom_chores');
+  localStorage.removeItem('wg_custom_tasks');
   S('wg_app_version', APP_VERSION);
   rolePerms = null;
-  team = null; // will be re-initialized below
+  team = null;
 }
 // Reset if lead is missing postprod, metrc, or settings
 if(!rolePerms || !rolePerms.lead ||
@@ -2272,6 +2295,7 @@ function renderSettings(){
 
   renderChoresEditor();
   renderCustomTasksEditor();
+  updateMetrcSyncLabel();
 
   const grid=document.getElementById('settings-grid');
   grid.innerHTML='';
@@ -2620,7 +2644,7 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
-  if(page==='metrc'){updateMetrcSyncLabel();showMetrcTab('mothers',document.querySelector('#page-metrc .nav-tab'));}
+  if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();}
   if(page==='postprod') renderTrimQueue();
 }
 
@@ -2960,22 +2984,71 @@ function updateMetrcSyncLabel(){
   });
 }
 
+function buildMetrcTabNav(){
+  const nav = document.getElementById('metrc-tab-nav');
+  if(!nav) return;
+  const allowedTabs = METRC_ROLE_TABS[currentRole] || METRC_ROLE_TABS.lead;
+  const tabDefs = [
+    {key:'mothers',    label:'Mothers'},
+    {key:'clones',     label:'Clone batches'},
+    {key:'vegetative', label:'Vegetative'},
+    {key:'flowering',  label:'Flowering'},
+    {key:'harvests',   label:'Harvests / Trim queue'},
+  ];
+  nav.innerHTML = tabDefs
+    .filter(t => allowedTabs.includes(t.key))
+    .map((t,i) => `<button class="nav-tab${i===0?' active':''}" onclick="showMetrcTab('${t.key}',this)" style="font-size:12px">${t.label}</button>`)
+    .join('');
+  // Show first allowed tab
+  const first = tabDefs.find(t => allowedTabs.includes(t.key));
+  if(first) showMetrcTab(first.key, nav.querySelector('.nav-tab'));
+}
+
 function showMetrcTab(tab,el){
-  document.querySelectorAll('#page-metrc .nav-tab').forEach(b=>b.classList.remove('active'));
+  const allowedTabs = METRC_ROLE_TABS[currentRole] || METRC_ROLE_TABS.lead;
+  if(!allowedTabs.includes(tab)) return;
+  document.querySelectorAll('#metrc-tab-nav .nav-tab').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
-  ['mothers','clones','flowering','harvests'].forEach(t=>{
+  ['mothers','clones','vegetative','flowering','harvests'].forEach(t=>{
     const d=document.getElementById('metrc-sub-'+t);
     if(d) d.style.display=t===tab?'block':'none';
   });
+  // Lead note on harvests
+  const note = document.getElementById('metrc-harvest-lead-note');
+  if(note) note.textContent = currentRole==='lead' ? 'Leads can adjust trim priority.' : '';
   if(tab==='mothers') renderMetrcMothers();
   if(tab==='clones') renderMetrcClones();
+  if(tab==='vegetative') renderMetrcVegetative();
   if(tab==='flowering') renderMetrcFlowering();
   if(tab==='harvests') renderMetrcHarvests();
 }
+
 function renderCurrentMetrcTab(){
-  const active=document.querySelector('#page-metrc .nav-tab.active');
-  const t=active?.textContent?.toLowerCase().includes('clone')?'clones':active?.textContent?.toLowerCase().includes('flower')?'flowering':active?.textContent?.toLowerCase().includes('harvest')?'harvests':'mothers';
-  showMetrcTab(t,active);
+  buildMetrcTabNav();
+}
+
+function renderMetrcVegetative(){
+  const grid=document.getElementById('metrc-vegetative-grid');
+  const rows=metrcData.vegetative;
+  if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative export.</div>';return;}
+  const byStrain={};
+  rows.forEach(r=>{
+    const s=r['Strain']||'—';
+    const loc=r['Location']||'Unknown';
+    if(!byStrain[s])byStrain[s]={count:0,locations:{}};
+    byStrain[s].count++;
+    byStrain[s].locations[loc]=(byStrain[s].locations[loc]||0)+1;
+  });
+  const strains=Object.keys(byStrain).sort();
+  grid.innerHTML=strains.map(strain=>{
+    const d=byStrain[strain];
+    const locParts=Object.entries(d.locations).map(([loc,n])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc} (${n})</span>`).join('');
+    return`<div class="card" style="border-left:3px solid var(--blue)">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
+      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:6px">${d.count}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${locParts}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderMetrcMothers(){
@@ -3193,6 +3266,29 @@ function selectStrain(strain){
   const box=document.getElementById('strain-autocomplete');
   if(input)input.value=strain;
   if(box)box.style.display='none';
+  showCloneStrainInfo(strain);
+}
+
+function showCloneStrainInfo(strain){
+  const panel=document.getElementById('clone-strain-info');
+  const text=document.getElementById('clone-strain-info-text');
+  if(!panel||!text){return;}
+  if(!strain){panel.style.display='none';return;}
+  const mothers=metrcData.mother.filter(r=>r['Strain']===strain);
+  if(!mothers.length){
+    if(metrcData.mother.length){
+      text.innerHTML=`<strong style="color:var(--amber)">⚠ ${strain}</strong> — not found in current mother plants data`;
+      panel.style.background='var(--amber-bg)';panel.style.borderColor='var(--amber-dim)';
+      panel.style.display='block';
+    } else { panel.style.display='none'; }
+    return;
+  }
+  const locCounts={};
+  mothers.forEach(m=>{const l=m['Location']||'Unknown';locCounts[l]=(locCounts[l]||0)+1;});
+  const locStr=Object.entries(locCounts).map(([l,n])=>`<strong>${n}</strong> in ${l.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')}`).join(' · ');
+  text.innerHTML=`<strong style="color:var(--green)">${strain}</strong> — <strong>${mothers.length}</strong> mother${mothers.length!==1?'s':''} · ${locStr}`;
+  panel.style.background='var(--green-bg)';panel.style.borderColor='var(--green-dim)';
+  panel.style.display='block';
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('#ce-strain')&&!e.target.closest('#strain-autocomplete')){
@@ -3204,15 +3300,11 @@ document.addEventListener('click',e=>{
 // ══════════════════════════════════════════════
 // CHORES EDITOR
 // ══════════════════════════════════════════════
-let customChores = L('wg_custom_chores', null);
-// If null, seed from DEFAULT_CHORES
-if (!customChores) {
-  customChores = CHORES.map(c => ({...c}));
-  S('wg_custom_chores', customChores);
-}
-
+// customChores initialized after CHORES definition (below)
 function getActiveChores() {
-  return L('wg_custom_chores', CHORES.map(c=>({...c})));
+  const stored = L('wg_custom_chores', null);
+  if (!stored || stored.length === 0) return CHORES.map(c=>({...c}));
+  return stored;
 }
 
 // Override renderChores to use editable chores
@@ -3269,25 +3361,26 @@ function renderChoresEditor() {
 }
 
 function updateChore(i, field, val) {
-  customChores = getActiveChores();
-  customChores[i][field] = val;
-  S('wg_custom_chores', customChores);
+  const chores = getActiveChores();
+  chores[i][field] = val;
+  S('wg_custom_chores', chores);
   renderChores();
 }
 
 function removeChore(i) {
-  customChores = getActiveChores();
-  customChores.splice(i, 1);
-  S('wg_custom_chores', customChores);
+  const chores = getActiveChores();
+  chores.splice(i, 1);
+  S('wg_custom_chores', chores);
   renderChoresEditor();
   renderChores();
 }
 
 function addCustomChore() {
-  customChores = getActiveChores();
-  customChores.push({ id: 'ch_'+Date.now(), name: 'New chore', freq: 'daily', cat: 'Facility' });
-  S('wg_custom_chores', customChores);
+  const chores = getActiveChores();
+  chores.push({ id: 'ch_'+Date.now(), name: 'New chore', freq: 'daily', cat: 'Facility' });
+  S('wg_custom_chores', chores);
   renderChoresEditor();
+  renderChores();
 }
 
 // ══════════════════════════════════════════════
