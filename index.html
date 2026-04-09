@@ -791,6 +791,26 @@ button { cursor: pointer; }
   </div>
 
 
+<!-- LOGIN MODAL — visibility:visible !important overrides pre-login cascade -->
+<div id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;padding:16px;overflow-y:auto">
+  <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md);max-height:90vh;overflow-y:auto">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:var(--text)">WESTSIDE <span style="color:var(--green)">GROWERS</span></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Select your name to continue</div>
+    </div>
+    <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
+    <div id="login-pin-row" style="display:none">
+      <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
+      <div style="display:flex;gap:8px">
+        <input id="login-pin-input" type="password" maxlength="10" placeholder="######" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
+        <button onclick="confirmLogin()" class="btn-primary">Enter</button>
+      </div>
+      <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
+    </div>
+    <button onclick="skipLogin()" style="width:100%;margin-top:10px;font-size:12px;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Skip — use role switcher instead</button>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════
 // DATA
@@ -3432,24 +3452,5 @@ try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',
 // auto-refresh checks silently on load to catch today's submissions
 setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
 </script>
-<!-- LOGIN MODAL — outside .main so visibility:hidden doesn't cascade to it -->
-<div id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;padding:16px;overflow-y:auto;visibility:visible !important">
-  <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md);max-height:90vh;overflow-y:auto;visibility:visible">
-    <div style="text-align:center;margin-bottom:16px">
-      <div style="font-size:16px;font-weight:700;color:var(--text)">WESTSIDE <span style="color:var(--green)">GROWERS</span></div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px">Select your name to continue</div>
-    </div>
-    <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
-    <div id="login-pin-row" style="display:none">
-      <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
-      <div style="display:flex;gap:8px">
-        <input id="login-pin-input" type="password" maxlength="10" placeholder="######" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
-        <button onclick="confirmLogin()" class="btn-primary">Enter</button>
-      </div>
-      <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
-    </div>
-    <button onclick="skipLogin()" style="width:100%;margin-top:10px;font-size:12px;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Skip — use role switcher instead</button>
-  </div>
-</div>
 </body>
 </html>
