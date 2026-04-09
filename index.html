@@ -2057,38 +2057,36 @@ const DEFAULT_TEAM=[
   {id:'u16',name:'Zec',    role:'checker',   agtId:'024905'},
 ];
 
-let team=L('wg_team',null); // may be null if version reset ran above
-// Force reset if team is missing, empty, or missing AGT IDs or Devon isn't lead
-const _needsReset = !team || team.length===0 || team.every(m=>!m.agtId) ||
-  !team.find(m=>m.name==='Devon'&&m.role==='lead'&&m.agtId==='005963');
-if(_needsReset){
-  team=DEFAULT_TEAM.slice(); S('wg_team',team);
-} else {
-  // Merge in any new members, update blank AGT IDs, fix roles
-  DEFAULT_TEAM.forEach(dt=>{
-    const ex=team.find(m=>m.name===dt.name);
-    if(!ex){ team.push(dt); }
-    else {
-      if(!ex.agtId) ex.agtId=dt.agtId;
-      if(dt.role==='lead'&&ex.role!=='lead') ex.role='lead'; // ensure leads stay lead
-    }
-  });
-  S('wg_team',team);
-}
-// rolePerms is the editable version — starts from ROLE_PERMISSIONS
-let rolePerms=L('wg_role_perms',null);
+// ── VERSION CHECK: runs first, clears stale localStorage before anything initializes
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
-  // New version — reset permissions, team, and custom chores to defaults
   localStorage.removeItem('wg_role_perms');
   localStorage.removeItem('wg_team');
   localStorage.removeItem('wg_custom_chores');
   localStorage.removeItem('wg_custom_tasks');
   S('wg_app_version', APP_VERSION);
-  rolePerms = null;
-  team = null;
 }
-// Reset if lead is missing postprod, metrc, or settings
+
+// ── TEAM INITIALIZATION
+let team=L('wg_team',null);
+const _needsReset = !team || team.length===0 || team.every(m=>!m.agtId) ||
+  !team.find(m=>m.name==='Devon'&&m.role==='lead'&&m.agtId==='005963');
+if(_needsReset){
+  team=DEFAULT_TEAM.slice(); S('wg_team',team);
+} else {
+  DEFAULT_TEAM.forEach(dt=>{
+    const ex=team.find(m=>m.name===dt.name);
+    if(!ex){ team.push(dt); }
+    else {
+      if(!ex.agtId) ex.agtId=dt.agtId;
+      if(dt.role==='lead'&&ex.role!=='lead') ex.role='lead';
+    }
+  });
+  S('wg_team',team);
+}
+
+// ── ROLE PERMISSIONS INITIALIZATION
+let rolePerms=L('wg_role_perms',null);
 if(!rolePerms || !rolePerms.lead ||
    !rolePerms.lead.includes('postprod') ||
    !rolePerms.lead.includes('metrc') ||
