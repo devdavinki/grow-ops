@@ -47,6 +47,9 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { background: var(--bg); color: var(--text); font-family: var(--font); }
 body { min-height: 100vh; }
+body.pre-login .main,
+body.pre-login .nav { visibility: hidden; }
+body.pre-login .topbar { visibility: visible; }
 
 /* ── TOPBAR ── */
 .topbar {
@@ -642,10 +645,12 @@ button { cursor: pointer; }
   </div>
 
   <!-- LOGIN MODAL -->
-  <div class="modal-bg" id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:300">
-    <div class="modal" style="max-width:340px;width:100%">
-      <h3 style="margin-bottom:4px">Who are you?</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Select your name to load your view</p>
+  <div class="modal-bg" id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:var(--bg);z-index:300">
+    <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md)">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:var(--text)">WESTSIDE <span style="color:var(--green)">GROWERS</span></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">Select your name to continue</div>
+      </div>
       <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
       <div id="login-pin-row" style="display:none">
         <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
@@ -803,6 +808,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const APP_VERSION = '2.1'; // Bump this to force permission/team reset on next load
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -2030,19 +2036,40 @@ const DEFAULT_TEAM=[
   {id:'u16',name:'Zec',    role:'checker',   agtId:'024905'},
 ];
 
-let team=L('wg_team',null);
-if(!team||team.length===0||team.every(m=>!m.agtId)){
+let team=L('wg_team',null); // may be null if version reset ran above
+// Force reset if team is missing, empty, or missing AGT IDs or Devon isn't lead
+const _needsReset = !team || team.length===0 || team.every(m=>!m.agtId) ||
+  !team.find(m=>m.name==='Devon'&&m.role==='lead'&&m.agtId==='005963');
+if(_needsReset){
   team=DEFAULT_TEAM.slice(); S('wg_team',team);
 } else {
+  // Merge in any new members, update blank AGT IDs, fix roles
   DEFAULT_TEAM.forEach(dt=>{
-    if(!team.find(m=>m.name===dt.name)) team.push(dt);
-    else { const ex=team.find(m=>m.name===dt.name); if(ex&&!ex.agtId) ex.agtId=dt.agtId; }
+    const ex=team.find(m=>m.name===dt.name);
+    if(!ex){ team.push(dt); }
+    else {
+      if(!ex.agtId) ex.agtId=dt.agtId;
+      if(dt.role==='lead'&&ex.role!=='lead') ex.role='lead'; // ensure leads stay lead
+    }
   });
   S('wg_team',team);
 }
 // rolePerms is the editable version — starts from ROLE_PERMISSIONS
 let rolePerms=L('wg_role_perms',null);
-if(!rolePerms){
+const _storedVersion = L('wg_app_version','0');
+if(_storedVersion !== APP_VERSION) {
+  // New version — reset permissions and team
+  localStorage.removeItem('wg_role_perms');
+  localStorage.removeItem('wg_team');
+  S('wg_app_version', APP_VERSION);
+  rolePerms = null;
+  team = null; // will be re-initialized below
+}
+// Reset if lead is missing postprod, metrc, or settings
+if(!rolePerms || !rolePerms.lead ||
+   !rolePerms.lead.includes('postprod') ||
+   !rolePerms.lead.includes('metrc') ||
+   !rolePerms.lead.includes('settings')){
   rolePerms={};
   Object.entries(ROLE_PERMISSIONS).forEach(([role,cfg])=>{
     rolePerms[role]=cfg.pages.slice();
@@ -2194,6 +2221,7 @@ function confirmLogin(){
 
 function finishLogin(member){
   loggedInMember=member;
+  document.body.classList.remove('pre-login');
   document.getElementById('login-modal-bg').style.display='none';
   setRole(member.role);
   const roleSelect=document.getElementById('role-select');
@@ -2229,6 +2257,7 @@ function switchUser(){
 }
 
 function skipLogin(){
+  document.body.classList.remove('pre-login');
   document.getElementById('login-modal-bg').style.display='none';
 }
 
@@ -3318,8 +3347,11 @@ renderRooms();
 renderTodayLog();
 renderChores();
 updateMetrcSyncLabel();
-// show login modal on first load if team has members
-if(team.length) showLoginModal();
+// Blur content until logged in
+if(team.length){
+  document.body.classList.add('pre-login');
+  showLoginModal();
+}
 // auto-refresh checks silently on load to catch today's submissions
 setTimeout(()=>loadChecks(),800);
 </script>
