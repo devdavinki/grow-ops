@@ -815,7 +815,7 @@ button { cursor: pointer; }
       </div>
       <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
     </div>
-    <button onclick="skipLogin()" style="width:100%;margin-top:10px;font-size:12px;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Skip — use role switcher instead</button>
+    <button onclick="skipLogin()" style="display:none"></button>
   </div>
 </div>
 
@@ -2291,33 +2291,38 @@ function finishLogin(member){
   `;
   document.getElementById('topbar-date').textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   pendingLoginMember=null;
+  // Save session with 4-hour expiry
+  S('wg_session',{memberId:member.id,expires:Date.now()+(4*60*60*1000)});
 }
 
 function switchUser(){
   loggedInMember=null;
+  localStorage.removeItem('wg_session');
+  document.body.classList.add('pre-login');
   const roleSelect=document.getElementById('role-select');
-  roleSelect.innerHTML=`
-    <button class="role-btn" onclick="setRole('lead')" data-role="lead">Lead / Pat</button>
-    <button class="role-btn" onclick="setRole('defoliator')" data-role="defoliator">Defoliator</button>
-    <button class="role-btn" onclick="setRole('fertigator')" data-role="fertigator">Fertigator</button>
-    <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
-    <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
-    <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
-    <button class="role-btn" onclick="setRole('postprod')" data-role="postprod">Post Prod</button>
-  `;
+  roleSelect.innerHTML='';
   const loginBtn=document.createElement('button');
   loginBtn.className='role-btn';
   loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:6px';
   loginBtn.textContent='Sign in';
   loginBtn.onclick=showLoginModal;
   roleSelect.prepend(loginBtn);
-  setRole(currentRole);
   showLoginModal();
 }
 
 function skipLogin(){
-  document.body.classList.remove('pre-login');
-  document.getElementById('login-modal-bg').style.display='none';
+  // Skip disabled — must log in
+  document.getElementById('login-modal-bg').style.display='flex';
+}
+
+function restoreSession(){
+  const session=L('wg_session',null);
+  if(!session||!session.memberId||!session.expires) return false;
+  if(Date.now()>session.expires){ localStorage.removeItem('wg_session'); return false; }
+  const member=team.find(m=>m.id===session.memberId);
+  if(!member) return false;
+  finishLogin(member);
+  return true;
 }
 
 // ══════════════════════════════════════════════
@@ -3668,10 +3673,12 @@ loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:
 loginBtn.textContent='Sign in';
 loginBtn.onclick=showLoginModal;
 document.getElementById('role-select').prepend(loginBtn);
-// Show login modal FIRST before any renders that could throw
+// Show login modal FIRST — try to restore saved session, otherwise require login
 if(team && team.length){
-  document.body.classList.add('pre-login');
-  showLoginModal();
+  if(!restoreSession()){
+    document.body.classList.add('pre-login');
+    showLoginModal();
+  }
 }
 try { setRole(currentRole); } catch(e){ console.error('setRole:',e); try{setRole('lead');}catch(e2){} }
 try { renderRooms(); } catch(e){ console.error('renderRooms:',e); }
