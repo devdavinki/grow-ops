@@ -824,7 +824,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '2.5'; // bumped - batch date parsing for correct oldest-first sort
+const APP_VERSION = '2.6'; // bumped - new Apps Script URL
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -888,7 +888,7 @@ const DEFOL_WINDOWS=[
 let todayLog = L('wg_log_'+dateToIso(TODAY), []);
 let roomOverrides = L('wg_overrides_'+dateToIso(TODAY), {});
 let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:''});
-let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbz7-pRO6encj5j8vP6KlqA6vsWhJIFDrcrnzSwPGfKNZAj42_gLhrP6x265wk6FANaP/exec');
+let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbwHIA9XLWI9Aq229p5kzlM57rrB1FlHaDICjD5faBL1aeMXMwmnt8uJ6Zq4jiKmp8Br/exec');
 let currentRole = L('wg_role','lead');
 let pendingComplete = null;
 let loggedInMember = null;
@@ -2096,7 +2096,7 @@ const DEFAULT_TEAM=[
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
   // Preserve room config and settings, wipe everything else
-  const _keepKeys = ['wg_rooms_v2','wg_webhooks','wg_gs_url'];
+  const _keepKeys = ['wg_rooms_v2','wg_webhooks'];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
   localStorage.clear();
