@@ -761,7 +761,11 @@ button { cursor: pointer; }
     <div class="row mb12">
       <div class="section-title">METRC live data</div>
       <div style="flex:1"></div>
-      <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="metrc-pull-status" style="font-size:11px;color:var(--text3)"></span>
+        <button onclick="pullMetrcFromCloud()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Sync from cloud</button>
+        <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+      </div>
     </div>
     <!-- SUBTAB NAV — rendered by JS based on role -->
     <div id="metrc-tab-nav" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)"></div>
@@ -2704,8 +2708,8 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
-  if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();}
-  if(page==='postprod') renderTrimQueue();
+  if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
+  if(page==='postprod'){pullMetrcFromCloud(true);renderTrimQueue();}
 }
 
 
@@ -2734,6 +2738,70 @@ async function postToSheet(sheetName,rowData){
     await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({sheet:sheetName,timestamp:new Date().toISOString(),row:rowData})});
   }catch(e){console.warn('Sheet POST failed:',e);}
+}
+
+async function pushMetrcToCloud(){
+  if(!gsUrl) return;
+  const payload={
+    action:'setMetrc',
+    data:{
+      mother:metrcData.mother,
+      immature:metrcData.immature,
+      vegetative:metrcData.vegetative,
+      flowering:metrcData.flowering,
+      harvests:metrcData.harvests,
+      harvestPriority:metrcHarvestPriority,
+      trimQueue:L('wg_trim_queue',[]),
+      syncedBy:loggedInMember?loggedInMember.name:'Lead',
+      syncedAt:new Date().toISOString(),
+    }
+  };
+  try{
+    const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const json=await res.json();
+    if(json.ok) console.log('METRC data pushed to cloud ✓');
+    else console.warn('Cloud push response:',json);
+  }catch(e){
+    // Fall back to no-cors (some Apps Script deployments need it)
+    try{
+      await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    }catch(e2){console.warn('Cloud push failed:',e2);}
+  }
+}
+
+async function pullMetrcFromCloud(silent=false){
+  if(!gsUrl) return false;
+  const statusEl=document.getElementById('metrc-pull-status');
+  if(statusEl&&!silent) statusEl.textContent='Fetching…';
+  try{
+    const res=await fetch(gsUrl+'?action=getMetrc&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.data) throw new Error(json.error||'No data');
+    const d=json.data;
+    if(d.mother)    { metrcData.mother=d.mother;    S(METRC_KEYS.mother,d.mother); }
+    if(d.immature)  { metrcData.immature=d.immature;S(METRC_KEYS.immature,d.immature); }
+    if(d.vegetative){ metrcData.vegetative=d.vegetative;S(METRC_KEYS.vegetative,d.vegetative); }
+    if(d.flowering) { metrcData.flowering=d.flowering;S(METRC_KEYS.flowering,d.flowering); }
+    if(d.harvests)  { metrcData.harvests=d.harvests;S(METRC_KEYS.harvests,d.harvests); }
+    if(d.harvestPriority){ metrcHarvestPriority=d.harvestPriority;S(METRC_KEYS.harvestPriority,d.harvestPriority); }
+    if(d.trimQueue) { S('wg_trim_queue',d.trimQueue); }
+    // Update sync label
+    const syncInfo={};
+    ['mother','immature','vegetative','flowering','harvests'].forEach(k=>{
+      if(d[k]&&d[k].length) syncInfo[k]={time:d.syncedAt||'',date:(d.syncedAt||'').split('T')[0],count:d[k].length};
+    });
+    S(METRC_KEYS.sync,syncInfo);
+    updateMetrcSyncLabel();
+    renderCurrentMetrcTab();
+    renderTrimQueue();
+    renderRooms();
+    if(statusEl) statusEl.textContent=`✓ Synced from cloud — ${d.syncedBy||'Lead'} uploaded ${d.syncedAt?new Date(d.syncedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''}`;
+    if(statusEl) statusEl.style.color='var(--green)';
+    return true;
+  }catch(e){
+    if(statusEl&&!silent){statusEl.textContent='No cloud data yet — upload files in Settings first';statusEl.style.color='var(--text3)';}
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -2961,8 +3029,8 @@ async function handleBulkMetrcUpload(input) {
   if (!files.length) return;
   const statusEl = document.getElementById('bulk-upload-status');
   statusEl.textContent = 'Reading ' + files.length + ' file(s)…';
+  statusEl.style.color = 'var(--text2)';
 
-  // Detect file type from filename
   function detectType(name) {
     const n = name.toLowerCase();
     if (n.includes('mother')) return 'mother';
@@ -2976,19 +3044,25 @@ async function handleBulkMetrcUpload(input) {
   let loaded = 0;
   for (const file of files) {
     const type = detectType(file.name);
-    if (!type) {
-      console.warn('Could not detect type for:', file.name);
-      continue;
-    }
+    if (!type) { console.warn('Could not detect type for:', file.name); continue; }
     const fakeInput = { files: [file] };
     await handleMetrcUpload(type, fakeInput);
     loaded++;
   }
 
-  statusEl.textContent = loaded + '/' + files.length + ' files loaded ✓';
+  statusEl.textContent = loaded + '/' + files.length + ' files loaded locally ✓';
   if (loaded < files.length) {
-    statusEl.textContent += ' (' + (files.length - loaded) + ' unrecognized — rename to include Mother/Planting/Veg/Flower/Harvest)';
+    statusEl.textContent += ' (' + (files.length - loaded) + ' unrecognized)';
   }
+
+  // Push to cloud so everyone gets it
+  if (gsUrl && loaded > 0) {
+    statusEl.textContent += ' — pushing to cloud…';
+    await pushMetrcToCloud();
+    statusEl.textContent = '✓ ' + loaded + ' files uploaded & pushed to cloud. All team members will get this data on next refresh.';
+    statusEl.style.color = 'var(--green)';
+  }
+
   renderCurrentMetrcTab();
 }
 function parseBatchDate(batch){
