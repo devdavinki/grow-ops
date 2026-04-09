@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  /* ── LIGHT THEME — high-contrast for bright grow room environments ── */
   --bg: #f0f2f0;
   --bg2: #ffffff;
   --bg3: #f4f6f3;
@@ -42,7 +41,7 @@
   --r: 6px;
   --r2: 10px;
   --r3: 14px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.07);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,18 +56,18 @@ body { min-height: 100vh; }
   position: sticky; top: 0; z-index: 100; gap: 12px; flex-wrap: wrap;
   box-shadow: var(--shadow);
 }
-.topbar-brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; color: var(--text); white-space: nowrap; }
+.topbar-brand { font-size: 13px; font-weight: 600; letter-spacing: .08em; color: var(--text); white-space: nowrap; }
 .topbar-brand span { color: var(--green); }
 .topbar-date { font-family: var(--mono); font-size: 11px; color: var(--text3); }
 .role-select { display: flex; gap: 4px; flex-wrap: wrap; }
 .role-btn {
   font-family: var(--font); font-size: 11px; font-weight: 500;
   padding: 4px 10px; border-radius: var(--r);
-  border: 1px solid var(--border2); background: var(--bg3);
+  border: 1px solid var(--border2); background: none;
   color: var(--text2); cursor: pointer; transition: all .15s;
 }
-.role-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--green-bg); }
-.role-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); font-weight: 600; }
+.role-btn:hover { border-color: var(--accent); color: var(--accent); }
+.role-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); font-weight:600; }
 
 /* ── NAV ── */
 .nav {
@@ -83,7 +82,7 @@ body { min-height: 100vh; }
   white-space: nowrap; transition: all .15s; border-radius: var(--r) var(--r) 0 0;
 }
 .nav-tab:hover { color: var(--text2); background: var(--bg3); }
-.nav-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--bg3); font-weight: 600; }
+.nav-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--bg3); }
 
 /* ── MAIN ── */
 .main { padding: 16px; max-width: 1400px; margin: 0 auto; }
@@ -106,17 +105,17 @@ body { min-height: 100vh; }
 .card-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
 /* ── ROOM CARDS ── */
-.room-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; border-left: 4px solid var(--border); position: relative; overflow: hidden; box-shadow: var(--shadow); }
+.room-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; border-left: 4px solid var(--border); position: relative; overflow: hidden; }
 .room-card.stage-veg { border-left-color: var(--blue); }
 .room-card.stage-flower { border-left-color: var(--green); }
 .room-card.stage-late { border-left-color: var(--amber); }
 .room-card.stage-dark { border-left-color: var(--text3); }
 .room-card.stage-harvest { border-left-color: var(--red); }
-.room-card.stage-empty { border-left-color: var(--border2); }
+.room-card.stage-empty { border-left-color: var(--border); }
 .room-name { font-size: 14px; font-weight: 700; color: var(--text); }
 .room-meta { font-size: 11px; color: var(--text3); margin-top: 1px; }
 .stage-badge {
-  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
   padding: 3px 8px; border-radius: var(--r); white-space: nowrap;
 }
 .badge-veg { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-dim); }
@@ -139,7 +138,7 @@ body { min-height: 100vh; }
 .prog-wrap { margin: 8px 0 4px; }
 .prog-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
 .prog-track { height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
-.prog-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width .5s; }
 .fill-green { background: var(--green); }
 .fill-blue { background: var(--blue); }
 .fill-amber { background: var(--amber); }
@@ -148,9 +147,9 @@ body { min-height: 100vh; }
 .flip-nudge { font-size: 11px; padding: 5px 8px; border-radius: var(--r); background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-dim); margin-top: 6px; }
 
 .task-strip { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
-.task-strip-head { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+.task-strip-head { font-size: 10px; font-weight: 600; letter-spacing: .06em; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
 .task-item-sm { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; padding: 3px 0; }
-.task-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.task-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
 .dot-green { background: var(--green); }
 .dot-amber { background: var(--amber); }
 .dot-red { background: var(--red); }
@@ -171,7 +170,6 @@ body { min-height: 100vh; }
 .assign-card {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: var(--r2); margin-bottom: 10px; overflow: hidden;
-  box-shadow: var(--shadow);
 }
 .assign-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -196,7 +194,7 @@ body { min-height: 100vh; }
   border: 1px solid var(--green); background: var(--green-bg); color: var(--green);
   transition: all .15s; white-space: nowrap; flex-shrink: 0;
 }
-.complete-btn:hover { background: var(--green); color: #fff; }
+.complete-btn:hover { background: var(--green); color:#fff; }
 .complete-btn.done { background: var(--green-dim); color: var(--green); border-color: var(--green); }
 .complete-btn.done::before { content: '✓ '; }
 .skip-btn {
@@ -205,12 +203,12 @@ body { min-height: 100vh; }
   border: 1px solid var(--border2); background: none; color: var(--text3);
   transition: all .15s; flex-shrink: 0;
 }
-.skip-btn:hover { color: var(--amber); border-color: var(--amber); }
+.skip-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
 
-/* modals */
+/* completion modal */
 .modal-bg {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.35); z-index: 200;
+  background: rgba(0,0,0,.3); z-index: 200;
   align-items: center; justify-content: center; padding: 16px;
 }
 .modal-bg.open { display: flex; }
@@ -219,7 +217,7 @@ body { min-height: 100vh; }
   border-radius: var(--r3); padding: 20px; width: 100%; max-width: 420px;
   box-shadow: var(--shadow-md);
 }
-.modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+.modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
 .modal label { font-size: 12px; color: var(--text3); display: block; margin-bottom: 4px; margin-top: 10px; }
 .modal textarea, .modal input, .modal select {
   width: 100%; font-family: var(--mono); font-size: 13px;
@@ -234,14 +232,13 @@ body { min-height: 100vh; }
   background: var(--green); border: 1px solid var(--green);
   color: #fff; cursor: pointer; transition: all .15s;
 }
-.btn-primary:hover { background: #155724; border-color: #155724; }
+.btn-primary:hover { background: #155724; border-color:#155724; }
 .btn-cancel {
   font-family: var(--font); font-size: 13px;
   padding: 8px 14px; border-radius: var(--r);
-  background: var(--bg3); border: 1px solid var(--border2);
-  color: var(--text2); cursor: pointer;
+  background: none; border: 1px solid var(--border2);
+  color: var(--text3); cursor: pointer;
 }
-.btn-cancel:hover { background: var(--bg4); }
 
 /* ── TODAY LOG ── */
 .log-entry {
@@ -267,16 +264,18 @@ body { min-height: 100vh; }
 .additive-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
 .additive-table tr:hover td { background: var(--bg3); }
 .additive-table tr.today-row td { background: var(--green-bg); }
-.additive-table tr.tier2-row td:first-child { border-left: 3px solid var(--amber); }
+.additive-table tr.tier2-row td:first-child { border-left: 2px solid var(--amber); }
 .add-pill {
   display: inline-block; font-size: 10px; padding: 2px 7px;
-  border-radius: var(--r); font-family: var(--mono); font-weight: 600;
+  border-radius: var(--r); font-family: var(--mono);
 }
-.pill-stiky { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-dim); }
-.pill-amino { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple-dim); }
-.pill-stack { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
-.pill-slf { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-dim); }
-.pill-base { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.pill-stiky { background: var(--amber-bg); color: var(--amber); }
+.pill-amino { background: var(--purple-dim); color: var(--purple); }
+.pill-stack { background: var(--green-bg); color: var(--green); }
+.pill-slf { background: var(--blue-bg); color: var(--blue); }
+.pill-base { background: var(--bg3); color: var(--text3); }
+.pill-t2 { background: var(--amber-bg); color: var(--amber); font-size: 9px; }
+.pill-channel { background: var(--blue-bg); color: var(--blue); font-size: 9px; }
 
 /* ── ROOM CHECKS ── */
 .check-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 12px; box-shadow: var(--shadow); }
@@ -285,39 +284,41 @@ body { min-height: 100vh; }
 .check-card.alert { border-left: 4px solid var(--red); }
 .check-card.no-data { border-left: 4px solid var(--border2); }
 .env-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 8px 0; }
-.env-cell { background: var(--bg3); border-radius: var(--r); padding: 5px 4px; text-align: center; border: 1px solid var(--border); }
-.env-lbl { font-size: 9px; color: var(--text3); font-weight: 600; letter-spacing: .04em; }
-.env-num { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.env-cell { background: var(--bg3); border-radius: var(--r); padding: 5px 4px; text-align: center; }
+.env-lbl { font-size: 9px; color: var(--text3); }
+.env-num { font-family: var(--mono); font-size: 12px; font-weight: 500; }
 .env-num.ok { color: var(--green); }
 .env-num.warn { color: var(--amber); }
 .env-num.alert { color: var(--red); }
 .env-unit { font-size: 8px; color: var(--text3); }
 .runoff-row { display: flex; gap: 6px; font-size: 12px; align-items: center; padding: 3px 0; }
-.runoff-name { width: 60px; font-size: 11px; color: var(--text3); flex-shrink: 0; font-weight: 600; }
-.runoff-cell { flex: 1; background: var(--bg3); border-radius: var(--r); padding: 3px 6px; text-align: center; border: 1px solid var(--border); }
+.runoff-name { width: 60px; font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.runoff-cell { flex: 1; background: var(--bg3); border-radius: var(--r); padding: 3px 6px; text-align: center; }
 .runoff-cell-label { font-size: 9px; color: var(--text3); }
-.runoff-cell-val { font-family: var(--mono); font-size: 11px; font-weight: 600; }
+.runoff-cell-val { font-family: var(--mono); font-size: 11px; font-weight: 500; }
 
 /* ── SETTINGS ── */
 .settings-section { margin-bottom: 20px; }
+.settings-section h3 { font-size: 13px; font-weight: 600; color: var(--text2); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.setting-cell { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 12px; box-shadow: var(--shadow); }
+.setting-cell { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 12px; }
 .setting-cell .room-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-.setting-cell label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 3px; margin-top: 8px; font-weight: 600; }
+.setting-cell label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 3px; margin-top: 8px; }
 .setting-cell input, .setting-cell select {
   width: 100%; font-family: var(--mono); font-size: 12px;
   background: var(--bg3); border: 1px solid var(--border2);
   border-radius: var(--r); color: var(--text); padding: 6px 8px;
 }
+.setting-cell input:first-of-type { margin-top: 0; }
 .calc-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
-.calc-tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: var(--r); background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
-.calc-tag.highlight { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-dim); }
+.calc-tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: var(--r); background: var(--bg3); color: var(--text3); }
+.calc-tag.highlight { background: var(--amber-bg); color: var(--amber); }
 
 /* ── SLACK PANEL ── */
-.slack-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.slack-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; margin-bottom: 12px; }
 .slack-panel h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
 .webhook-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
-.webhook-row label { font-size: 12px; color: var(--text3); white-space: nowrap; font-weight: 600; }
+.webhook-row label { font-size: 12px; color: var(--text3); white-space: nowrap; }
 .webhook-row input {
   flex: 1; min-width: 200px; font-family: var(--mono); font-size: 12px;
   background: var(--bg3); border: 1px solid var(--border2);
@@ -326,27 +327,26 @@ body { min-height: 100vh; }
 .send-btn {
   font-family: var(--font); font-size: 12px; font-weight: 600;
   padding: 7px 14px; border-radius: var(--r); cursor: pointer;
-  transition: all .15s; white-space: nowrap; border: 1px solid transparent;
+  transition: all .15s; white-space: nowrap;
 }
-.send-btn.green { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.send-btn.green { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); }
 .send-btn.green:hover { background: var(--green); color: #fff; }
-.send-btn.blue { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
-.send-btn.blue:hover { background: var(--blue); color: #fff; }
-.send-btn.amber { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+.send-btn.blue { background: var(--blue-dim); border: 1px solid var(--blue); color: var(--blue); }
+.send-btn.amber { background: var(--amber-dim); border: 1px solid var(--amber); color: var(--amber); }
 .preview-box {
-  background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r);
   padding: 12px; font-family: var(--mono); font-size: 12px; color: var(--text2);
   white-space: pre-wrap; line-height: 1.7; margin-top: 8px; display: none;
   max-height: 320px; overflow-y: auto;
 }
 .slack-status { font-size: 12px; padding: 6px 10px; border-radius: var(--r); margin-top: 6px; display: none; }
-.slack-status.ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); display: block; }
-.slack-status.err { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-dim); display: block; }
+.slack-status.ok { background: var(--green-bg); color: var(--green); display: block; }
+.slack-status.err { background: var(--red-bg); color: var(--red); display: block; }
 
 /* ── MISC ── */
 .section-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
-.empty-state { text-align: center; padding: 32px 16px; color: var(--text3); font-size: 13px; background: var(--bg3); border-radius: var(--r2); border: 1px dashed var(--border2); }
-.tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: var(--r); font-family: var(--mono); font-weight: 600; }
+.empty-state { text-align: center; padding: 32px 16px; color: var(--text3); font-size: 13px; background:var(--bg3); border-radius:var(--r2); border:1px dashed var(--border2); }
+.tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: var(--r); font-family: var(--mono); }
 .tag-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
 .tag-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-dim); }
 .tag-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-dim); }
@@ -362,12 +362,22 @@ input[type=text], input[type=date], input[type=number], select, textarea {
   background: var(--bg3); border: 1px solid var(--border2);
   border-radius: var(--r); color: var(--text); padding: 7px 10px;
 }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 2px rgba(30,126,52,0.12); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--green); }
 button { cursor: pointer; }
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg3); }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── METRC UPLOAD CELLS ── */
+.metrc-upload-cell {
+  background: var(--bg3); border: 1px dashed var(--border2);
+  border-radius: var(--r2); padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.metrc-upload-cell.loaded { border-color: var(--green); border-style: solid; background: var(--green-bg); }
+.metrc-upload-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+.metrc-upload-cell input[type=file] { font-size: 11px; color: var(--text3); }
+.metrc-upload-status { font-size: 11px; font-family: var(--mono); color: var(--green); min-height: 16px; }
 </style>
 </head>
 <body>
@@ -393,6 +403,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('rooms')" data-page="rooms" data-roles="lead,defoliator,fertigator,cloner,ipm">Rooms</button>
   <button class="nav-tab" onclick="showPage('postprod')" data-page="postprod" data-roles="lead,postprod">Post Production</button>
   <button class="nav-tab" onclick="showPage('clonetracker')" data-page="clonetracker" data-roles="lead,cloner">Clone Tracker</button>
+  <button class="nav-tab" onclick="showPage('metrc')" data-page="metrc" data-roles="lead,cloner,postprod">METRC Data</button>
   <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Today's Log</button>
   <button class="nav-tab" onclick="showPage('additive')" data-page="additive" data-roles="lead,fertigator">Additive Schedule</button>
   <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
@@ -435,10 +446,13 @@ button { cursor: pointer; }
         <div id="clone-totals" class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
         <hr class="divider">
         <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
-          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label><input id="ce-strain" type="text" placeholder="e.g. Kush Mintz 3" style="width:100%"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+          <div style="position:relative">
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label>
+            <input id="ce-strain" type="text" placeholder="e.g. Kush Mintz 3" style="width:100%" oninput="showStrainAutocomplete(this.value)" autocomplete="off"/>
+            <div id="strain-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto"></div>
+          </div>
           <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Clones cut</label><input id="ce-count" type="number" min="1" placeholder="e.g. 50" style="width:100%"/></div>
-          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Who</label><input id="ce-who" type="text" placeholder="Name" style="width:100%"/></div>
           <button onclick="logCloneCut()" class="btn-primary" style="height:36px">Log cut</button>
         </div>
       </div>
@@ -511,12 +525,16 @@ button { cursor: pointer; }
   </div>
 
 
+  <!-- ══ PAGE: ASSIGNMENTS ══ -->
+  <div id="page-assignments" class="page">
     <div class="row mb12">
       <div class="section-title" id="assign-title">Today's assignments</div>
       <div style="flex:1"></div>
       <span id="assign-role-label" class="tag tag-green"></span>
     </div>
     <div id="assignments-content"></div>
+    <div class="section-title" style="margin-top:24px;margin-bottom:10px">Facility chores</div>
+    <div id="chores-section"></div>
   </div>
 
   <!-- ══ PAGE: TODAY LOG ══ -->
@@ -595,7 +613,7 @@ button { cursor: pointer; }
     <div class="settings-grid" id="settings-grid"></div>
     <!-- GOOGLE SHEET URL -->
     <div class="section-title" style="margin-top:20px;margin-bottom:10px">Google Sheet integration</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">Apps Script Web App URL for all sheet writes (clone log, weight log, etc.)</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">Apps Script Web App URL for all sheet writes.</div>
     <div class="webhook-row" style="margin-bottom:20px">
       <label>Apps Script URL</label>
       <input id="gs-url-input" type="text" style="flex:1;min-width:260px;font-size:12px" placeholder="https://script.google.com/macros/s/..." value="" onchange="saveGsUrl(this.value)"/>
@@ -672,8 +690,8 @@ button { cursor: pointer; }
       <select id="tm-room">
         <option value="">— select room —</option>
       </select>
-      <label>Harvest date</label>
-      <input id="tm-date" type="date"/>
+      <label>Harvest date (MMDDYY)</label>
+      <input id="tm-date" type="text" placeholder="e.g. 040826" maxlength="6"/>
       <label>Priority</label>
       <select id="tm-priority">
         <option value="high">High — trim first</option>
@@ -693,8 +711,6 @@ button { cursor: pointer; }
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <h3 id="modal-title">Mark task complete</h3>
-    <label>Who completed this?</label>
-    <input id="modal-who" type="text" placeholder="Your name"/>
     <label>Notes (optional)</label>
     <textarea id="modal-notes" placeholder="Any flags, observations, or split session notes..."></textarea>
     <label>% canopy removed (defoliators only)</label>
@@ -705,6 +721,56 @@ button { cursor: pointer; }
     </div>
   </div>
 </div>
+
+  <!-- ══ PAGE: METRC DATA ══ -->
+  <div id="page-metrc" class="page">
+    <div class="row mb12">
+      <div class="section-title">METRC live data</div>
+      <div style="flex:1"></div>
+      <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+    </div>
+    <div class="card mb16" style="border-left:4px solid var(--blue)">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Upload daily METRC exports</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export from mo.metrc.com → Plants tab. Accepts .xlsx or .csv. Data stays in your browser.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+        <div class="metrc-upload-cell" id="mup-mother"><div class="metrc-upload-label">Mother Plants</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('mother',this)"/><div class="metrc-upload-status" id="mup-mother-status"></div></div>
+        <div class="metrc-upload-cell" id="mup-immature"><div class="metrc-upload-label">Immature / Clones</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('immature',this)"/><div class="metrc-upload-status" id="mup-immature-status"></div></div>
+        <div class="metrc-upload-cell" id="mup-vegetative"><div class="metrc-upload-label">Vegetative</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('vegetative',this)"/><div class="metrc-upload-status" id="mup-vegetative-status"></div></div>
+        <div class="metrc-upload-cell" id="mup-flowering"><div class="metrc-upload-label">Flowering</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('flowering',this)"/><div class="metrc-upload-status" id="mup-flowering-status"></div></div>
+        <div class="metrc-upload-cell" id="mup-harvests"><div class="metrc-upload-label">Harvests</div><input type="file" accept=".xlsx,.csv" onchange="handleMetrcUpload('harvests',this)"/><div class="metrc-upload-status" id="mup-harvests-status"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      <button class="nav-tab active" onclick="showMetrcTab('mothers',this)" style="font-size:12px">Mothers</button>
+      <button class="nav-tab" onclick="showMetrcTab('clones',this)" style="font-size:12px">Clone batches</button>
+      <button class="nav-tab" onclick="showMetrcTab('flowering',this)" style="font-size:12px">Flowering</button>
+      <button class="nav-tab" onclick="showMetrcTab('harvests',this)" style="font-size:12px">Harvests / Trim queue</button>
+    </div>
+    <div id="metrc-sub-mothers">
+      <div class="row mb12">
+        <input id="metrc-strain-search" type="text" placeholder="Search strain..." style="max-width:280px;font-size:13px" oninput="renderMetrcMothers()"/>
+        <div style="flex:1"></div>
+        <span id="metrc-mother-count" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+      <div id="metrc-mothers-grid" class="grid-3"></div>
+    </div>
+    <div id="metrc-sub-clones" style="display:none">
+      <div class="row mb12">
+        <input id="metrc-clone-search" type="text" placeholder="Search strain..." style="max-width:280px;font-size:13px" oninput="renderMetrcClones()"/>
+        <div style="flex:1"></div>
+        <span id="metrc-clone-count" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+      <div id="metrc-clones-grid" class="grid-3"></div>
+    </div>
+    <div id="metrc-sub-flowering" style="display:none">
+      <div id="metrc-flowering-grid" class="grid-2"></div>
+    </div>
+    <div id="metrc-sub-harvests" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Active harvests drying / awaiting trim. Leads set trim priority.</div>
+      <div id="metrc-harvests-list" style="display:grid;gap:8px"></div>
+    </div>
+  </div>
+
 
 <script>
 // ══════════════════════════════════════════════
@@ -761,69 +827,6 @@ const ADDITIVES={
   50:{name:'Supa Stiky (X1)',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
   56:{name:'Supa Stiky (X1)',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
 };
-// Maxx OS v1.3 phase schedule
-const MAXX_PHASES=[
-  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0},
-  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:82,nightTemp:76,rh:75,ecMin:2.0,ecMax:2.1},
-  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:82,nightTemp:76,rh:73,ecMin:2.1,ecMax:2.3},
-  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:82,nightTemp:75,rh:70,ecMin:2.1,ecMax:2.3},
-  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:82,nightTemp:75,rh:68,ecMin:2.3,ecMax:2.5},
-  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:82,nightTemp:75,rh:66,ecMin:2.3,ecMax:2.5},
-  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:82,nightTemp:75,rh:64,ecMin:2.3,ecMax:2.5},
-  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:58,ecMin:2.6,ecMax:2.7},
-  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:56,ecMin:2.8,ecMax:2.9},
-  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:81,nightTemp:73,rh:55,ecMin:2.6,ecMax:2.7},
-  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5},
-  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1},
-  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1},
-  {id:'DK', name:'Dark Period',    start:64, end:65, light:0,  co2:400,  dayTemp:68,nightTemp:68,rh:50,ecMin:null,ecMax:null},
-];
-function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
-
-// EC Rainbow color phases
-const EC_RAINBOW=[
-  {name:'Red',    start:1,  end:7,  ecMin:1.9,ecMax:2.0,color:'#e05c5c'},
-  {name:'Orange', start:8,  end:14, ecMin:2.0,ecMax:2.1,color:'#e07d3a'},
-  {name:'Yellow', start:15, end:21, ecMin:2.1,ecMax:2.3,color:'#c9a800'},
-  {name:'Green',  start:22, end:28, ecMin:2.3,ecMax:2.5,color:'#2e8b3a'},
-  {name:'Blue',   start:29, end:35, ecMin:2.6,ecMax:2.7,color:'#2563a8'},
-  {name:'Indigo', start:36, end:42, ecMin:2.8,ecMax:2.9,color:'#4a45bf'},
-  {name:'Violet', start:43, end:49, ecMin:2.6,ecMax:2.7,color:'#7b52d9'},
-  {name:'Magenta',start:50, end:56, ecMin:2.2,ecMax:2.5,color:'#c0306e'},
-  {name:'Rose',   start:57, end:62, ecMin:1.5,ecMax:2.1,color:'#d97040'},
-  {name:'Flush',  start:63, end:67, ecMin:0.7,ecMax:1.3,color:'#888888',flush:true},
-];
-function getECRainbow(fd){return EC_RAINBOW.find(r=>fd>=r.start&&fd<=r.end)||null;}
-
-// Facility chores
-const CHORES=[
-  // daily
-  {id:'ch1',name:'Sweep all room floors',freq:'daily',cat:'Sanitation'},
-  {id:'ch2',name:'Empty all trash bins',freq:'daily',cat:'Sanitation'},
-  {id:'ch3',name:'Wipe down all door handles & surfaces',freq:'daily',cat:'Sanitation'},
-  {id:'ch4',name:'Check HVAC intake filters (no blockage)',freq:'daily',cat:'HVAC'},
-  {id:'ch5',name:'Check dehumidifier reservoirs / drain lines',freq:'daily',cat:'HVAC'},
-  {id:'ch6',name:'Inspect irrigation lines for leaks or drips',freq:'daily',cat:'Irrigation'},
-  {id:'ch7',name:'Log any equipment alarms or alerts',freq:'daily',cat:'Facility'},
-  // weekly
-  {id:'ch8', name:'Mop all room floors with solution',freq:'weekly',cat:'Sanitation'},
-  {id:'ch9', name:'Sanitize all tables and tray surfaces',freq:'weekly',cat:'Sanitation'},
-  {id:'ch10',name:'Clean light reflectors / hoods',freq:'weekly',cat:'Lighting'},
-  {id:'ch11',name:'Inspect all plant support stakes/ties',freq:'weekly',cat:'Cultivation'},
-  {id:'ch12',name:'Test all pH/EC meters — calibrate if needed',freq:'weekly',cat:'Equipment'},
-  {id:'ch13',name:'Clean nutrient reservoir & mixing station',freq:'weekly',cat:'Irrigation'},
-  {id:'ch14',name:'Check CO2 tank levels',freq:'weekly',cat:'Environment'},
-  {id:'ch15',name:'Test door seals on all flower rooms',freq:'weekly',cat:'Facility'},
-  // monthly
-  {id:'ch16',name:'Replace HVAC intake filters',freq:'monthly',cat:'HVAC'},
-  {id:'ch17',name:'Deep clean all drains and drain lines',freq:'monthly',cat:'Sanitation'},
-  {id:'ch18',name:'Inspect all electrical panels (no heat/smell)',freq:'monthly',cat:'Electrical'},
-  {id:'ch19',name:'Check fire suppression equipment tags',freq:'monthly',cat:'Safety'},
-  {id:'ch20',name:'Inspect all grow lights — replace any failing',freq:'monthly',cat:'Lighting'},
-  {id:'ch21',name:'Calibrate all thermostats and controllers',freq:'monthly',cat:'Environment'},
-  {id:'ch22',name:'Full equipment inventory audit',freq:'monthly',cat:'Facility'},
-];
-
 
 const DEFOL_WINDOWS=[
   {id:'dw1',label:'Delarfing round 1',start:1,end:14,type:'delarf'},
@@ -931,13 +934,13 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings'], roomView:'full'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
   fertigator: {pages:['assignments','rooms','today-log','additive'], roomView:'basic'},
-  cloner:     {pages:['assignments','rooms','clonetracker','today-log'], roomView:'basic'},
+  cloner:     {pages:['assignments','rooms','clonetracker','today-log','metrc'], roomView:'basic'},
   ipm:        {pages:['assignments','rooms','today-log','checks'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
-  postprod:   {pages:['assignments','postprod','today-log'], roomView:'none'},
+  postprod:   {pages:['assignments','postprod','today-log','metrc'], roomView:'none'},
 };
 
 function canSee(role, page){
@@ -1031,12 +1034,10 @@ function renderRooms(){
       const phase=getPhaseForDay(fd);
       const ecr=getECRainbow(fd);
       if(phase){
-        const ecRange=phase.ecMin?`EC ${phase.ecMin}–${phase.ecMax}`:'—';
-        const ecrBadge=ecr?`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color};margin-right:4px;vertical-align:middle"></span><span style="font-size:10px;color:var(--text3)">${ecr.name} · ${ecRange}</span>`:'';
-        phaseHTML=`<div style="display:flex;align-items:center;gap:10px;margin:6px 0;padding:5px 8px;background:var(--bg3);border-radius:var(--r);font-size:10px;flex-wrap:wrap">
-          <span style="font-family:var(--mono);font-weight:600;color:var(--text2)">${phase.name}</span>
-          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2}ppm · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%</span>
-          ${ecrBadge}
+        phaseHTML=`<div style="display:flex;align-items:center;gap:10px;margin:6px 0;padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:10px;flex-wrap:wrap">
+          <span style="font-family:var(--mono);font-weight:700;color:var(--text2)">${phase.name}</span>
+          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%</span>
+          ${ecr?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color}"></span><span style="color:var(--text3)">${ecr.name} EC ${ecr.ecMin}–${ecr.ecMax}</span></span>`:''}
         </div>`;
       }
     }
@@ -1253,12 +1254,15 @@ const WEEKLY_TARGET=450;
 function logCloneCut(){
   const strain=document.getElementById('ce-strain').value.trim();
   const count=parseInt(document.getElementById('ce-count').value)||0;
-  const who=document.getElementById('ce-who').value.trim()||'Unknown';
+  const who=loggedInMember?loggedInMember.name:'Unknown';
   if(!strain||!count)return;
   cloneSessions.push({strain,count,who,time:fmtTime(),date:dateToIso(TODAY)});
   S(getWeekKey(),cloneSessions);
+  postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count]);
   document.getElementById('ce-strain').value='';
   document.getElementById('ce-count').value='';
+  const box=document.getElementById('strain-autocomplete');
+  if(box) box.style.display='none';
   renderCloneTracker();
 }
 
@@ -1532,7 +1536,6 @@ function showCloneTab(tab,el){
 function openModal(roomId,taskId,taskName){
   pendingComplete={roomId,taskId,taskName};
   document.getElementById('modal-title').textContent='Complete: '+taskName;
-  document.getElementById('modal-who').value='';
   document.getElementById('modal-notes').value='';
   document.getElementById('modal-pct').value='';
   document.getElementById('modal-bg').classList.add('open');
@@ -1541,7 +1544,7 @@ function closeModal(){document.getElementById('modal-bg').classList.remove('open
 function confirmComplete(){
   if(!pendingComplete) return;
   const {roomId,taskId,taskName}=pendingComplete;
-  const who=document.getElementById('modal-who').value.trim()||'Unknown';
+  const who=loggedInMember?loggedInMember.name:'Unknown';
   const notes=document.getElementById('modal-notes').value.trim();
   const pct=document.getElementById('modal-pct').value;
   if(!roomOverrides[roomId]) roomOverrides[roomId]={};
@@ -1656,9 +1659,8 @@ async function loadChecks(){
       // match date formats like 04/07/2026 or 2026-04-07
       const rowDateNorm=rowDate.replace(/(\d{2})\/(\d{2})\/(\d{4})/,'$3-$1-$2');
       if(rowDateNorm===todayIso){
-        const room=rooms.find(r=>r.name.toUpperCase().replace(/\s/g,'').includes(rk.replace('R','GROWROOM')));
-        const roomById=rooms.find(r=>'R'+r.id.replace('r','')===rk);
-        const matchedRoom=room||roomById;
+        const rkNum=rk.replace(/\D/g,'');
+        const matchedRoom=rooms.find(r=>r.id==='r'+rkNum);
         if(matchedRoom){
           if(!roomOverrides[matchedRoom.id]) roomOverrides[matchedRoom.id]={};
           if(!roomOverrides[matchedRoom.id]['done_room_check']){
@@ -1940,6 +1942,7 @@ const ALL_PAGES=[
   {key:'checks',label:'Room Checks'},
   {key:'slack',label:'Slack Dispatch'},
   {key:'settings',label:'Settings'},
+  {key:'metrc',label:'METRC Data'},
 ];
 
 const ROLE_LABELS={
@@ -1953,26 +1956,34 @@ const ROLE_LABELS={
 };
 
 const DEFAULT_TEAM=[
-  {id:'u1',name:'Pat',role:'lead',agtId:''},
-  {id:'u2',name:'Devo',role:'lead',agtId:''},
-  {id:'u3',name:'Chris',role:'fertigator',agtId:''},
-  {id:'u4',name:'Chef Devin',role:'fertigator',agtId:''},
-  {id:'u5',name:'Jordan',role:'lead',agtId:''},
-  {id:'u6',name:'Tinhe',role:'ipm',agtId:''},
-  {id:'u7',name:'Zech',role:'checker',agtId:''},
-  {id:'u8',name:'Brett',role:'cloner',agtId:''},
-  {id:'u9',name:'Todd',role:'postprod',agtId:''},
-  {id:'u10',name:'Leanne',role:'postprod',agtId:''},
-  {id:'u11',name:'Randy',role:'postprod',agtId:''},
-  {id:'u12',name:'Roman',role:'postprod',agtId:''},
-  {id:'u13',name:'Aaron',role:'postprod',agtId:''},
-  {id:'u14',name:'Mary Ann',role:'lead',agtId:''},
-  {id:'u15',name:'Jesse',role:'lead',agtId:''},
-  {id:'u16',name:'Zac',role:'lead',agtId:''},
-  {id:'u17',name:'Joel',role:'lead',agtId:''},
+  {id:'u1', name:'Pat',    role:'lead',      agtId:'001586'},
+  {id:'u2', name:'Devon',  role:'lead',      agtId:'005963'},
+  {id:'u3', name:'Jordan', role:'lead',      agtId:'012319'},
+  {id:'u4', name:'Zach',   role:'lead',      agtId:'027925'},
+  {id:'u5', name:'Joel',   role:'lead',      agtId:'027675'},
+  {id:'u6', name:'Jesse',  role:'lead',      agtId:'023062'},
+  {id:'u7', name:'Hy',     role:'ipm',       agtId:'027420'},
+  {id:'u8', name:'Leanne', role:'postprod',  agtId:'017936'},
+  {id:'u9', name:'Todd',   role:'postprod',  agtId:'012240'},
+  {id:'u10',name:'Roman',  role:'postprod',  agtId:'024997'},
+  {id:'u11',name:'Chris',  role:'fertigator',agtId:'025421'},
+  {id:'u12',name:'Devin',  role:'fertigator',agtId:'025639'},
+  {id:'u13',name:'Randy',  role:'postprod',  agtId:'013277'},
+  {id:'u14',name:'Aaron',  role:'postprod',  agtId:'002110'},
+  {id:'u15',name:'Brett',  role:'cloner',    agtId:'008236'},
+  {id:'u16',name:'Zec',    role:'checker',   agtId:'024905'},
 ];
 
-let team=L('wg_team',DEFAULT_TEAM);
+let team=L('wg_team',null);
+if(!team||team.length===0||team.every(m=>!m.agtId)){
+  team=DEFAULT_TEAM.slice(); S('wg_team',team);
+} else {
+  DEFAULT_TEAM.forEach(dt=>{
+    if(!team.find(m=>m.name===dt.name)) team.push(dt);
+    else { const ex=team.find(m=>m.name===dt.name); if(ex&&!ex.agtId) ex.agtId=dt.agtId; }
+  });
+  S('wg_team',team);
+}
 // rolePerms is the editable version — starts from ROLE_PERMISSIONS
 let rolePerms=L('wg_role_perms',null);
 if(!rolePerms){
@@ -2126,13 +2137,39 @@ function confirmLogin(){
 }
 
 function finishLogin(member){
+  loggedInMember=member;
   document.getElementById('login-modal-bg').style.display='none';
   setRole(member.role);
-  // update topbar to show name
-  document.getElementById('topbar-date').innerHTML=
-    TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+
-    ` <span style="margin-left:10px;color:var(--green);font-size:11px">${member.name}</span>`;
+  const roleSelect=document.getElementById('role-select');
+  roleSelect.innerHTML=`
+    <span style="font-size:12px;font-weight:600;color:var(--text);margin-right:4px">${member.name}</span>
+    <span style="font-size:11px;color:var(--text3);margin-right:10px">${ROLE_LABELS[member.role]||member.role}</span>
+    <button onclick="switchUser()" class="role-btn" style="border-color:var(--teal);color:var(--teal)">Switch user</button>
+  `;
+  document.getElementById('topbar-date').textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   pendingLoginMember=null;
+}
+
+function switchUser(){
+  loggedInMember=null;
+  const roleSelect=document.getElementById('role-select');
+  roleSelect.innerHTML=`
+    <button class="role-btn" onclick="setRole('lead')" data-role="lead">Lead / Pat</button>
+    <button class="role-btn" onclick="setRole('defoliator')" data-role="defoliator">Defoliator</button>
+    <button class="role-btn" onclick="setRole('fertigator')" data-role="fertigator">Fertigator</button>
+    <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
+    <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
+    <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
+    <button class="role-btn" onclick="setRole('postprod')" data-role="postprod">Post Prod</button>
+  `;
+  const loginBtn=document.createElement('button');
+  loginBtn.className='role-btn';
+  loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:6px';
+  loginBtn.textContent='Sign in';
+  loginBtn.onclick=showLoginModal;
+  roleSelect.prepend(loginBtn);
+  setRole(currentRole);
+  showLoginModal();
 }
 
 function skipLogin(){
@@ -2210,7 +2247,8 @@ function openAddTrimItem(editId){
   document.getElementById('tm-strain').value='';
   document.getElementById('tm-notes').value='';
   document.getElementById('tm-priority').value='normal';
-  document.getElementById('tm-date').value=dateToIso(TODAY);
+  const _n=new Date();
+  document.getElementById('tm-date').value=String(_n.getMonth()+1).padStart(2,'0')+String(_n.getDate()).padStart(2,'0')+String(_n.getFullYear()).slice(-2);
   const sel=document.getElementById('tm-room');
   sel.innerHTML='<option value="">— select room —</option>';
   rooms.forEach(r=>{sel.appendChild(Object.assign(document.createElement('option'),{value:r.id,textContent:r.name}));});
@@ -2352,28 +2390,37 @@ function renderWeightCards(){
   wrap.innerHTML='';
   trimQueue.forEach(item=>{
     const w=trimWeights[item.id]||{};
+    const status=w.status||'entry';
+    const enteredBy=w.enteredBy||'';
+    const approvedBy=w.approvedBy||'';
     const card=document.createElement('div');
     card.className='card';
-    card.style.borderLeft='3px solid var(--purple)';
+    card.style.borderLeft=`3px solid ${status==='approved'?'var(--green)':status==='pending'?'var(--amber)':'var(--purple)'}`;
+    const statusBadge=status==='approved'?`<span class="tag tag-green">Approved ✓</span>`:status==='pending'?`<span class="tag tag-amber">Pending verification</span>`:`<span class="tag tag-gray">Entry</span>`;
+    const dis=status!=='entry'?'disabled':'';
     card.innerHTML=`
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">${item.strain}</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${rooms.find(r=>r.id===item.roomId)?.name||''} · ${item.harvestDate?fmtShort(isoToDate(item.harvestDate)):''}</div>
-      <div style="display:grid;gap:8px">
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Big buds (g)</label>
-          <input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Small buds (g)</label>
-          <input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Trim + sugar leaf (g)</label>
-          <input type="number" min="0" step="0.1" value="${w.trim||''}" placeholder="0.0" style="width:100%" onchange="saveWeight('${item.id}','trim',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label>
-          <input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro total cannabinoids %</label>
-          <input type="number" min="0" max="50" step="0.1" value="${w.purplTotal||''}" placeholder="e.g. 32.1" style="width:100%" onchange="saveWeight('${item.id}','purplTotal',this.value)"/></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''} · ${item.harvestDate||''}</div>
+        </div>${statusBadge}
       </div>
-      ${(w.bigBuds||w.smallBuds||w.trim)?`<div style="margin-top:10px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px;color:var(--text2)">
-        Total: <strong style="color:var(--text)">${(+(w.bigBuds||0)+ +(w.smallBuds||0)+ +(w.trim||0)).toFixed(1)}g</strong>
-        ${w.purplTHC?`<span style="margin-left:12px">THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong></span>`:''}
-      </div>`:''}
+      <div style="display:grid;gap:8px">
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Bigs total (g)</label><input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls + trim total (g)</label><input type="number" min="0" step="0.1" value="${w.smallsAndTrim||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','smallsAndTrim',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls only (g) — pre-roll stock</label><input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Moisture %</label><input type="number" min="0" max="100" step="0.1" value="${w.moisture||''}" placeholder="e.g. 11.2" style="width:100%" ${dis} onchange="saveWeight('${item.id}','moisture',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label><input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" ${dis} onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
+      </div>
+      ${(w.bigBuds||w.smallBuds)?`<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px">Bigs: <strong>${w.bigBuds||0}g</strong> · Smalls+trim: <strong>${w.smallsAndTrim||0}g</strong>${w.purplTHC?` · THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong>`:''}</div>`:''}
+      ${enteredBy?`<div style="font-size:11px;color:var(--text3);margin-top:6px">Entered by: ${enteredBy}</div>`:''}
+      ${approvedBy?`<div style="font-size:11px;color:var(--green);margin-top:2px">Approved by: ${approvedBy}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${status==='entry'?`<button onclick="submitWeightForVerification('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--amber);background:none;color:var(--amber);cursor:pointer">Submit for verification</button>`:''}
+        ${status==='pending'&&loggedInMember&&loggedInMember.name!==enteredBy?`<button onclick="approveWeight('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green);background:none;color:var(--green);cursor:pointer">Approve ✓</button>`:''}
+        ${status==='pending'&&loggedInMember&&loggedInMember.name===enteredBy?`<span style="font-size:11px;color:var(--text3);padding:5px 0">Waiting for different employee to approve</span>`:''}
+        ${status==='pending'?`<button onclick="rejectWeight('${item.id}')" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit weights</button>`:''}
+      </div>
     `;
     wrap.appendChild(card);
   });
@@ -2383,7 +2430,6 @@ function saveWeight(itemId,field,value){
   if(!trimWeights[itemId]) trimWeights[itemId]={};
   trimWeights[itemId][field]=value?parseFloat(value):null;
   S('wg_trim_weights',trimWeights);
-  // re-render queue card weights inline
   renderTrimQueue();
 }
 
@@ -2453,12 +2499,15 @@ function showPage(page){
   if(page==='settings') renderSettings();
   if(page==='additive') renderAdditiveTable();
   if(page==='slack') renderSlackPanels();
-  if(page==='assignments'){renderAssignments();renderChores();}
+  if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
+  if(page==='assignments'){renderAssignments();renderChores();}
+  if(page==='metrc'){updateMetrcSyncLabel();showMetrcTab('mothers',document.querySelector('#page-metrc .nav-tab'));}
   if(page==='postprod') renderTrimQueue();
 }
+
 
 // ══════════════════════════════════════════════
 // GOOGLE SHEET HELPERS
@@ -2466,7 +2515,7 @@ function showPage(page){
 function saveGsUrl(val){
   gsUrl=val.trim(); S('wg_gs_url',gsUrl);
   const st=document.getElementById('gs-url-status');
-  if(st){st.textContent='Saved';st.style.color='var(--green)';}
+  if(st){st.textContent='Saved ✓';st.style.color='var(--green)';}
 }
 async function testGsUrl(){
   const st=document.getElementById('gs-url-status');
@@ -2488,14 +2537,76 @@ async function postToSheet(sheetName,rowData){
 }
 
 // ══════════════════════════════════════════════
+// WEIGHT VERIFICATION FLOW
+// ══════════════════════════════════════════════
+function submitWeightForVerification(itemId){
+  if(!loggedInMember){alert('Sign in first to submit weights.');return;}
+  if(!trimWeights[itemId]){alert('Enter weights before submitting.');return;}
+  const w=trimWeights[itemId];
+  if(!w.bigBuds&&!w.smallsAndTrim){alert('Enter at least bigs and smalls+trim before submitting.');return;}
+  trimWeights[itemId].status='pending';
+  trimWeights[itemId].enteredBy=loggedInMember.name;
+  trimWeights[itemId].approvedBy='';
+  S('wg_trim_weights',trimWeights);
+  renderWeightCards();
+}
+function approveWeight(itemId){
+  if(!loggedInMember){alert('Sign in first to approve.');return;}
+  const w=trimWeights[itemId]||{};
+  if(loggedInMember.name===w.enteredBy){alert('A different employee must approve these weights.');return;}
+  trimWeights[itemId].status='approved';
+  trimWeights[itemId].approvedBy=loggedInMember.name;
+  S('wg_trim_weights',trimWeights);
+  const item=trimQueue.find(i=>i.id===itemId);
+  if(item){
+    postToSheet('Weight_Log',[item.strain,item.harvestDate||'',w.bigBuds||'',w.smallsAndTrim||'',
+      w.smallBuds||'',w.moisture||'',w.purplTHC||'',w.enteredBy,loggedInMember.name,new Date().toISOString()]);
+  }
+  const wh=webhooks['postprod'];
+  if(wh&&wh.startsWith('https://hooks.slack.com/')){
+    const msg=`*Weight log approved* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
+    fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
+  }
+  renderWeightCards();
+}
+function rejectWeight(itemId){
+  trimWeights[itemId].status='entry';
+  trimWeights[itemId].enteredBy='';
+  trimWeights[itemId].approvedBy='';
+  S('wg_trim_weights',trimWeights);
+  renderWeightCards();
+}
+
+// ══════════════════════════════════════════════
 // CHORES
 // ══════════════════════════════════════════════
+const CHORES=[
+  {id:'ch1', name:'Sweep all room floors',freq:'daily',cat:'Sanitation'},
+  {id:'ch2', name:'Empty all trash bins',freq:'daily',cat:'Sanitation'},
+  {id:'ch3', name:'Wipe down door handles & surfaces',freq:'daily',cat:'Sanitation'},
+  {id:'ch4', name:'Check HVAC intake filters (no blockage)',freq:'daily',cat:'HVAC'},
+  {id:'ch5', name:'Check dehumidifier reservoirs / drain lines',freq:'daily',cat:'HVAC'},
+  {id:'ch6', name:'Inspect irrigation lines for leaks',freq:'daily',cat:'Irrigation'},
+  {id:'ch7', name:'Log any equipment alarms or alerts',freq:'daily',cat:'Facility'},
+  {id:'ch8', name:'Mop all room floors with solution',freq:'weekly',cat:'Sanitation'},
+  {id:'ch9', name:'Sanitize all tables and tray surfaces',freq:'weekly',cat:'Sanitation'},
+  {id:'ch10',name:'Clean light reflectors / hoods',freq:'weekly',cat:'Lighting'},
+  {id:'ch11',name:'Inspect all plant support stakes/ties',freq:'weekly',cat:'Cultivation'},
+  {id:'ch12',name:'Test all pH/EC meters — calibrate if needed',freq:'weekly',cat:'Equipment'},
+  {id:'ch13',name:'Clean nutrient reservoir & mixing station',freq:'weekly',cat:'Irrigation'},
+  {id:'ch14',name:'Check CO2 tank levels',freq:'weekly',cat:'Environment'},
+  {id:'ch15',name:'Test door seals on all flower rooms',freq:'weekly',cat:'Facility'},
+  {id:'ch16',name:'Replace HVAC intake filters',freq:'monthly',cat:'HVAC'},
+  {id:'ch17',name:'Deep clean all drains and drain lines',freq:'monthly',cat:'Sanitation'},
+  {id:'ch18',name:'Inspect all electrical panels (no heat/smell)',freq:'monthly',cat:'Electrical'},
+  {id:'ch19',name:'Check fire suppression equipment tags',freq:'monthly',cat:'Safety'},
+  {id:'ch20',name:'Inspect all grow lights — replace failing',freq:'monthly',cat:'Lighting'},
+  {id:'ch21',name:'Calibrate all thermostats and controllers',freq:'monthly',cat:'Environment'},
+  {id:'ch22',name:'Full equipment inventory audit',freq:'monthly',cat:'Facility'},
+];
 function getChoreKey(freq){
   if(freq==='daily') return 'chore_d_'+dateToIso(TODAY);
-  if(freq==='weekly'){
-    const d=new Date(TODAY),day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);
-    return 'chore_w_'+new Date(d.setDate(diff)).toISOString().split('T')[0];
-  }
+  if(freq==='weekly'){const d=new Date(TODAY),day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return 'chore_w_'+new Date(d.setDate(diff)).toISOString().split('T')[0];}
   return 'chore_m_'+TODAY.getFullYear()+'-'+String(TODAY.getMonth()+1).padStart(2,'0');
 }
 function getChoreLog(id,freq){return L(getChoreKey(freq)+'_'+id,null);}
@@ -2510,34 +2621,368 @@ function renderChores(){
   const daily=CHORES.filter(c=>c.freq==='daily');
   const weekly=CHORES.filter(c=>c.freq==='weekly');
   const monthly=CHORES.filter(c=>c.freq==='monthly');
-
-  function choreRow(c){
-    const log=getChoreLog(c.id,c.freq);
+  function choreRow(ch){
+    const log=getChoreLog(ch.id,ch.freq);
     const done=!!log;
-    const urgencyColor=done?'var(--green)':'var(--amber)';
     return`<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px">
-      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${urgencyColor}"></div>
+      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${done?'var(--green)':'var(--amber)'}"></div>
       <div style="flex:1">
-        <span style="color:${done?'var(--text3)':'var(--text)'}${done?';text-decoration:line-through':''}">${c.name}</span>
-        <span style="font-size:10px;color:var(--text3);margin-left:8px">${c.cat}</span>
+        <span style="color:${done?'var(--text3)':'var(--text)'}${done?';text-decoration:line-through':''}">${ch.name}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:8px">${ch.cat}</span>
         ${done?`<span style="font-size:10px;color:var(--text3);margin-left:6px">✓ ${log.who} ${log.time}</span>`:''}
       </div>
-      ${!done?`<button onclick="markChoreDone('${c.id}','${c.freq}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Done</button>`:''}
+      ${!done?`<button onclick="markChoreDone('${ch.id}','${ch.freq}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Done</button>`:''}
     </div>`;
   }
-
   function section(title,items){
-    const doneCount=items.filter(c=>!!getChoreLog(c.id,c.freq)).length;
+    const doneCount=items.filter(ch=>!!getChoreLog(ch.id,ch.freq)).length;
     return`<div style="margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 12px;background:var(--bg3);border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 12px;background:var(--bg3);border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;border:1px solid var(--border)">
         <span>${title}</span><span style="color:${doneCount===items.length?'var(--green)':'var(--text3)'}">${doneCount}/${items.length}</span>
       </div>
       <div class="card" style="padding:0;border-radius:0 0 var(--r) var(--r)">${items.map(choreRow).join('')}</div>
     </div>`;
   }
-
   wrap.innerHTML=section('Daily',daily)+section('Weekly',weekly)+section('Monthly',monthly);
 }
+
+// ══════════════════════════════════════════════
+// MAXX OS v1.3 PHASES + EC RAINBOW
+// ══════════════════════════════════════════════
+const MAXX_PHASES=[
+  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0},
+  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:82,nightTemp:76,rh:75,ecMin:2.0,ecMax:2.1},
+  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:82,nightTemp:76,rh:73,ecMin:2.1,ecMax:2.3},
+  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:82,nightTemp:75,rh:70,ecMin:2.1,ecMax:2.3},
+  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:82,nightTemp:75,rh:68,ecMin:2.3,ecMax:2.5},
+  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:82,nightTemp:75,rh:66,ecMin:2.3,ecMax:2.5},
+  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:82,nightTemp:75,rh:64,ecMin:2.3,ecMax:2.5},
+  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:58,ecMin:2.6,ecMax:2.7},
+  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:56,ecMin:2.8,ecMax:2.9},
+  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:81,nightTemp:73,rh:55,ecMin:2.6,ecMax:2.7},
+  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5},
+  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1},
+  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1},
+  {id:'DK', name:'Dark Period',    start:64, end:65, light:0,  co2:400,  dayTemp:68,nightTemp:68,rh:50,ecMin:null,ecMax:null},
+];
+function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
+
+const EC_RAINBOW=[
+  {name:'Red',    start:1,  end:7,  ecMin:1.9,ecMax:2.0,color:'#c0392b'},
+  {name:'Orange', start:8,  end:14, ecMin:2.0,ecMax:2.1,color:'#c05621'},
+  {name:'Yellow', start:15, end:21, ecMin:2.1,ecMax:2.3,color:'#b45309'},
+  {name:'Green',  start:22, end:28, ecMin:2.3,ecMax:2.5,color:'#1e7e34'},
+  {name:'Blue',   start:29, end:35, ecMin:2.6,ecMax:2.7,color:'#1d6fa4'},
+  {name:'Indigo', start:36, end:42, ecMin:2.8,ecMax:2.9,color:'#4338ca'},
+  {name:'Violet', start:43, end:49, ecMin:2.6,ecMax:2.7,color:'#6d28d9'},
+  {name:'Magenta',start:50, end:56, ecMin:2.2,ecMax:2.5,color:'#9d174d'},
+  {name:'Rose',   start:57, end:62, ecMin:1.5,ecMax:2.1,color:'#c05621'},
+  {name:'Flush',  start:63, end:67, ecMin:0.7,ecMax:1.3,color:'#8a9688',flush:true},
+];
+function getECRainbow(fd){return EC_RAINBOW.find(r=>fd>=r.start&&fd<=r.end)||null;}
+
+// ══════════════════════════════════════════════
+// METRC DATA — CSV/XLSX IMPORT + VIEWER
+// ══════════════════════════════════════════════
+const METRC_KEYS={
+  mother:'metrc_mother',immature:'metrc_immature',vegetative:'metrc_vegetative',
+  flowering:'metrc_flowering',harvests:'metrc_harvests',
+  sync:'metrc_sync',harvestPriority:'metrc_harvest_priority'
+};
+let metrcData={
+  mother:L(METRC_KEYS.mother,[]),immature:L(METRC_KEYS.immature,[]),
+  vegetative:L(METRC_KEYS.vegetative,[]),flowering:L(METRC_KEYS.flowering,[]),
+  harvests:L(METRC_KEYS.harvests,[]),
+};
+let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
+
+async function parseMetrcXLSX(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const tryParse=()=>{
+        try{
+          const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+          const ws=wb.Sheets[wb.SheetNames[0]];
+          const data=XLSX.utils.sheet_to_json(ws,{defval:''});
+          resolve(data.map(row=>{const clean={};Object.entries(row).forEach(([k,v])=>{clean[k]=v instanceof Date?v.toISOString().split('T')[0]:String(v===null||v===undefined?'':v);});return clean;}));
+        }catch(err){reject(err);}
+      };
+      if(typeof XLSX==='undefined'){
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload=tryParse; s.onerror=reject;
+        document.head.appendChild(s);
+      } else tryParse();
+    };
+    reader.onerror=reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseMetrcCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  if(!lines.length)return[];
+  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).map(line=>{
+    const vals=[];let cur='';let inQ=false;
+    for(const ch of line){if(ch==='"'){inQ=!inQ;}else if(ch===','&&!inQ){vals.push(cur.trim());cur='';}else cur+=ch;}
+    vals.push(cur.trim());
+    const row={};headers.forEach((h,i)=>row[h]=(vals[i]||'').replace(/^"|"$/g,''));
+    return row;
+  }).filter(r=>Object.values(r).some(v=>v));
+}
+
+async function handleMetrcUpload(type,input){
+  const file=input.files[0];if(!file)return;
+  const statusEl=document.getElementById('mup-'+type+'-status');
+  const cellEl=document.getElementById('mup-'+type);
+  statusEl.textContent='Reading…';
+  try{
+    let rows;
+    if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')) rows=await parseMetrcXLSX(file);
+    else{const text=await file.text();rows=parseMetrcCSV(text);}
+    metrcData[type]=rows; S(METRC_KEYS[type],rows);
+    const syncInfo=L(METRC_KEYS.sync,{});
+    syncInfo[type]={time:fmtTime(),date:dateToIso(TODAY),count:rows.length};
+    S(METRC_KEYS.sync,syncInfo);
+    statusEl.textContent='✓ '+rows.length+' rows';
+    cellEl.classList.add('loaded');
+    updateMetrcSyncLabel();
+    renderCurrentMetrcTab();
+  }catch(err){statusEl.textContent='✗ '+err.message;console.error(err);}
+}
+
+function updateMetrcSyncLabel(){
+  const syncInfo=L(METRC_KEYS.sync,{});
+  const el=document.getElementById('metrc-sync-label');
+  const dates=[...new Set(Object.values(syncInfo).map(v=>v.date))];
+  if(el) el.textContent=dates.length?'Last sync: '+dates.join(', '):'';
+  Object.keys(syncInfo).forEach(k=>{
+    const cell=document.getElementById('mup-'+k);
+    const status=document.getElementById('mup-'+k+'-status');
+    if(cell) cell.classList.add('loaded');
+    if(status&&syncInfo[k]) status.textContent='✓ '+syncInfo[k].count+' rows (cached)';
+  });
+}
+
+function showMetrcTab(tab,el){
+  document.querySelectorAll('#page-metrc .nav-tab').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  ['mothers','clones','flowering','harvests'].forEach(t=>{
+    const d=document.getElementById('metrc-sub-'+t);
+    if(d) d.style.display=t===tab?'block':'none';
+  });
+  if(tab==='mothers') renderMetrcMothers();
+  if(tab==='clones') renderMetrcClones();
+  if(tab==='flowering') renderMetrcFlowering();
+  if(tab==='harvests') renderMetrcHarvests();
+}
+function renderCurrentMetrcTab(){
+  const active=document.querySelector('#page-metrc .nav-tab.active');
+  const t=active?.textContent?.toLowerCase().includes('clone')?'clones':active?.textContent?.toLowerCase().includes('flower')?'flowering':active?.textContent?.toLowerCase().includes('harvest')?'harvests':'mothers';
+  showMetrcTab(t,active);
+}
+
+function renderMetrcMothers(){
+  const grid=document.getElementById('metrc-mothers-grid');
+  const countEl=document.getElementById('metrc-mother-count');
+  const search=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase();
+  const rows=metrcData.mother;
+  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Mother Plants export to see data here.</div>';if(countEl)countEl.textContent='';return;}
+  const byStrain={};
+  rows.forEach(r=>{
+    const strain=r['Strain']||'—';
+    if(search&&!strain.toLowerCase().includes(search))return;
+    if(!byStrain[strain])byStrain[strain]={count:0,locations:{},cloned:0};
+    byStrain[strain].count++;
+    const loc=r['Location']||'Unknown';
+    byStrain[strain].locations[loc]=(byStrain[strain].locations[loc]||0)+1;
+    byStrain[strain].cloned+=parseInt(r['Cloned']||0)||0;
+  });
+  const clonesByStrain={};
+  metrcData.immature.forEach(r=>{const s=r['Strain']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
+  const strains=Object.keys(byStrain).sort();
+  if(countEl) countEl.textContent=strains.length+' strains · '+rows.length+' mothers';
+  if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains match.</div>';return;}
+  grid.innerHTML=strains.map(strain=>{
+    const d=byStrain[strain];
+    const locParts=Object.entries(d.locations).map(([loc,cnt])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')} (${cnt})</span>`).join('');
+    const clones=clonesByStrain[strain]||0;
+    const bc=d.count>=8?'var(--green)':d.count>=4?'var(--amber)':'var(--red)';
+    return`<div class="card" style="border-left:3px solid ${bc}">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
+      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${bc};margin-bottom:2px">${d.count}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">mother${d.count!==1?'s':''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${locParts}</div>
+      ${clones?`<div style="font-size:11px;color:var(--blue)">🌱 ${clones} clones in progress</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderMetrcClones(){
+  const grid=document.getElementById('metrc-clones-grid');
+  const countEl=document.getElementById('metrc-clone-count');
+  const search=(document.getElementById('metrc-clone-search')?.value||'').toLowerCase();
+  const rows=metrcData.immature;
+  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Immature/Clones export.</div>';if(countEl)countEl.textContent='';return;}
+  const byStrain={};
+  rows.forEach(r=>{
+    const strain=r['Strain']||'—';
+    if(search&&!strain.toLowerCase().includes(search))return;
+    if(!byStrain[strain])byStrain[strain]={batches:[],totalPlants:0};
+    byStrain[strain].batches.push(r);
+    byStrain[strain].totalPlants+=parseInt(r['Plants']||0)||0;
+  });
+  const mothersByStrain={};
+  metrcData.mother.forEach(r=>{const s=r['Strain']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
+  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].totalPlants-byStrain[a].totalPlants);
+  const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
+  if(countEl) countEl.textContent=strains.length+' strains · '+total+' clones';
+  grid.innerHTML=strains.map(strain=>{
+    const d=byStrain[strain];
+    const mc=mothersByStrain[strain]||0;
+    const dates=d.batches.map(b=>b['Batch Date']||'').filter(Boolean).sort().reverse();
+    return`<div class="card" style="border-left:3px solid var(--blue)">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
+      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:2px">${d.totalPlants}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">clones · ${d.batches.length} batch${d.batches.length!==1?'es':''}</div>
+      ${mc?`<div style="font-size:11px;color:var(--green)">🌿 ${mc} mother${mc!==1?'s':''} active</div>`:'<div style="font-size:11px;color:var(--amber)">⚠ No mothers on record</div>'}
+      ${dates[0]?`<div style="font-size:10px;color:var(--text3);margin-top:4px">Latest: ${dates[0]}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderMetrcFlowering(){
+  const grid=document.getElementById('metrc-flowering-grid');
+  const rows=metrcData.flowering;
+  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Flowering export.</div>';return;}
+  const byRoom={};
+  rows.forEach(r=>{const loc=r['Location']||'Unknown';const strain=r['Strain']||'—';if(!byRoom[loc])byRoom[loc]={};byRoom[loc][strain]=(byRoom[loc][strain]||0)+1;});
+  const roomOrder=['Grow Room 1','Grow Room 2','Grow Room 3','Grow Room 4','Grow Room 5','Grow Room 6','Grow Room 7','Grow Room 8','Grow Room 9','Grow Room 10','Grow Room 11'];
+  const sortedRooms=[...roomOrder.filter(r=>byRoom[r]),...Object.keys(byRoom).filter(r=>!roomOrder.includes(r)).sort()];
+  grid.innerHTML=sortedRooms.map(room=>{
+    const strains=byRoom[room];
+    const total=Object.values(strains).reduce((a,b)=>a+b,0);
+    const dashRoom=rooms.find(r=>r.name===room);
+    const fd=dashRoom?flowerDay(dashRoom):null;
+    const phase=fd?getPhaseForDay(fd):null;
+    const strainRows=Object.entries(strains).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
+      const pct=Math.round((n/total)*100);
+      return`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;font-size:12px;color:var(--text)">${s}</div>
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;min-width:28px;text-align:right">${n}</div>
+        <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px"><div style="width:${pct}%;height:100%;background:var(--green);border-radius:2px"></div></div>
+      </div>`;
+    }).join('');
+    return`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:14px;font-weight:700">${room}</div>
+          ${fd?`<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Day ${fd} / ${CYCLE}${phase?' · '+phase.name:''}</div>`:''}
+        </div>
+        <div style="text-align:right"><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">${total}</div><div style="font-size:10px;color:var(--text3)">plants</div></div>
+      </div>
+      ${strainRows}
+    </div>`;
+  }).join('');
+}
+
+function renderMetrcHarvests(){
+  const list=document.getElementById('metrc-harvests-list');
+  const rows=metrcData.harvests;
+  if(!rows.length){list.innerHTML='<div class="empty-state">Upload the Harvests export.</div>';return;}
+  const priOrder={high:0,normal:1,low:2};
+  const sorted=[...rows].sort((a,b)=>{
+    const pa=metrcHarvestPriority[a['Harvest Batch']]||'normal';
+    const pb=metrcHarvestPriority[b['Harvest Batch']]||'normal';
+    if(pa!==pb)return(priOrder[pa]||1)-(priOrder[pb]||1);
+    return new Date(b['Date']||0)-new Date(a['Date']||0);
+  });
+  const priColors={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
+  const priLabels={high:'Trim first',normal:'Normal',low:'Low priority'};
+  const isLead=currentRole==='lead';
+  list.innerHTML=sorted.map((r,idx)=>{
+    const batch=r['Harvest Batch']||'—';
+    const strain=r['Strain']||'—';
+    const plants=r['Plants']||'—';
+    const weightG=parseInt(r['Weight']||r['Wet Weight']||0)||0;
+    const weightLb=(weightG/453.592).toFixed(1);
+    const date=r['Date']||'';
+    const lab=r['Lab Testing']||'';
+    const pri=metrcHarvestPriority[batch]||'normal';
+    const bc=priColors[pri];
+    return`<div class="card" style="border-left:4px solid ${bc}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:24px">${idx+1}</span>
+            <div>
+              <div style="font-size:14px;font-weight:700">${strain}</div>
+              <div style="font-size:11px;color:var(--text3)">${batch}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${plants} plants</span>
+            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${weightLb} lb</span>
+            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${date}</span>
+            ${lab!=='NotSubmitted'?`<span style="font-size:11px;padding:2px 8px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);color:var(--blue)">${lab}</span>`:''}
+          </div>
+        </div>
+        ${isLead?`<select onchange="setHarvestPriority('${batch.replace(/'/g,"\'")}',this.value)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+          <option value="high"${pri==='high'?' selected':''}>Trim first</option>
+          <option value="normal"${pri==='normal'?' selected':''}>Normal</option>
+          <option value="low"${pri==='low'?' selected':''}>Low priority</option>
+        </select>`:`<span style="font-size:11px;color:${bc};font-weight:600;flex-shrink:0">${priLabels[pri]}</span>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setHarvestPriority(batch,priority){
+  metrcHarvestPriority[batch]=priority; S(METRC_KEYS.harvestPriority,metrcHarvestPriority);
+  renderMetrcHarvests();
+}
+
+function getMetrcStrainSuggestions(query){
+  if(!query||query.length<2)return[];
+  const q=query.toLowerCase();
+  const byStrain={};
+  metrcData.mother.forEach(r=>{
+    const s=r['Strain']||'';if(!s.toLowerCase().includes(q))return;
+    if(!byStrain[s])byStrain[s]={mothers:0,locations:{}};
+    byStrain[s].mothers++;
+    const loc=r['Location']||'Unknown';
+    byStrain[s].locations[loc]=(byStrain[s].locations[loc]||0)+1;
+  });
+  return Object.entries(byStrain).map(([strain,d])=>{
+    const locStr=Object.entries(d.locations).map(([l,n])=>`${n} in ${l.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')}`).join(', ');
+    return{strain,mothers:d.mothers,locStr};
+  }).sort((a,b)=>b.mothers-a.mothers);
+}
+
+function showStrainAutocomplete(val){
+  const box=document.getElementById('strain-autocomplete');
+  if(!box)return;
+  const suggestions=getMetrcStrainSuggestions(val);
+  if(!suggestions.length||!val||val.length<2){box.style.display='none';return;}
+  box.style.display='block';
+  box.innerHTML=suggestions.slice(0,12).map(s=>`<div onclick="selectStrain('${s.strain.replace(/'/g,"\'")}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+    <div style="font-weight:600;color:var(--text)">${s.strain}</div>
+    <div style="font-size:11px;color:var(--text3)">${s.mothers} mothers · ${s.locStr}</div>
+  </div>`).join('');
+}
+function selectStrain(strain){
+  const input=document.getElementById('ce-strain');
+  const box=document.getElementById('strain-autocomplete');
+  if(input)input.value=strain;
+  if(box)box.style.display='none';
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#ce-strain')&&!e.target.closest('#strain-autocomplete')){
+    const box=document.getElementById('strain-autocomplete');if(box)box.style.display='none';
+  }
+});
 
 // ══════════════════════════════════════════════
 // INIT
@@ -2555,6 +3000,7 @@ setRole(currentRole);
 renderRooms();
 renderTodayLog();
 renderChores();
+updateMetrcSyncLabel();
 // show login modal on first load if team has members
 if(team.length) showLoginModal();
 // auto-refresh checks silently on load to catch today's submissions
