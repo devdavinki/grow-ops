@@ -670,7 +670,7 @@ button { cursor: pointer; }
   </div>
 
   <!-- LOGIN MODAL -->
-  <div class="modal-bg" id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:var(--bg);z-index:300">
+  <div class="modal-bg" id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300">
     <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md)">
       <div style="text-align:center;margin-bottom:16px">
         <div style="font-size:16px;font-weight:700;color:var(--text)">WESTSIDE <span style="color:var(--green)">GROWERS</span></div>
@@ -3427,7 +3427,7 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
-applyRolePerms();
+try { applyRolePerms(); } catch(e){ console.error('applyRolePerms:',e); }
 document.getElementById('topbar-date').textContent = TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 // add login button to topbar
 const loginBtn=document.createElement('button');
@@ -3436,18 +3436,18 @@ loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:
 loginBtn.textContent='Sign in';
 loginBtn.onclick=showLoginModal;
 document.getElementById('role-select').prepend(loginBtn);
-setRole(currentRole);
-renderRooms();
-renderTodayLog();
-renderChores();
-updateMetrcSyncLabel();
-// Blur content until logged in
+// Show login modal FIRST before any renders that could throw
 if(team && team.length){
   document.body.classList.add('pre-login');
   showLoginModal();
 }
+try { setRole(currentRole); } catch(e){ console.error('setRole:',e); try{setRole('lead');}catch(e2){} }
+try { renderRooms(); } catch(e){ console.error('renderRooms:',e); }
+try { renderTodayLog(); } catch(e){ console.error('renderTodayLog:',e); }
+try { renderChores(); } catch(e){ console.error('renderChores:',e); }
+try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
 // auto-refresh checks silently on load to catch today's submissions
-setTimeout(()=>loadChecks(),800);
+setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
 </script>
 </body>
 </html>
