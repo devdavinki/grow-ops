@@ -2819,16 +2819,24 @@ async function pullMetrcFromCloud(silent=false){
     const json=await res.json();
     if(!json.ok||!json.data) throw new Error(json.error||'No data');
     const d=json.data;
-    if(d.mother)    { metrcData.mother=d.mother;    S(METRC_KEYS.mother,d.mother); }
-    if(d.immature)  { metrcData.immature=d.immature;S(METRC_KEYS.immature,d.immature); }
-    if(d.vegetative){ metrcData.vegetative=d.vegetative;S(METRC_KEYS.vegetative,d.vegetative); }
-    if(d.flowering) { metrcData.flowering=d.flowering;S(METRC_KEYS.flowering,d.flowering); }
-    if(d.harvests)  { metrcData.harvests=d.harvests;S(METRC_KEYS.harvests,d.harvests); }
+    // Only overwrite local data if cloud data has MORE columns (richer data)
+    // This prevents stale single-column cloud data from wiping fresh multi-column local uploads
+    function shouldUse(cloudArr, localArr){
+      if(!cloudArr||!cloudArr.length) return false;
+      if(!localArr||!localArr.length) return true;
+      const cloudCols=Object.keys(cloudArr[0]||{}).length;
+      const localCols=Object.keys(localArr[0]||{}).length;
+      // Use cloud only if it has equal or more columns, AND more rows or same rows
+      return cloudCols>=localCols;
+    }
+    if(d.mother    &&shouldUse(d.mother,    metrcData.mother))    { metrcData.mother=d.mother;       S(METRC_KEYS.mother,d.mother); }
+    if(d.immature  &&shouldUse(d.immature,  metrcData.immature))  { metrcData.immature=d.immature;   S(METRC_KEYS.immature,d.immature); }
+    if(d.vegetative&&shouldUse(d.vegetative,metrcData.vegetative)){ metrcData.vegetative=d.vegetative;S(METRC_KEYS.vegetative,d.vegetative); }
+    if(d.flowering &&shouldUse(d.flowering, metrcData.flowering)) { metrcData.flowering=d.flowering; S(METRC_KEYS.flowering,d.flowering); }
+    if(d.harvests  &&shouldUse(d.harvests,  metrcData.harvests))  { metrcData.harvests=d.harvests;   S(METRC_KEYS.harvests,d.harvests); }
     if(d.harvestPriority){ metrcHarvestPriority=d.harvestPriority;S(METRC_KEYS.harvestPriority,d.harvestPriority); }
-    // Use cloud trim queue if it has items, otherwise rebuild from harvests
     if(d.trimQueue&&d.trimQueue.length){ S('wg_trim_queue',d.trimQueue); }
     else if(d.harvests&&d.harvests.length){ syncHarvestsToTrimQueue(d.harvests); }
-    // Update sync label
     const syncInfo={};
     ['mother','immature','vegetative','flowering','harvests'].forEach(k=>{
       if(d[k]&&d[k].length) syncInfo[k]={time:d.syncedAt||'',date:(d.syncedAt||'').split('T')[0],count:d[k].length};
