@@ -3103,22 +3103,25 @@ async function handleMetrcUpload(type,input){
   const file=input.files[0];if(!file)return;
   const statusEl=document.getElementById('mup-'+type+'-status');
   const cellEl=document.getElementById('mup-'+type);
-  statusEl.textContent='Reading…';
+  if(statusEl) statusEl.textContent='Reading…';
   try{
     let rows;
     if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')) rows=await parseMetrcXLSX(file);
     else{const text=await file.text();rows=parseMetrcCSV(text);}
+    console.log('[METRC] Parsed',type,':',rows.length,'rows, cols:',rows[0]?Object.keys(rows[0]):'empty');
     metrcData[type]=rows; S(METRC_KEYS[type],rows);
     const syncInfo=L(METRC_KEYS.sync,{});
     syncInfo[type]={time:fmtTime(),date:dateToIso(TODAY),count:rows.length};
     S(METRC_KEYS.sync,syncInfo);
-    statusEl.textContent='✓ '+rows.length+' rows';
-    cellEl.classList.add('loaded');
+    if(statusEl) statusEl.textContent='✓ '+rows.length+' rows';
+    if(cellEl) cellEl.classList.add('loaded');
     updateMetrcSyncLabel();
-    // Auto-sync harvests → trim queue
     if(type==='harvests') syncHarvestsToTrimQueue(rows);
     renderCurrentMetrcTab();
-  }catch(err){statusEl.textContent='✗ '+err.message;console.error(err);}
+  }catch(err){
+    console.error('[METRC] Upload error for',type,':',err);
+    if(statusEl) statusEl.textContent='✗ '+err.message;
+  }
 }
 
 
