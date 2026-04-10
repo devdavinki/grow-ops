@@ -3748,21 +3748,21 @@ try { renderChores(); } catch(e){ console.error('renderChores:',e); }
 try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
 // auto-refresh checks silently on load
 setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
-// Pull METRC data from cloud on every page load — runs silently in background
-// After pull: re-sync harvests→trimQueue and re-render everything that uses METRC data
+// Pull Growlink first — fast, works on all devices including mobile
+setTimeout(async ()=>{
+  try{ await pullGrowlinkFromCloud(true); }catch(e){}
+},800);
+// Pull METRC + Growlink again after METRC loads
 setTimeout(async ()=>{
   try{
     const pulled = await pullMetrcFromCloud(true);
     if(pulled){
-      // Rebuild trim queue from harvests if queue was empty or stale
       if(metrcData.harvests&&metrcData.harvests.length){
-        const tq=L('wg_trim_queue',[]);
         syncHarvestsToTrimQueue(metrcData.harvests);
       }
       try{renderRooms();}catch(e){}
       try{renderTrimQueue();}catch(e){}
     }
-    // Pull Growlink env data silently
     try{ await pullGrowlinkFromCloud(true); }catch(e){}
   }catch(e){console.warn('Background pull failed:',e);}
 },1200);
