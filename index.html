@@ -3244,7 +3244,7 @@ function showMetrcTab(tab,el){
   if(!allowedTabs.includes(tab)) return;
   document.querySelectorAll('#metrc-tab-nav .nav-tab').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
-  ['mothers','clones','vegetative','flowering','harvests'].forEach(t=>{
+  ['mothers','clones','strains','harvests'].forEach(t=>{
     const d=document.getElementById('metrc-sub-'+t);
     if(d) d.style.display=t===tab?'block':'none';
   });
