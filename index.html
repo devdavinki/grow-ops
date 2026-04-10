@@ -413,6 +413,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('additive')" data-page="additive" data-roles="lead,fertigator">Additive Schedule</button>
   <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
+  <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
   <button class="nav-tab" onclick="showPage('settings')" data-page="settings" data-roles="lead">Settings</button>
 </div>
 
@@ -811,6 +812,23 @@ button { cursor: pointer; }
     </div>
     <button onclick="skipLogin()" style="display:none"></button>
   </div>
+
+  <!-- DAILY REVIEW PAGE -->
+  <div id="page-daily-review" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px">Daily Review</div>
+        <div style="font-size:12px;color:var(--text3)">Tier 2 deviations — logged silently, reviewed each morning</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="clearOldAlerts()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer">Clear logs &gt;7 days</button>
+        <button onclick="renderDailyReview()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="daily-review-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px"></div>
+    <div id="daily-review-list" style="display:grid;gap:6px"></div>
+  </div>
+
 </div>
 
 <script>
@@ -881,7 +899,7 @@ const DEFOL_WINDOWS=[
 
 let todayLog = L('wg_log_'+dateToIso(TODAY), []);
 let roomOverrides = L('wg_overrides_'+dateToIso(TODAY), {});
-let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:''});
+let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:'',alerts:''});
 let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbwufStDuNPTiFS5zuVrdZkSW5sEsV7GRxto0N6Un38jgaK2HeJA5IcW_EYMwcYP9QKX/exec');
 let currentRole = L('wg_role','lead');
 let pendingComplete = null;
@@ -976,7 +994,7 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc'], roomView:'full'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
   fertigator: {pages:['assignments','rooms','clonetracker','today-log','additive','checks','slack','metrc'], roomView:'basic'},
   cloner:     {pages:['assignments','rooms','clonetracker','today-log','metrc'], roomView:'basic'},
@@ -2087,6 +2105,7 @@ const ALL_PAGES=[
   {key:'slack',label:'Slack Dispatch'},
   {key:'settings',label:'Settings'},
   {key:'metrc',label:'METRC Data'},
+  {key:'daily-review',label:'Daily Review'},
 ];
 
 const ROLE_LABELS={
@@ -2402,6 +2421,7 @@ function renderSettings(){
     {key:'ipm',label:'#ipm',desc:'IPM tech'},
     {key:'vegclone',label:'#veg-clone',desc:'Cloners'},
     {key:'postprod',label:'#post-production',desc:'Trim crew & post production'},
+    {key:'alerts',label:'#alerts',desc:'Tier 1 guardrail alerts — all leads'},
   ];
   whDefs.forEach(wh=>{
     const cell=document.createElement('div');
@@ -2742,6 +2762,7 @@ function showPage(page){
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
   if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
+  if(page==='daily-review'){renderDailyReview();}
   if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
   if(page==='postprod'){pullMetrcFromCloud(true);renderTrimQueue();}
@@ -3758,6 +3779,281 @@ setTimeout(async ()=>{
     try{ await pullGrowlinkFromCloud(true); }catch(e){}
   }catch(e){console.warn('Background pull failed:',e);}
 },1200);
+// ══════════════════════════════════════════════
+// GUARDRAIL ENGINE
+// ══════════════════════════════════════════════
+
+// Persistent alert log stored in localStorage
+// Each entry: {id, room, param, value, setpoint, tier, phase, timestamp, ack, note}
+const ALERT_LOG_KEY = 'wg_alert_log';
+const T1_PENDING_KEY = 'wg_t1_pending'; // tracks sustained deviations before firing
+
+function getAlertLog(){ return L(ALERT_LOG_KEY,[]); }
+function saveAlertLog(log){ S(ALERT_LOG_KEY, log); }
+
+// Maxx OS phase thresholds — derived from MAXX_PHASES
+// T2 = inner band (log only), T1 = outer band (Slack alert after 15 min)
+function getGuardrailsForPhase(phaseId){
+  const p = MAXX_PHASES.find(x=>x.id===phaseId);
+  if(!p) return null;
+  return {
+    temp:  { setpoint:p.dayTemp, t2Low:p.dayTemp-4,  t2High:p.dayTemp+4,  t1Low:p.dayTemp-10, t1High:p.dayTemp+10 },
+    rh:    { setpoint:p.rh,      t2Low:p.rh-7,       t2High:p.rh+7,       t1Low:p.rh-15,      t1High:p.rh+15 },
+    co2:   { setpoint:p.co2,     t2Low:p.co2-150,    t2High:p.co2+150,    t1Low:p.co2-300,    t1High:p.co2+300 },
+    soilEC:     { t1High:10 },
+    soilMoisture: { t1Low:10 },
+    dewPoint:   { t1High:60 }, // hard ceiling, always T1
+  };
+}
+
+function calcDewPoint(tempF, rh){
+  if(!tempF||!rh) return null;
+  const tempC = (tempF - 32) * 5/9;
+  const a=17.27, b=237.7;
+  const alpha=(a*tempC)/(b+tempC)+Math.log(rh/100);
+  const dpC=(b*alpha)/(a-alpha);
+  return dpC*9/5+32; // back to °F
+}
+
+// Evaluate a single room's sensor data against its phase guardrails
+// Returns array of {param, value, setpoint, tier, message}
+function evaluateRoom(roomName, sensors, phaseId){
+  const g = getGuardrailsForPhase(phaseId);
+  if(!g||!sensors) return [];
+  const issues = [];
+
+  function check(param, value, thresholds, label, unit){
+    if(value===null||value===undefined) return;
+    const v = parseFloat(value);
+    if(isNaN(v)) return;
+
+    // T1 check (outer band / hard ceilings)
+    if(thresholds.t1High!==undefined && v > thresholds.t1High){
+      issues.push({param, value:v, setpoint:thresholds.setpoint||thresholds.t1High, tier:1,
+        message:`${roomName} — ${label} HIGH: ${v.toFixed(1)}${unit} (limit ${thresholds.t1High}${unit})`});
+      return;
+    }
+    if(thresholds.t1Low!==undefined && v < thresholds.t1Low){
+      issues.push({param, value:v, setpoint:thresholds.setpoint||thresholds.t1Low, tier:1,
+        message:`${roomName} — ${label} LOW: ${v.toFixed(1)}${unit} (limit ${thresholds.t1Low}${unit})`});
+      return;
+    }
+    // T2 check (inner band)
+    if(thresholds.t2High!==undefined && v > thresholds.t2High){
+      issues.push({param, value:v, setpoint:thresholds.setpoint, tier:2,
+        message:`${roomName} — ${label} above target: ${v.toFixed(1)}${unit} (target ≤${thresholds.t2High}${unit})`});
+      return;
+    }
+    if(thresholds.t2Low!==undefined && v < thresholds.t2Low){
+      issues.push({param, value:v, setpoint:thresholds.setpoint, tier:2,
+        message:`${roomName} — ${label} below target: ${v.toFixed(1)}${unit} (target ≥${thresholds.t2Low}${unit})`});
+    }
+  }
+
+  check('temp',        sensors.temp,         g.temp,         'Temp',     '°F');
+  check('rh',          sensors.humidity,      g.rh,           'RH',       '%');
+  check('co2',         sensors.co2,           g.co2,          'CO₂',      'ppm');
+  check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
+  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
+
+  // Dew point hard ceiling
+  const dp = calcDewPoint(sensors.temp, sensors.humidity);
+  if(dp!==null) check('dewPoint', dp, g.dewPoint, 'Dew point', '°F');
+
+  return issues;
+}
+
+// Run guardrail check across all rooms — called after every Growlink pull
+function runGuardrails(){
+  if(!growlinkData||!Object.keys(growlinkData).length) return;
+  const now = Date.now();
+  const pending = L(T1_PENDING_KEY, {}); // {key: firstSeenTimestamp}
+  const log = getAlertLog();
+  const T1_SUSTAIN_MS = 15 * 60 * 1000; // 15 minutes
+  const newT1s = [];
+
+  rooms.forEach(room=>{
+    const gl = getGrowlinkForRoom(room.name);
+    if(!gl||!gl.fetchedAt) return;
+
+    // Don't evaluate stale data (>20 min old)
+    const age = now - new Date(gl.fetchedAt).getTime();
+    if(age > 20*60*1000) return;
+
+    const fd = flowerDay(room);
+    const phase = fd ? getPhaseForDay(fd) : null;
+    if(!phase) return;
+
+    const issues = evaluateRoom(room.name, gl, phase.id);
+
+    issues.forEach(issue=>{
+      const key = room.name+'|'+issue.param+'|'+issue.tier;
+      const entry = {
+        id: now+'_'+key.replace(/[^a-z0-9]/gi,'_'),
+        room: room.name,
+        param: issue.param,
+        value: issue.value,
+        setpoint: issue.setpoint,
+        tier: issue.tier,
+        phase: phase.id,
+        message: issue.message,
+        timestamp: new Date().toISOString(),
+        ack: false,
+        note: '',
+      };
+
+      if(issue.tier===1){
+        // Dew point fires immediately, others need 15 min sustained
+        if(issue.param==='dewPoint'){
+          // Always log + fire immediately
+          log.unshift(entry);
+          newT1s.push(entry);
+          delete pending[key];
+        } else {
+          if(!pending[key]){
+            pending[key] = now; // start the clock
+          } else if(now - pending[key] >= T1_SUSTAIN_MS){
+            // Sustained 15+ min — fire alert (once per hour max)
+            const recentSame = log.find(l=>l.room===room.name&&l.param===issue.param&&l.tier===1&&
+              (now - new Date(l.timestamp).getTime()) < 60*60*1000);
+            if(!recentSame){
+              log.unshift(entry);
+              newT1s.push(entry);
+            }
+            delete pending[key]; // reset so next 15-min window can fire again
+          }
+        }
+      } else {
+        // T2 — log once per 2 hours per room+param
+        const recentT2 = log.find(l=>l.room===room.name&&l.param===issue.param&&l.tier===2&&
+          (now - new Date(l.timestamp).getTime()) < 2*60*60*1000);
+        if(!recentT2) log.unshift(entry);
+        delete pending[key]; // clear T1 pending if back in T1 range but still T2
+      }
+    });
+
+    // Clear pending for params that are back in range
+    const issuedParams = new Set(issues.map(i=>room.name+'|'+i.param+'|1'));
+    Object.keys(pending).forEach(k=>{
+      if(k.startsWith(room.name+'|')&&!issuedParams.has(k)) delete pending[k];
+    });
+  });
+
+  // Trim log to last 7 days
+  const cutoff = now - 7*24*60*60*1000;
+  const trimmed = log.filter(l=>new Date(l.timestamp).getTime()>cutoff);
+  saveAlertLog(trimmed);
+  S(T1_PENDING_KEY, pending);
+
+  // Fire Slack for new T1s
+  if(newT1s.length) fireT1Slack(newT1s);
+
+  // Update any visible Daily Review page
+  try{ if(document.getElementById('daily-review-list')?.closest('.page')?.style.display!=='none') renderDailyReview(); }catch(e){}
+}
+
+// Send T1 alerts to #alerts Slack channel
+async function fireT1Slack(alerts){
+  const wh = webhooks['alerts'];
+  if(!wh||!wh.startsWith('https://hooks.slack.com/')) return;
+
+  const lines = alerts.map(a=>{
+    const emoji = a.param==='dewPoint'?'🚨':a.param==='soilEC'?'⚠️':a.param==='soilMoisture'?'💧':'🌡️';
+    return `${emoji} *${a.message}*`;
+  });
+
+  const text = `*WG ALERT — Tier 1 Environmental*\n${lines.join('\n')}\n_${new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}_\n<!subteam^leads> FYI`;
+
+  try{
+    await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  }catch(e){ console.warn('[Guardrails] Slack T1 failed:',e); }
+}
+
+// ── Daily Review rendering ────────────────────────────────────────
+function renderDailyReview(){
+  const log = getAlertLog();
+  const summaryEl = document.getElementById('daily-review-summary');
+  const listEl = document.getElementById('daily-review-list');
+  if(!summaryEl||!listEl) return;
+
+  const now = Date.now();
+  const today = log.filter(l=>(now-new Date(l.timestamp).getTime())<24*60*60*1000);
+  const t1Today = today.filter(l=>l.tier===1);
+  const t2Today = today.filter(l=>l.tier===2);
+  const unacked = t1Today.filter(l=>!l.ack);
+
+  summaryEl.innerHTML = [
+    {label:'T1 alerts today', val:t1Today.length, color:t1Today.length?'var(--red)':'var(--green)'},
+    {label:'Unacknowledged', val:unacked.length, color:unacked.length?'var(--red)':'var(--green)'},
+    {label:'T2 deviations today', val:t2Today.length, color:t2Today.length?'var(--amber)':'var(--green)'},
+    {label:'Total log entries', val:log.length, color:'var(--text2)'},
+  ].map(s=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+    <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div>
+  </div>`).join('');
+
+  if(!log.length){
+    listEl.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">No deviations logged yet. Guardrails run automatically after each Growlink sync.</div>';
+    return;
+  }
+
+  // Group by date
+  const byDate={};
+  log.forEach(l=>{
+    const d=l.timestamp.split('T')[0];
+    if(!byDate[d]) byDate[d]=[];
+    byDate[d].push(l);
+  });
+
+  listEl.innerHTML = Object.keys(byDate).sort().reverse().map(date=>{
+    const entries = byDate[date];
+    const dateLabel = new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const rows = entries.map(e=>{
+      const t = new Date(e.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const tierColor = e.tier===1?'var(--red)':'var(--amber)';
+      const tierLabel = e.tier===1?'T1':'T2';
+      const ackBtn = e.tier===1&&!e.ack
+        ? `<button onclick="ackAlert('${e.id}')" style="font-size:10px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">Acknowledge</button>`
+        : (e.ack?`<span style="font-size:10px;color:var(--text3)">✓ Acked</span>`:'');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:${e.tier===1?'var(--red-bg)':'var(--amber-bg)'};color:${tierColor};min-width:24px;text-align:center">${tierLabel}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text3);min-width:52px">${t}</span>
+        <span style="flex:1;font-size:12px;color:var(--text)">${e.message}</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${e.phase||''}</span>
+        ${ackBtn}
+      </div>`;
+    }).join('');
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden">
+      <div style="padding:8px 12px;background:var(--bg3);font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.05em;display:flex;justify-content:space-between">
+        <span>${dateLabel}</span>
+        <span style="color:var(--text3)">${entries.filter(e=>e.tier===1).length} T1 · ${entries.filter(e=>e.tier===2).length} T2</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function ackAlert(id){
+  const log = getAlertLog();
+  const entry = log.find(l=>l.id===id);
+  if(entry){ entry.ack=true; saveAlertLog(log); renderDailyReview(); }
+}
+
+function clearOldAlerts(){
+  const cutoff = Date.now() - 7*24*60*60*1000;
+  const log = getAlertLog().filter(l=>new Date(l.timestamp).getTime()>cutoff);
+  saveAlertLog(log);
+  renderDailyReview();
+}
+
+// Hook guardrails into Growlink pull
+const _origPullGL = pullGrowlinkFromCloud;
+pullGrowlinkFromCloud = async function(silent){
+  const result = await _origPullGL(silent);
+  try{ runGuardrails(); }catch(e){ console.warn('[Guardrails] Error:',e); }
+  return result;
+};
+
 </script>
 </body>
 </html>
