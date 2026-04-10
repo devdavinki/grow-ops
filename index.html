@@ -1140,6 +1140,30 @@ function renderRooms(){
       </div>
       ${tlHTML}${progHTML}${phaseHTML}${nudgeHTML}
       ${(()=>{
+        // Growlink live env strip
+        const gl=getGrowlinkForRoom(room.name);
+        if(!gl) return '';
+        const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
+        const stale=age!==null&&age>15;
+        const tempOk=gl.temp&&gl.temp>=78&&gl.temp<=84;
+        const rhOk=gl.humidity&&gl.humidity>=55&&gl.humidity<=80;
+        const co2Ok=gl.co2&&gl.co2>=900&&gl.co2<=1500;
+        const vpdOk=gl.vpd&&gl.vpd>=0.8&&gl.vpd<=1.6;
+        const cells=[
+          gl.temp!==undefined?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':''+(!tempOk?'warn':'ok')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
+          gl.humidity!==undefined?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':''+(!rhOk?'warn':'ok')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.co2!==undefined?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':''+(!co2Ok?'warn':'ok')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
+          gl.vpd!==undefined?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':''+(!vpdOk?'warn':'ok')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
+          gl.light!==undefined?`<div class="env-cell"><div class="env-lbl">PPFD</div><div class="env-num ok">${Math.round(gl.light)}</div></div>`:'',
+        ].filter(Boolean).join('');
+        return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:5px;display:flex;justify-content:space-between">
+            <span>Live · Growlink</span><span style="font-family:var(--mono)">${age!==null?age+'m ago':''}</span>
+          </div>
+          <div class="env-grid" style="grid-template-columns:repeat(${Math.min(5,Object.keys(gl).filter(k=>k!=='fetchedAt').length)},1fr)">${cells}</div>
+        </div>`;
+      })()}
+      ${(()=>{
         // METRC strain breakdown for this room
         const metrcRoomName=room.name.replace('Room ','Grow Room ');
         const flowerRows=(metrcData&&metrcData.flowering)||[];
@@ -2713,6 +2737,7 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
+  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
   if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
   if(page==='postprod'){pullMetrcFromCloud(true);renderTrimQueue();}
@@ -2977,6 +3002,41 @@ let metrcData={
   harvests:L(METRC_KEYS.harvests,[]),
 };
 let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
+
+// ── GROWLINK LIVE DATA ──────────────────────────────────────────
+// Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
+let growlinkData = L('wg_growlink_rooms', {});
+
+// Map Growlink room names → dashboard room names
+const GROWLINK_ROOM_MAP = {
+  'Flower Room 1':'Room 1','Flower Room 2':'Room 2','Flower Room 3':'Room 3',
+  'Flower Room 4':'Room 4','Flower Room 5':'Room 5','Flower Room 6':'Room 6',
+  'Flower Room 7':'Room 7','Flower Room 8':'Room 8','Flower Room 9':'Room 9',
+  'Flower Room 10':'Room 10','Flower Room 11':'Room 11',
+  'Veg Room':'Veg Room','Mother Room':'Mother Room'
+};
+
+async function pullGrowlinkFromCloud(silent=false){
+  if(!gsUrl) return;
+  try{
+    const res=await fetch(gsUrl+'?action=getGrowlink&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.data||!json.data.rooms) return;
+    growlinkData=json.data.rooms;
+    S('wg_growlink_rooms', growlinkData);
+    const age=json.data.pushedAt?Math.round((Date.now()-new Date(json.data.pushedAt).getTime())/60000):null;
+    if(!silent) console.log('Growlink pulled:',Object.keys(growlinkData).length,'rooms, pushed',age,'min ago');
+    renderRooms();
+  }catch(e){ if(!silent) console.warn('Growlink pull failed:',e); }
+}
+
+function getGrowlinkForRoom(roomName){
+  // Match by exact name or by number
+  for(const [glName, dashName] of Object.entries(GROWLINK_ROOM_MAP)){
+    if(dashName===roomName) return growlinkData[glName]||null;
+  }
+  return null;
+}
 
 async function parseMetrcXLSX(file){
   return new Promise((resolve,reject)=>{
@@ -3696,12 +3756,13 @@ setTimeout(async ()=>{
       // Rebuild trim queue from harvests if queue was empty or stale
       if(metrcData.harvests&&metrcData.harvests.length){
         const tq=L('wg_trim_queue',[]);
-        // Add any harvests not yet in queue
         syncHarvestsToTrimQueue(metrcData.harvests);
       }
       try{renderRooms();}catch(e){}
       try{renderTrimQueue();}catch(e){}
     }
+    // Pull Growlink env data silently
+    try{ await pullGrowlinkFromCloud(true); }catch(e){}
   }catch(e){console.warn('Background pull failed:',e);}
 },1200);
 </script>
