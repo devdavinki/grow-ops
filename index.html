@@ -787,11 +787,8 @@ button { cursor: pointer; }
       </div>
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
-    <div id="metrc-sub-vegetative" style="display:none">
-      <div id="metrc-vegetative-grid" class="grid-3"></div>
-    </div>
-    <div id="metrc-sub-flowering" style="display:none">
-      <div id="metrc-flowering-grid" class="grid-2"></div>
+    <div id="metrc-sub-strains" style="display:none">
+      <div id="metrc-strains-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-harvests" style="display:none">
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Active harvests — awaiting trim. <span id="metrc-harvest-lead-note"></span></div>
@@ -985,16 +982,16 @@ function getAdditiveForRoom(room){
 const ROLE_PERMISSIONS = {
   lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
-  fertigator: {pages:['assignments','rooms','today-log','additive'], roomView:'basic'},
+  fertigator: {pages:['assignments','rooms','clonetracker','today-log','additive','checks','slack','metrc'], roomView:'basic'},
   cloner:     {pages:['assignments','rooms','clonetracker','today-log','metrc'], roomView:'basic'},
-  ipm:        {pages:['assignments','rooms','today-log','checks'], roomView:'basic'},
+  ipm:        {pages:['assignments','rooms','today-log','checks','additive'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
   postprod:   {pages:['assignments','postprod','today-log','metrc'], roomView:'none'},
 };
 // Which METRC subtabs each role can see
 const METRC_ROLE_TABS = {
-  lead:     ['mothers','clones','vegetative','flowering','harvests'],
-  cloner:   ['mothers','clones','vegetative','flowering'],
+  lead:     ['mothers','clones','strains','harvests'],
+  cloner:   ['mothers','clones','strains'],
   postprod: ['harvests'],
 };
 
@@ -2110,9 +2107,9 @@ const DEFAULT_TEAM=[
   {id:'u1', name:'Pat',    role:'lead',      agtId:'001586'},
   {id:'u2', name:'Devon',  role:'lead',      agtId:'005963'},
   {id:'u3', name:'Jordan', role:'lead',      agtId:'012319'},
-  {id:'u4', name:'Zach',   role:'lead',      agtId:'027925'},
-  {id:'u5', name:'Joel',   role:'lead',      agtId:'027675'},
-  {id:'u6', name:'Jesse',  role:'lead',      agtId:'023062'},
+  {id:'u4', name:'Zach',   role:'defoliator',agtId:'027925'},
+  {id:'u5', name:'Joel',   role:'defoliator',agtId:'027675'},
+  {id:'u6', name:'Jesse',  role:'defoliator',agtId:'023062'},
   {id:'u7', name:'Hy',     role:'ipm',       agtId:'027420'},
   {id:'u8', name:'Leanne', role:'postprod',  agtId:'017936'},
   {id:'u9', name:'Todd',   role:'postprod',  agtId:'012240'},
@@ -2160,7 +2157,9 @@ let rolePerms=L('wg_role_perms',null);
 if(!rolePerms || !rolePerms.lead ||
    !rolePerms.lead.includes('postprod') ||
    !rolePerms.lead.includes('metrc') ||
-   !rolePerms.lead.includes('settings')){
+   !rolePerms.lead.includes('settings') ||
+   !rolePerms.fertigator.includes('clonetracker') ||
+   !rolePerms.ipm.includes('additive')){
   rolePerms={};
   Object.entries(ROLE_PERMISSIONS).forEach(([role,cfg])=>{
     rolePerms[role]=cfg.pages.slice();
@@ -3228,8 +3227,7 @@ function buildMetrcTabNav(){
   const tabDefs = [
     {key:'mothers',    label:'Mothers'},
     {key:'clones',     label:'Clone batches'},
-    {key:'vegetative', label:'Vegetative'},
-    {key:'flowering',  label:'Flowering'},
+    {key:'strains', label:'Strains'},
     {key:'harvests',   label:'Harvests / Trim queue'},
   ];
   nav.innerHTML = tabDefs
@@ -3255,8 +3253,7 @@ function showMetrcTab(tab,el){
   if(note) note.textContent = currentRole==='lead' ? 'Leads can adjust trim priority.' : '';
   if(tab==='mothers') renderMetrcMothers();
   if(tab==='clones') renderMetrcClones();
-  if(tab==='vegetative') renderMetrcVegetative();
-  if(tab==='flowering') renderMetrcFlowering();
+  if(tab==='strains') renderMetrcStrains();
   if(tab==='harvests') renderMetrcHarvests();
 }
 
@@ -3264,157 +3261,60 @@ function renderCurrentMetrcTab(){
   buildMetrcTabNav();
 }
 
-function renderMetrcVegetative(){
-  const grid=document.getElementById('metrc-vegetative-grid');
-  const rows=metrcData.vegetative;
-  if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative export.</div>';return;}
+function renderMetrcStrains(){
+  const grid=document.getElementById('metrc-strains-grid');
+  if(!grid)return;
+  const vegRows=metrcData.vegetative||[];
+  const flowerRows=metrcData.flowering||[];
+  if(!vegRows.length&&!flowerRows.length){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative and Flowering exports to see strain data.</div>';
+    return;
+  }
   const byStrain={};
-  rows.forEach(r=>{
+  vegRows.forEach(r=>{
     const s=r['Strain']||'Unknown';
     const loc=r['Location']||'Unknown';
-    if(!byStrain[s])byStrain[s]={count:0,locations:{}};
-    byStrain[s].count++;
-    byStrain[s].locations[loc]=(byStrain[s].locations[loc]||0)+1;
+    if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
+    byStrain[s].veg++;
+    byStrain[s].vegLocs[loc]=(byStrain[s].vegLocs[loc]||0)+1;
   });
-  const total=rows.length;
-  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].count-byStrain[a].count);
-  // Summary bar
-  const summary=`<div style="grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r2);margin-bottom:4px">
-    <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">${total}</div>
-    <div>
-      <div style="font-size:13px;font-weight:600;color:var(--text)">Vegetative plants total</div>
-      <div style="font-size:11px;color:var(--text3)">${strains.length} strain${strains.length!==1?'s':''}</div>
-    </div>
-  </div>`;
-  grid.innerHTML=summary+strains.map(strain=>{
-    const d=byStrain[strain];
-    const isUnknown=strain==='Unknown';
-    const locParts=Object.entries(d.locations).sort((a,b)=>b[1]-a[1]).map(([loc,n])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc} · ${n}</span>`).join('');
-    return`<div class="card" style="border-left:3px solid ${isUnknown?'var(--text3)':'var(--blue)'}">
-      <div style="font-size:13px;font-weight:700;color:${isUnknown?'var(--text3)':'var(--text)'};margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${isUnknown?'var(--text3)':'var(--blue)'};margin-bottom:6px">${d.count}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">${locParts}</div>
-    </div>`;
-  }).join('');
-}
-
-function renderMetrcMothers(){
-  const grid=document.getElementById('metrc-mothers-grid');
-  const countEl=document.getElementById('metrc-mother-count');
-  const search=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase();
-  const rows=metrcData.mother;
-  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Mother Plants export to see data here.</div>';if(countEl)countEl.textContent='';return;}
-  const byStrain={};
-  rows.forEach(r=>{
-    const strain=r['Strain']||'—';
-    if(search&&!strain.toLowerCase().includes(search))return;
-    if(!byStrain[strain])byStrain[strain]={count:0,locations:{},cloned:0};
-    byStrain[strain].count++;
+  flowerRows.forEach(r=>{
+    const s=r['Strain']||'Unknown';
     const loc=r['Location']||'Unknown';
-    byStrain[strain].locations[loc]=(byStrain[strain].locations[loc]||0)+1;
-    byStrain[strain].cloned+=parseInt(r['Cloned']||0)||0;
+    if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
+    byStrain[s].flower++;
+    byStrain[s].flowerLocs[loc]=(byStrain[s].flowerLocs[loc]||0)+1;
   });
-  const clonesByStrain={};
-  metrcData.immature.forEach(r=>{const s=r['Strain']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
-  const strains=Object.keys(byStrain).sort();
-  if(countEl) countEl.textContent=strains.length+' strains · '+rows.length+' mothers';
-  if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains match.</div>';return;}
-  grid.innerHTML=strains.map(strain=>{
+  const totalVeg=vegRows.length;
+  const totalFlower=flowerRows.length;
+  const strains=Object.keys(byStrain).sort((a,b)=>(byStrain[b].veg+byStrain[b].flower)-(byStrain[a].veg+byStrain[a].flower)||a.localeCompare(b));
+  const summary='<div style="grid-column:1/-1;display:flex;gap:24px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);margin-bottom:8px;flex-wrap:wrap">'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+totalVeg+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Veg plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].veg>0).length+' strains</div></div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">'+totalFlower+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Flowering plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].flower>0).length+' strains</div></div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--text)">'+strains.length+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Total strains</div></div></div>'
+    +'</div>';
+  const cards=strains.map(strain=>{
     const d=byStrain[strain];
-    const locParts=Object.entries(d.locations).map(([loc,cnt])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')} (${cnt})</span>`).join('');
-    const clones=clonesByStrain[strain]||0;
-    const bc=d.count>=8?'var(--green)':d.count>=4?'var(--amber)':'var(--red)';
-    return`<div class="card" style="border-left:3px solid ${bc}">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${bc};margin-bottom:2px">${d.count}</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">mother${d.count!==1?'s':''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${locParts}</div>
-      ${clones?`<div style="font-size:11px;color:var(--blue)">🌱 ${clones} clones in progress</div>`:''}
-    </div>`;
+    const isUnk=strain==='Unknown';
+    const accent=isUnk?'var(--text3)':d.flower>0?'var(--green)':'var(--blue)';
+    const vegLocs=Object.entries(d.vegLocs).sort((a,b)=>b[1]-a[1])
+      .map(function(e){return'<span style="font-size:10px;padding:2px 6px;background:var(--blue-dim);border:1px solid var(--blue);border-radius:var(--r);font-family:var(--mono);color:var(--blue)">'+e[0].replace('Veg Room ','Veg ').replace('Mother Room','Mothers')+' \u00b7 '+e[1]+'</span>';}).join('');
+    const flowerLocs=Object.entries(d.flowerLocs).sort((a,b)=>b[1]-a[1])
+      .map(function(e){return'<span style="font-size:10px;padding:2px 6px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);font-family:var(--mono);color:var(--green)">'+e[0].replace('Grow Room ','R').replace('Flower Room ','R')+' \u00b7 '+e[1]+'</span>';}).join('');
+    let html='<div class="card" style="border-left:3px solid '+accent+'">';
+    html+='<div style="font-size:14px;font-weight:700;color:'+(isUnk?'var(--text3)':'var(--text)')+';font-style:'+(isUnk?'italic':'normal')+';margin-bottom:6px">'+strain+'</div>';
+    html+='<div style="display:flex;gap:16px;margin-bottom:8px">';
+    if(d.flower>0) html+='<div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">'+d.flower+'</div><div style="font-size:10px;color:var(--text3)">flowering</div></div>';
+    if(d.veg>0) html+='<div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+d.veg+'</div><div style="font-size:10px;color:var(--text3)">veg</div></div>';
+    html+='</div>';
+    if(flowerLocs) html+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'+flowerLocs+'</div>';
+    if(vegLocs) html+='<div style="display:flex;flex-wrap:wrap;gap:3px">'+vegLocs+'</div>';
+    html+='</div>';
+    return html;
   }).join('');
+  grid.innerHTML=summary+cards;
 }
 
-function renderMetrcClones(){
-  const grid=document.getElementById('metrc-clones-grid');
-  const countEl=document.getElementById('metrc-clone-count');
-  const search=(document.getElementById('metrc-clone-search')?.value||'').toLowerCase();
-  const rows=metrcData.immature;
-  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Immature/Clones export.</div>';if(countEl)countEl.textContent='';return;}
-  const byStrain={};
-  rows.forEach(r=>{
-    const strain=r['Strain']||'—';
-    if(search&&!strain.toLowerCase().includes(search))return;
-    if(!byStrain[strain])byStrain[strain]={batches:[],totalPlants:0};
-    byStrain[strain].batches.push(r);
-    byStrain[strain].totalPlants+=parseInt(r['Plants']||0)||0;
-  });
-  const mothersByStrain={};
-  metrcData.mother.forEach(r=>{const s=r['Strain']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
-  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].totalPlants-byStrain[a].totalPlants);
-  const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
-  if(countEl) countEl.textContent=strains.length+' strains · '+total+' clones';
-  grid.innerHTML=strains.map(strain=>{
-    const d=byStrain[strain];
-    const mc=mothersByStrain[strain]||0;
-    const dates=d.batches.map(b=>b['Batch Date']||'').filter(Boolean).sort().reverse();
-    return`<div class="card" style="border-left:3px solid var(--blue)">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:2px">${d.totalPlants}</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">clones · ${d.batches.length} batch${d.batches.length!==1?'es':''}</div>
-      ${mc?`<div style="font-size:11px;color:var(--green)">🌿 ${mc} mother${mc!==1?'s':''} active</div>`:'<div style="font-size:11px;color:var(--amber)">⚠ No mothers on record</div>'}
-      ${dates[0]?`<div style="font-size:10px;color:var(--text3);margin-top:4px">Latest: ${dates[0]}</div>`:''}
-    </div>`;
-  }).join('');
-}
-
-function renderMetrcFlowering(){
-  const grid=document.getElementById('metrc-flowering-grid');
-  const rows=metrcData.flowering;
-  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Flowering export.</div>';return;}
-  const byRoom={};
-  rows.forEach(r=>{
-    const loc=r['Location']||'Unknown';
-    const strain=r['Strain']||'Unknown';
-    if(!byRoom[loc])byRoom[loc]={};
-    byRoom[loc][strain]=(byRoom[loc][strain]||0)+1;
-  });
-  const roomOrder=['Grow Room 1','Grow Room 2','Grow Room 3','Grow Room 4','Grow Room 5','Grow Room 6','Grow Room 7','Grow Room 8','Grow Room 9','Grow Room 10','Grow Room 11'];
-  const sortedRooms=[...roomOrder.filter(r=>byRoom[r]),...Object.keys(byRoom).filter(r=>!roomOrder.includes(r)).sort()];
-  const grandTotal=rows.length;
-  const summary=`<div style="grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 14px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r2);margin-bottom:4px">
-    <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">${grandTotal}</div>
-    <div>
-      <div style="font-size:13px;font-weight:600;color:var(--text)">Flowering plants total</div>
-      <div style="font-size:11px;color:var(--text3)">${sortedRooms.length} room${sortedRooms.length!==1?'s':''}</div>
-    </div>
-  </div>`;
-  grid.innerHTML=summary+sortedRooms.map(room=>{
-    const strains=byRoom[room];
-    const total=Object.values(strains).reduce((a,b)=>a+b,0);
-    const dashRoom=rooms.find(r=>r.name===room);
-    const fd=dashRoom?flowerDay(dashRoom):null;
-    const phase=fd?getPhaseForDay(fd):null;
-    const strainRows=Object.entries(strains).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
-      const pct=Math.round((n/total)*100);
-      const isUnknown=s==='Unknown';
-      return`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div style="flex:1;font-size:12px;color:${isUnknown?'var(--text3)':'var(--text)'};font-style:${isUnknown?'italic':'normal'}">${s}</div>
-        <div style="font-family:var(--mono);font-size:12px;font-weight:600;min-width:28px;text-align:right">${n}</div>
-        <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px"><div style="width:${pct}%;height:100%;background:${isUnknown?'var(--text3)':'var(--green)'};border-radius:2px"></div></div>
-      </div>`;
-    }).join('');
-    return`<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div>
-          <div style="font-size:14px;font-weight:700">${room}</div>
-          ${fd?`<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Day ${fd} / ${CYCLE}${phase?' · '+phase.name:''}</div>`:''}
-        </div>
-        <div style="text-align:right"><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">${total}</div><div style="font-size:10px;color:var(--text3)">plants</div></div>
-      </div>
-      ${strainRows}
-    </div>`;
-  }).join('');
-}
 
 function renderMetrcHarvests(){
   const list=document.getElementById('metrc-harvests-list');
