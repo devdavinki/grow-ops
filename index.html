@@ -3048,10 +3048,22 @@ async function parseMetrcXLSX(file){
     reader.onload=e=>{
       const tryParse=()=>{
         try{
-          const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+          const wb=XLSX.read(e.target.result,{type:'array',cellDates:true,raw:false});
           const ws=wb.Sheets[wb.SheetNames[0]];
-          const data=XLSX.utils.sheet_to_json(ws,{defval:''});
-          resolve(data.map(row=>{const clean={};Object.entries(row).forEach(([k,v])=>{clean[k]=v instanceof Date?v.toISOString().split('T')[0]:String(v===null||v===undefined?'':v);});return clean;}));
+          // Use header:1 to get array of arrays, then manually build objects
+          // This avoids SheetJS issues with certain METRC file formats
+          const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+          if(!aoa.length){resolve([]);return;}
+          const headers=aoa[0].map(h=>String(h||'').trim());
+          const data=aoa.slice(1).map(row=>{
+            const obj={};
+            headers.forEach((h,i)=>{
+              const v=row[i];
+              obj[h]=v instanceof Date?v.toISOString().split('T')[0]:String(v===null||v===undefined?'':v);
+            });
+            return obj;
+          }).filter(row=>Object.values(row).some(v=>v));
+          resolve(data);
         }catch(err){reject(err);}
       };
       if(typeof XLSX==='undefined'){
