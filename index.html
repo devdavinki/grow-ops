@@ -3151,7 +3151,25 @@ async function pullMetrcFromCloud(silent=false){
     if(d.flowering &&shouldUse(d.flowering, metrcData.flowering)) { metrcData.flowering=d.flowering; S(METRC_KEYS.flowering,d.flowering); }
     if(d.harvests  &&shouldUse(d.harvests,  metrcData.harvests))  { metrcData.harvests=d.harvests;   S(METRC_KEYS.harvests,d.harvests); }
     if(d.harvestPriority){ metrcHarvestPriority=d.harvestPriority;S(METRC_KEYS.harvestPriority,d.harvestPriority); }
-    if(d.trimQueue&&d.trimQueue.length){ S('wg_trim_queue',d.trimQueue); }
+    if(d.trimQueue&&d.trimQueue.length){
+      // Merge cloud queue with local — always preserve local status (done/trimming)
+      const localQueue=L('wg_trim_queue',[]);
+      const localMap={};
+      localQueue.forEach(q=>{ localMap[q.id]={status:q.status,priority:q.priority}; });
+      const merged=d.trimQueue.map(q=>({
+        ...q,
+        // Local status always wins — never let cloud overwrite done/trimming back to pending
+        status: localMap[q.id]?.status||q.status||'pending',
+        // Also preserve local priority overrides
+        priority: localMap[q.id]?.priority||q.priority||'normal',
+      }));
+      // Add any local-only items not in cloud queue (manually added)
+      localQueue.forEach(lq=>{
+        if(!merged.find(m=>m.id===lq.id)) merged.push(lq);
+      });
+      S('wg_trim_queue',merged);
+      trimQueue=merged;
+    }
     else if(d.harvests&&d.harvests.length){ syncHarvestsToTrimQueue(d.harvests); }
     const syncInfo={};
     ['mother','immature','vegetative','flowering','harvests'].forEach(k=>{
@@ -3553,21 +3571,28 @@ function parseBatchDate(batch){
 function syncHarvestsToTrimQueue(rows){
   if(!rows||!rows.length) return;
   trimQueue = L('wg_trim_queue',[]);
+  // Build a status map from existing items — never overwrite done/trimming
+  const existingMap={};
+  trimQueue.forEach(q=>{ existingMap[q.harvestBatch||q.id]=q; });
   let added = 0;
   rows.forEach(r=>{
     const batch = r['Harvest Batch']||r['Name']||r['Batch']||'';
-    // Try every possible plant count field name METRC might use
     const plants = parseInt(
       r['Plants']||r['Plant Count']||r['PlantCount']||
       r['# Plants']||r['Number of Plants']||r['Count']||0
     )||0;
-    // Try date field, fall back to parsing batch name prefix
     const rawDate = (r['Date']||r['Harvest Date']||r['HarvestDate']||'').split('T')[0];
     const batchDate = parseBatchDate(batch);
     const dateFromBatch = batchDate ? dateToIso(batchDate) : '';
     const date = rawDate || dateFromBatch;
     if(!batch) return;
-    if(trimQueue.find(q=>q.harvestBatch===batch)) return;
+    const existing = trimQueue.find(q=>q.harvestBatch===batch);
+    if(existing){
+      // Update fields but NEVER touch status, priority, or ordering
+      existing.plantCount = plants || existing.plantCount;
+      existing.harvestDate = date || existing.harvestDate;
+      return;
+    }
     const item = {
       id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
       strain: batch,
@@ -3584,19 +3609,20 @@ function syncHarvestsToTrimQueue(rows){
     trimQueue.push(item);
     added++;
   });
-  // Sort: priority first, then OLDEST first (ascending date)
-  const priOrder={high:0,normal:1,low:2};
-  trimQueue.sort((a,b)=>{
-    const pa=priOrder[a.priority||'normal'];
-    const pb=priOrder[b.priority||'normal'];
-    if(pa!==pb) return pa-pb;
-    // Parse dates — use batch name date as most reliable
-    const da=parseBatchDate(a.harvestBatch||a.strain)||new Date(a.harvestDate||0);
-    const db=parseBatchDate(b.harvestBatch||b.strain)||new Date(b.harvestDate||0);
-    return da-db; // ascending = oldest first
-  });
+  // Only sort if items were actually added — don't re-sort and disrupt manual ordering
+  if(added > 0){
+    const priOrder={high:0,normal:1,low:2};
+    trimQueue.sort((a,b)=>{
+      const pa=priOrder[a.priority||'normal'];
+      const pb=priOrder[b.priority||'normal'];
+      if(pa!==pb) return pa-pb;
+      const da=parseBatchDate(a.harvestBatch||a.strain)||new Date(a.harvestDate||0);
+      const db=parseBatchDate(b.harvestBatch||b.strain)||new Date(b.harvestDate||0);
+      return da-db;
+    });
+  }
   S('wg_trim_queue',trimQueue);
-  console.log('Synced '+added+' harvests. First item:', trimQueue[0]?.strain, trimQueue[0]?.harvestDate);
+  console.log('Synced '+added+' new harvests to trim queue');
 }
 
 function updateMetrcSyncLabel(){
