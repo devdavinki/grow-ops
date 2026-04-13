@@ -820,7 +820,7 @@ window.onerror = function(msg, src, line, col, err) {
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '2.3'; // bumped - force localStorage reset to clear corrupted state
+const APP_VERSION = '2.4'; // bumped - force localStorage reset to clear corrupted state
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -2238,6 +2238,14 @@ let pendingLoginMember=null;
 function showLoginModal(){
   const modal=document.getElementById('login-modal-bg');
   const list=document.getElementById('login-name-list');
+  // Safety: if team failed to load, skip login and show dashboard as lead
+  if(!team||team.length===0){
+    document.body.classList.remove('pre-login');
+    modal.style.display='none';
+    setRole('lead');
+    renderRooms();renderAssignments();
+    return;
+  }
   modal.style.display='flex';
   document.getElementById('login-pin-row').style.display='none';
   document.getElementById('login-pin-error').style.display='none';
@@ -3473,18 +3481,29 @@ loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:
 loginBtn.textContent='Sign in';
 loginBtn.onclick=showLoginModal;
 document.getElementById('role-select').prepend(loginBtn);
-setRole(currentRole);
+setRole('lead');
 renderRooms();
 renderTodayLog();
 renderChores();
 updateMetrcSyncLabel();
-// Blur content until logged in
-if(team.length){
+// Blur content until logged in — only if team loaded correctly
+if(team && team.length){
   document.body.classList.add('pre-login');
   showLoginModal();
+} else {
+  // Team failed to load — show dashboard immediately as lead
+  document.body.classList.remove('pre-login');
+  setRole('lead');
 }
 // auto-refresh checks silently on load to catch today's submissions
 setTimeout(()=>loadChecks(),800);
+// Safety net: if still pre-login after 3s, force remove it
+setTimeout(()=>{
+  if(document.body.classList.contains('pre-login')){
+    document.body.classList.remove('pre-login');
+    setRole('lead');
+  }
+},3000);
 </script>
 </body>
 </html>
