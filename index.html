@@ -1187,10 +1187,15 @@ function renderRooms(){
         // METRC strain breakdown for this room
         const metrcRoomName=room.name.replace('Room ','Grow Room ');
         const flowerRows=(metrcData&&metrcData.flowering)||[];
-        const roomPlants=flowerRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+        const vegRows=(metrcData&&metrcData.vegetative)||[];
+        // Show flowering plants for flower rooms, veg plants for veg rooms
+        const stage_=getStage(room);
+        const isVegRoom=stage_==='veg'||(!room.flipDate&&room.launchDate);
+        const sourceRows=isVegRoom?vegRows:flowerRows;
+        const roomPlants=sourceRows.filter(r=>(r['Location']||'')=== metrcRoomName);
         if(!roomPlants.length) return '';
         const byStrain={};
-        roomPlants.forEach(r=>{const s=r['Strain']||'Unknown';byStrain[s]=(byStrain[s]||0)+1;});
+        roomPlants.forEach(r=>{const s=r['Strain']||r['StrainName']||'Unknown';byStrain[s]=(byStrain[s]||0)+1;});
         const total=roomPlants.length;
         const strainPills=Object.entries(byStrain).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
           const isUnknown=s==='Unknown';
@@ -1201,7 +1206,7 @@ function renderRooms(){
         }).join('');
         return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
-            <span>METRC Plants</span><span style="font-family:var(--mono);color:var(--green)">${total} total</span>
+            <span>${isVegRoom?'METRC Veg':'METRC Plants'}</span><span style="font-family:var(--mono);color:${isVegRoom?'var(--blue)':'var(--green)'}">${total} total</span>
           </div>
           ${strainPills}
         </div>`;
@@ -3003,7 +3008,7 @@ const MAXX_PHASES=[
   {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5},
   {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1},
   {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1},
-  {id:'DK', name:'Dark Period',    start:64, end:65, light:0,  co2:400,  dayTemp:68,nightTemp:68,rh:50,ecMin:null,ecMax:null},
+  {id:'DK', name:'Dark / Flush End',start:64, end:65, light:0,  co2:400,  dayTemp:69,nightTemp:69,rh:50,ecMin:null,ecMax:null},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
