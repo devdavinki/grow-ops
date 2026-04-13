@@ -809,6 +809,13 @@ button { cursor: pointer; }
 
 
 <script>
+window.onerror = function(msg, src, line, col, err) {
+  document.body.style.cssText = 'padding:20px;font-family:monospace;background:#fff';
+  document.body.innerHTML = '<div style="background:#fde8e8;border:2px solid #c0392b;padding:16px;border-radius:6px;font-size:13px">' +
+    '<strong style="color:#c0392b">JS ERROR — copy this and send it:</strong><br><br>' +
+    msg + '<br><br>Line: ' + line + ' · Col: ' + col + '<br>File: ' + src + '</div>';
+  return false;
+};
 // ══════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════
