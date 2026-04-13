@@ -50,6 +50,7 @@ body { min-height: 100vh; }
 body.pre-login .main,
 body.pre-login .nav { visibility: hidden; }
 body.pre-login .topbar { visibility: visible; }
+#login-modal-bg { visibility: visible !important; }
 
 /* ── TOPBAR ── */
 .topbar {
@@ -293,6 +294,7 @@ body.pre-login .topbar { visibility: visible; }
 .env-num.ok { color: var(--green); }
 .env-num.warn { color: var(--amber); }
 .env-num.alert { color: var(--red); }
+.env-unit { font-size: 9px; color: var(--text3); }
 .env-unit { font-size: 8px; color: var(--text3); }
 .runoff-row { display: flex; gap: 6px; font-size: 12px; align-items: center; padding: 3px 0; }
 .runoff-name { width: 60px; font-size: 11px; color: var(--text3); flex-shrink: 0; }
@@ -411,6 +413,8 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('additive')" data-page="additive" data-roles="lead,fertigator">Additive Schedule</button>
   <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
+  <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
+  <button class="nav-tab" onclick="showPage('supplies')" data-page="supplies" data-roles="lead,fertigator">Supplies</button>
   <button class="nav-tab" onclick="showPage('settings')" data-page="settings" data-roles="lead">Settings</button>
 </div>
 
@@ -670,24 +674,6 @@ button { cursor: pointer; }
   </div>
 
   <!-- LOGIN MODAL -->
-  <div class="modal-bg" id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:var(--bg);z-index:300">
-    <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md)">
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:16px;font-weight:700;color:var(--text)">WESTSIDE <span style="color:var(--green)">GROWERS</span></div>
-        <div style="font-size:12px;color:var(--text3);margin-top:4px">Select your name to continue</div>
-      </div>
-      <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
-      <div id="login-pin-row" style="display:none">
-        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
-        <div style="display:flex;gap:8px">
-          <input id="login-pin-input" type="password" maxlength="10" placeholder="######" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
-          <button onclick="confirmLogin()" class="btn-primary">Enter</button>
-        </div>
-        <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
-      </div>
-      <button onclick="skipLogin()" style="width:100%;margin-top:10px;font-size:12px;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Skip — use role switcher instead</button>
-    </div>
-  </div>
 
   <!-- ══ PAGE: POST PRODUCTION ══ -->
   <div id="page-postprod" class="page">
@@ -707,11 +693,15 @@ button { cursor: pointer; }
     <!-- TRIM QUEUE -->
     <div id="postsub-queue">
       <div class="row mb12">
-        <div style="font-size:13px;color:var(--text2)">Pat sets the order. Trimmers work top to bottom.</div>
+        <div>
+          <div style="font-size:13px;color:var(--text2)">Work top to bottom. Lead adjusts order and priority.</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px" id="queue-last-refresh"></div>
+        </div>
         <div style="flex:1"></div>
-        <button onclick="openAddTrimItem()" class="btn-primary" style="font-size:12px;padding:7px 14px">+ Add strain to queue</button>
+        <button onclick="renderTrimQueue()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer;margin-right:6px">↻ Refresh</button>
+        <button id="add-trim-btn" onclick="openAddTrimItem()" class="btn-primary" style="font-size:12px;padding:7px 14px;display:none">+ Add manually</button>
       </div>
-      <div id="trim-queue-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
+      <div id="trim-queue-list" style="margin-bottom:1.5rem"></div>
     </div>
 
     <!-- LOG WEIGHTS -->
@@ -774,53 +764,156 @@ button { cursor: pointer; }
     <div class="row mb12">
       <div class="section-title">METRC live data</div>
       <div style="flex:1"></div>
-      <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="metrc-pull-status" style="font-size:11px;color:var(--text3)"></span>
+        <button onclick="pullMetrcFromCloud()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Sync from cloud</button>
+        <span id="metrc-sync-label" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+      </div>
     </div>
     <!-- SUBTAB NAV — rendered by JS based on role -->
     <div id="metrc-tab-nav" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)"></div>
     <!-- SUBTAB CONTENT -->
     <div id="metrc-sub-mothers" style="display:none">
-      <div class="row mb12">
-        <input id="metrc-strain-search" type="text" placeholder="Search strain..." style="max-width:280px;font-size:13px" oninput="renderMetrcMothers()"/>
-        <div style="flex:1"></div>
+      <div class="row mb12" style="margin-bottom:12px">
         <span id="metrc-mother-count" style="font-size:12px;color:var(--text3)"></span>
       </div>
       <div id="metrc-mothers-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-clones" style="display:none">
-      <div class="row mb12">
-        <input id="metrc-clone-search" type="text" placeholder="Search strain..." style="max-width:280px;font-size:13px" oninput="renderMetrcClones()"/>
-        <div style="flex:1"></div>
+      <div class="row mb12" style="margin-bottom:12px">
         <span id="metrc-clone-count" style="font-size:12px;color:var(--text3)"></span>
       </div>
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
-    <div id="metrc-sub-vegetative" style="display:none">
-      <div id="metrc-vegetative-grid" class="grid-3"></div>
-    </div>
-    <div id="metrc-sub-flowering" style="display:none">
-      <div id="metrc-flowering-grid" class="grid-2"></div>
+    <div id="metrc-sub-strains" style="display:none">
+      <div id="metrc-strains-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-harvests" style="display:none">
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Active harvests — awaiting trim. <span id="metrc-harvest-lead-note"></span></div>
       <div id="metrc-harvests-list" style="display:grid;gap:8px"></div>
     </div>
   </div>
+  <!-- ══ PAGE: DAILY REVIEW ══ -->
+  <div id="page-daily-review" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px">Daily Review</div>
+        <div style="font-size:12px;color:var(--text3)">Tier 2 deviations — logged silently, reviewed each morning</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="clearOldAlerts()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer">Clear logs &gt;7 days</button>
+        <button onclick="renderDailyReview()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="daily-review-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px"></div>
+    <div id="daily-review-list" style="display:grid;gap:6px"></div>
+  </div>
 
+  <!-- ══ PAGE: SUPPLIES ══ -->
+  <div id="page-supplies" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="section-title">Supply inventory</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Track supply receipts — auto-depletion estimates coming soon</div>
+      </div>
+      <button onclick="openSupplyModal()" class="btn-primary">+ Log receipt</button>
+    </div>
+    <div id="supplies-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px"></div>
+    <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+      <input id="supply-search" type="text" placeholder="Search supplies..." style="flex:1;min-width:180px;font-size:13px" oninput="renderSupplies()"/>
+      <select id="supply-category-filter" style="font-size:13px;padding:7px 10px" onchange="renderSupplies()">
+        <option value="">All categories</option>
+        <option value="Nutrients">Nutrients</option>
+        <option value="Additives">Additives</option>
+        <option value="Substrate">Substrate</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Sanitation">Sanitation</option>
+        <option value="Hardware">Hardware</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div id="supplies-list" style="display:grid;gap:8px"></div>
+  </div>
+
+
+
+
+  <!-- SUPPLY MODAL -->
+  <div class="modal-bg" id="supply-modal-bg">
+    <div class="modal" style="max-width:480px">
+      <h3 id="supply-modal-title">Log supply receipt</h3>
+      <label>Supply name</label>
+      <input id="sm-name" placeholder="e.g. Athena Bloom, Grodan Slabs, 1lb Ziploc bags"/>
+      <label>Category</label>
+      <select id="sm-category">
+        <option value="Nutrients">Nutrients</option>
+        <option value="Additives">Additives</option>
+        <option value="Substrate">Substrate</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Sanitation">Sanitation</option>
+        <option value="Hardware">Hardware</option>
+        <option value="Other">Other</option>
+      </select>
+      <label>Form / container type</label>
+      <select id="sm-form">
+        <option value="Bag">Bag</option>
+        <option value="Jug">Jug</option>
+        <option value="Barrel">Barrel</option>
+        <option value="Pallet">Pallet</option>
+        <option value="Box">Box</option>
+        <option value="Case">Case</option>
+        <option value="Drum">Drum</option>
+        <option value="Tote">Tote</option>
+        <option value="Each">Each (individual units)</option>
+        <option value="Other">Other</option>
+      </select>
+      <label>Quantity received</label>
+      <input id="sm-qty" type="number" min="1" placeholder="e.g. 4"/>
+      <label>Unit size / weight (optional)</label>
+      <input id="sm-unit-size" placeholder="e.g. 25 lbs, 2.5 gal, 1 kg"/>
+      <label>Date received</label>
+      <input id="sm-date" type="date"/>
+      <label>Vendor / supplier (optional)</label>
+      <input id="sm-vendor" placeholder="e.g. Athena, Grodan, Amazon"/>
+      <label>Notes (optional)</label>
+      <input id="sm-notes" placeholder="e.g. PO #1234, lot number, expiry date"/>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeSupplyModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmSupply()">Save receipt</button>
+      </div>
+    </div>
+  </div>
+
+
+
+</div>
+
+<!-- LOGIN MODAL — visibility:visible !important overrides pre-login cascade -->
+<div id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;padding:16px;overflow-y:auto">
+  <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md);max-height:90vh;overflow-y:auto">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:var(--text)">WESTSIDE <span style="color:var(--green)">GROWERS</span></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Select your name to continue</div>
+    </div>
+    <div id="login-name-list" style="display:grid;gap:6px;margin-bottom:14px"></div>
+    <div id="login-pin-row" style="display:none">
+      <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
+      <div style="display:flex;gap:8px">
+        <input id="login-pin-input" type="password" maxlength="10" placeholder="######" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
+        <button onclick="confirmLogin()" class="btn-primary">Enter</button>
+      </div>
+      <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
+    </div>
+    <button onclick="skipLogin()" style="display:none"></button>
+  </div>
+</div>
 
 <script>
-window.onerror = function(msg, src, line, col, err) {
-  document.body.style.cssText = 'padding:20px;font-family:monospace;background:#fff';
-  document.body.innerHTML = '<div style="background:#fde8e8;border:2px solid #c0392b;padding:16px;border-radius:6px;font-size:13px">' +
-    '<strong style="color:#c0392b">JS ERROR — copy this and send it:</strong><br><br>' +
-    msg + '<br><br>Line: ' + line + ' · Col: ' + col + '<br>File: ' + src + '</div>';
-  return false;
-};
 // ══════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '2.4'; // bumped - force localStorage reset to clear corrupted state
+const APP_VERSION = '2.9'; // Config cloud sync, supplies tab, dew point
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -836,14 +929,14 @@ function L(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def
 function S(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
 const DEFAULT_ROOMS=[
-  {id:'r1',name:'Room 1',tier:'Small',sqft:280,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Relaunched 4/7 — flip pending Room 8'},
+  {id:'r1',name:'Room 1',tier:'Small',sqft:280,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Relaunched 4/7'},
   {id:'r2',name:'Room 2',tier:'Full',sqft:432,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Paired with Room 1'},
   {id:'r3',name:'Room 3',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-13',flipDate:'2026-03-25',note:''},
   {id:'r4',name:'Room 4',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-03-05',flipDate:'2026-03-23',note:''},
   {id:'r5',name:'Room 5',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-02-27',flipDate:'2026-03-05',note:''},
   {id:'r6',name:'Room 6',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-08',flipDate:'2026-02-08',note:''},
   {id:'r7',name:'Room 7',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-17',flipDate:'2026-03-30',note:''},
-  {id:'r8',name:'Room 8',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-04-02',flipDate:'',note:'Still vegging'},
+  {id:'r8',name:'Room 8',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-04-02',flipDate:'2026-04-12',note:'Flipped 4/12'},
   {id:'r9',name:'Room 9',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-24',flipDate:'2026-03-03',note:''},
   {id:'r10',name:'Room 10',tier:'Full',sqft:416,paired:false,tall:false,strain:'',launchDate:'2026-02-06',flipDate:'2026-02-06',note:''},
   {id:'r11',name:'Room 11',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-02-19',flipDate:'2026-02-19',note:''},
@@ -883,8 +976,8 @@ const DEFOL_WINDOWS=[
 
 let todayLog = L('wg_log_'+dateToIso(TODAY), []);
 let roomOverrides = L('wg_overrides_'+dateToIso(TODAY), {});
-let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:''});
-let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbz7-pRO6encj5j8vP6KlqA6vsWhJIFDrcrnzSwPGfKNZAj42_gLhrP6x265wk6FANaP/exec');
+let webhooks = L('wg_webhooks',{dispatch:'',flower:'',ipm:'',vegclone:'',alerts:''});
+let gsUrl = L('wg_gs_url','https://script.google.com/macros/s/AKfycbzL0LfLnRI5OO_d3GQ2_OEIS4t2HPlSeInnrVYkBu1YaOEe62r2w27sqsIqzTpYFmAt/exec');
 let currentRole = L('wg_role','lead');
 let pendingComplete = null;
 let loggedInMember = null;
@@ -978,18 +1071,18 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc'], roomView:'full'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
-  fertigator: {pages:['assignments','rooms','today-log','additive'], roomView:'basic'},
+  fertigator: {pages:['assignments','rooms','clonetracker','today-log','additive','checks','slack','metrc','supplies'], roomView:'basic'},
   cloner:     {pages:['assignments','rooms','clonetracker','today-log','metrc'], roomView:'basic'},
-  ipm:        {pages:['assignments','rooms','today-log','checks'], roomView:'basic'},
+  ipm:        {pages:['assignments','rooms','today-log','checks','additive'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
   postprod:   {pages:['assignments','postprod','today-log','metrc'], roomView:'none'},
 };
 // Which METRC subtabs each role can see
 const METRC_ROLE_TABS = {
-  lead:     ['mothers','clones','vegetative','flowering','harvests'],
-  cloner:   ['mothers','clones','vegetative','flowering'],
+  lead:     ['mothers','clones','strains','harvests'],
+  cloner:   ['mothers','clones','strains'],
   postprod: ['harvests'],
 };
 
@@ -1134,7 +1227,85 @@ function renderRooms(){
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
       </div>
-      ${tlHTML}${progHTML}${phaseHTML}${nudgeHTML}${taskHTML}
+      ${tlHTML}${progHTML}${phaseHTML}${nudgeHTML}
+      ${(()=>{
+        // Growlink live env strip
+        const gl=getGrowlinkForRoom(room.name);
+        if(!gl) return '';
+        const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
+        const stale=age!==null&&age>15;
+        const tempOk=gl.temp&&gl.temp>=78&&gl.temp<=84;
+        const rhOk=gl.humidity&&gl.humidity>=55&&gl.humidity<=80;
+        const co2Ok=gl.co2&&gl.co2>=900&&gl.co2<=1500;
+        const vpdOk=gl.vpd&&gl.vpd>=0.8&&gl.vpd<=1.6;
+        const soilECOk=gl.soilEC&&gl.soilEC>=1.5&&gl.soilEC<=4.5;
+        const soilMoistOk=gl.soilMoisture&&gl.soilMoisture>=50&&gl.soilMoisture<=80;
+        // Calculate dew point from temp + RH (Magnus formula)
+        const dp=(()=>{
+          if(!gl.temp||!gl.humidity) return null;
+          const tc=(gl.temp-32)*5/9;
+          const a=17.27,b=237.7;
+          const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
+          const dpc=(b*alpha)/(a-alpha);
+          return dpc*9/5+32;
+        })();
+        const dpOk=dp!==null&&dp<60;
+        const row1=[
+          gl.temp!==undefined?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':(tempOk?'ok':'warn')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
+          gl.humidity!==undefined?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.co2!==undefined?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':(co2Ok?'ok':'warn')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
+          gl.vpd!==undefined?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':(vpdOk?'ok':'warn')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
+          dp!==null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div><div class="env-num ${stale?'':(dpOk?'ok':'alert')}">${dp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
+        ].filter(Boolean).join('');
+        const row2=[
+          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
+          gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
+        ].filter(Boolean).join('');
+        const row1Count=row1.split('env-cell').length-1;
+        return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:5px;display:flex;justify-content:space-between">
+            <span>Live · Growlink</span><span style="font-family:var(--mono)">${age!==null?age+'m ago':''}</span>
+          </div>
+          <div class="env-grid" style="grid-template-columns:repeat(${row1Count},1fr);margin-bottom:4px">${row1}</div>
+          ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${row2.split('env-cell').length-1},1fr)">${row2}</div>`:''}
+        </div>`;
+      })()}
+      ${(()=>{
+        // METRC strain breakdown for this room
+        const metrcRoomName=room.name.replace('Room ','Grow Room ');
+        const flowerRows=(metrcData&&metrcData.flowering)||[];
+        const vegRows=(metrcData&&metrcData.vegetative)||[];
+        const stage_=getStage(room);
+        const isVegRoom=stage_==='veg'||(!room.flipDate&&room.launchDate);
+        // Try flowering first; fall back to veg (e.g. recently flipped rooms not yet in METRC flower)
+        let sourceRows=isVegRoom?vegRows:flowerRows;
+        let roomPlants=sourceRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+        let usingVegFallback=false;
+        if(!roomPlants.length&&!isVegRoom){
+          // Fallback: check veg file (plant may not have moved to flower in METRC yet)
+          roomPlants=vegRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+          if(roomPlants.length) usingVegFallback=true;
+        }
+        if(!roomPlants.length) return '';
+        const byStrain={};
+        roomPlants.forEach(r=>{const s=r['Strain']||r['StrainName']||'Unknown';byStrain[s]=(byStrain[s]||0)+1;});
+        const total=roomPlants.length;
+        const strainPills=Object.entries(byStrain).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
+          const isUnknown=s==='Unknown';
+          return`<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:11px;color:${isUnknown?'var(--text3)':'var(--text)'};font-style:${isUnknown?'italic':'normal'}">${s}</span>
+            <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--green)">${n}</span>
+          </div>`;
+        }).join('');
+        return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
+            <span>${(isVegRoom||usingVegFallback)?'METRC Veg':'METRC Plants'}</span><span style="font-family:var(--mono);color:${(isVegRoom||usingVegFallback)?'var(--blue)':'var(--green)'}">${total} total</span>
+          </div>
+          ${strainPills}
+        </div>`;
+      })()}
+      ${taskHTML}
       ${room.note?`<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${room.note}</div>`:''}
     `;
     grid.appendChild(card);
@@ -1335,6 +1506,7 @@ function logCloneCut(clearStrain=false){
   }
   cloneSessions.push({strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)});
   S(getWeekKey(),cloneSessions);
+  pushConfigDebounced();
   postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
   // Always clear count and mother tag
   if(document.getElementById('ce-mother-tag')) document.getElementById('ce-mother-tag').value='';
@@ -1644,6 +1816,7 @@ function confirmComplete(){
   todayLog.push(entry);
   S('wg_log_'+dateToIso(TODAY),todayLog);
   closeModal();
+  pushConfigDebounced();
   renderAssignments();
   renderRooms();
   renderTodayLog();
@@ -1793,38 +1966,9 @@ function renderChecks(latest){
     const dew=numOrNull(findCol(row,'dew'));
     const ppfd=numOrNull(findCol(row,'ppfd'));
     const dateStr=findCol(row,'date');const timeStr=findCol(row,'time');
-    // — Phase-aware flag logic (per cultivation director guidance) —
-    // Get flower day for this room so we can look up Maxx OS phase
-    const rkNum=rk.replace(/\D/g,'');
-    const matchedRoom=rooms.find(r=>r.id==='r'+rkNum);
-    const fd=matchedRoom?flowerDay(matchedRoom):null;
-    const phase=fd!==null?getPhaseForDay(fd):null;
-    // Phase-aware RH ceiling: use Maxx OS target RH + 5% tolerance for early flower (days 1–28),
-    // tighter (+3%) for late flower (days 29+). Hard floor always 45%.
-    const rhCeiling=phase?(fd<=28?phase.rh+5:phase.rh+3):65;
-    const rhFloor=45;
-    // Phase-aware temp: Maxx OS dayTemp ±3°F
-    const tempHi=phase?phase.dayTemp+3:85;
-    const tempLo=phase?phase.dayTemp-4:72;
-    const flags=[];   // hard flags → card turns amber
-    const infos=[];   // soft awareness → card stays ok, shown in muted text
-    // RH check
-    if(rh!==null&&rh<rhFloor) flags.push('RH too low ('+rh+'% — floor '+rhFloor+'%)');
-    if(rh!==null&&rh>rhCeiling) flags.push('RH above phase target ('+rh+'% vs '+rhCeiling+'% ceiling)');
-    // Temp check
-    if(temp!==null&&temp>tempHi) flags.push('Temp high ('+temp+'°F vs '+tempHi+'°F max)');
-    if(temp!==null&&temp<tempLo) flags.push('Temp low ('+temp+'°F vs '+tempLo+'°F min)');
-    // Dewpoint — PRIMARY rule: only alert if spread ≤ 2°F (dewpoint within 2°F of leaf temp)
-    // Awareness band: 65–70°F = info, 70–75°F = soft advisory, no card color change
-    if(dew!==null&&leaf!==null){
-      const spread=leaf-dew;
-      if(spread<=2) flags.push('⚠ Dewpoint within '+spread.toFixed(1)+'°F of leaf temp — condensation risk');
-      else if(spread<=3) flags.push('Spread narrowing: '+spread.toFixed(1)+'°F (watch airflow)');
-    } else if(dew!==null){
-      // No leaf temp — fall back to awareness-only band
-      if(dew>=70&&dew<75) infos.push('Dewpoint '+dew+'°F — high humidity zone, monitor airflow/VPD');
-      else if(dew>=65&&dew<70) infos.push('Dewpoint '+dew+'°F — humid but expected for this phase');
-    }
+    const flags=[];
+    if(rh!==null&&(rh<45||rh>65)) flags.push('RH out of range');
+    if(temp!==null&&(temp<72||temp>82)) flags.push('Temp out of range');
     const cardCls=flags.length?'warn':'ok';
     const envCells=[
       {l:'RH',v:rh,u:'%'},
@@ -1864,8 +2008,6 @@ function renderChecks(latest){
         </div>`;
       }).join('')}`:''}
       ${flags.map(f=>`<div style="font-size:11px;margin-top:4px;color:var(--amber)">⚠ ${f}</div>`).join('')}
-      ${infos.map(f=>`<div style="font-size:11px;margin-top:4px;color:var(--text3)">ℹ ${f}</div>`).join('')}
-      ${phase?`<div style="font-size:10px;margin-top:6px;color:var(--text3);border-top:1px solid var(--border);padding-top:4px">Phase ${phase.id} · RH target ≤${phase.rh}% · Temp ${phase.dayTemp}°F · Day ${fd}</div>`:''}
     `;
     grid.appendChild(card);
   });
@@ -2064,6 +2206,8 @@ const ALL_PAGES=[
   {key:'slack',label:'Slack Dispatch'},
   {key:'settings',label:'Settings'},
   {key:'metrc',label:'METRC Data'},
+  {key:'daily-review',label:'Daily Review'},
+  {key:'supplies',label:'Supplies'},
 ];
 
 const ROLE_LABELS={
@@ -2080,9 +2224,9 @@ const DEFAULT_TEAM=[
   {id:'u1', name:'Pat',    role:'lead',      agtId:'001586'},
   {id:'u2', name:'Devon',  role:'lead',      agtId:'005963'},
   {id:'u3', name:'Jordan', role:'lead',      agtId:'012319'},
-  {id:'u4', name:'Zach',   role:'lead',      agtId:'027925'},
-  {id:'u5', name:'Joel',   role:'lead',      agtId:'027675'},
-  {id:'u6', name:'Jesse',  role:'lead',      agtId:'023062'},
+  {id:'u4', name:'Zach',   role:'defoliator',agtId:'027925'},
+  {id:'u5', name:'Joel',   role:'defoliator',agtId:'027675'},
+  {id:'u6', name:'Jesse',  role:'defoliator',agtId:'023062'},
   {id:'u7', name:'Hy',     role:'ipm',       agtId:'027420'},
   {id:'u8', name:'Leanne', role:'postprod',  agtId:'017936'},
   {id:'u9', name:'Todd',   role:'postprod',  agtId:'012240'},
@@ -2098,12 +2242,12 @@ const DEFAULT_TEAM=[
 // ── VERSION CHECK: runs first, clears stale localStorage before anything initializes
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
-  localStorage.removeItem('wg_role_perms');
-  localStorage.removeItem('wg_team');
-  localStorage.removeItem('wg_custom_chores');
-  localStorage.removeItem('wg_custom_tasks');
-  localStorage.removeItem('wg_rooms_v2');
-  localStorage.removeItem('wg_role');
+  // Preserve room config and settings, wipe everything else
+  const _keepKeys = ['wg_rooms_v2','wg_webhooks'];
+  const _keepData = {};
+  _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
+  localStorage.clear();
+  Object.entries(_keepData).forEach(([k,v])=>localStorage.setItem(k,v));
   S('wg_app_version', APP_VERSION);
 }
 
@@ -2112,7 +2256,7 @@ let team=L('wg_team',null);
 const _needsReset = !team || team.length===0 || team.every(m=>!m.agtId) ||
   !team.find(m=>m.name==='Devon'&&m.role==='lead'&&m.agtId==='005963');
 if(_needsReset){
-  team=DEFAULT_TEAM.slice(); S('wg_team',team);
+  team=DEFAULT_TEAM.slice(); S('wg_team',team);pushConfigDebounced();
 } else {
   DEFAULT_TEAM.forEach(dt=>{
     const ex=team.find(m=>m.name===dt.name);
@@ -2130,7 +2274,11 @@ let rolePerms=L('wg_role_perms',null);
 if(!rolePerms || !rolePerms.lead ||
    !rolePerms.lead.includes('postprod') ||
    !rolePerms.lead.includes('metrc') ||
-   !rolePerms.lead.includes('settings')){
+   !rolePerms.lead.includes('settings') ||
+   !rolePerms.lead.includes('supplies') ||
+   !rolePerms.fertigator.includes('clonetracker') ||
+   !rolePerms.fertigator.includes('supplies') ||
+   !rolePerms.ipm.includes('additive')){
   rolePerms={};
   Object.entries(ROLE_PERMISSIONS).forEach(([role,cfg])=>{
     rolePerms[role]=cfg.pages.slice();
@@ -2139,7 +2287,18 @@ if(!rolePerms || !rolePerms.lead ||
 }
 
 function applyRolePerms(){
-  // merge rolePerms back into ROLE_PERMISSIONS.pages
+  if(!rolePerms) return;
+  // Always ensure new pages are present even on old cached rolePerms
+  const ensurePages = {
+    lead: ['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies'],
+    fertigator: ['supplies','additive','checks','slack','clonetracker'],
+    ipm: ['additive'],
+  };
+  Object.entries(ensurePages).forEach(([role, pages]) => {
+    if(!rolePerms[role]) rolePerms[role] = [];
+    pages.forEach(p => { if(!rolePerms[role].includes(p)) rolePerms[role].push(p); });
+  });
+  S('wg_role_perms', rolePerms);
   Object.keys(rolePerms).forEach(role=>{
     if(ROLE_PERMISSIONS[role]) ROLE_PERMISSIONS[role].pages=rolePerms[role].slice();
   });
@@ -2226,6 +2385,7 @@ function toggleRolePerm(role,page,enabled){
   }
   S('wg_role_perms',rolePerms);
   applyRolePerms();
+  pushConfigDebounced();
   // re-apply nav visibility for current role
   setRole(currentRole);
 }
@@ -2238,14 +2398,6 @@ let pendingLoginMember=null;
 function showLoginModal(){
   const modal=document.getElementById('login-modal-bg');
   const list=document.getElementById('login-name-list');
-  // Safety: if team failed to load, skip login and show dashboard as lead
-  if(!team||team.length===0){
-    document.body.classList.remove('pre-login');
-    modal.style.display='none';
-    setRole('lead');
-    renderRooms();renderAssignments();
-    return;
-  }
   modal.style.display='flex';
   document.getElementById('login-pin-row').style.display='none';
   document.getElementById('login-pin-error').style.display='none';
@@ -2301,33 +2453,38 @@ function finishLogin(member){
   `;
   document.getElementById('topbar-date').textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   pendingLoginMember=null;
+  // Save session with 4-hour expiry
+  S('wg_session',{memberId:member.id,expires:Date.now()+(4*60*60*1000)});
 }
 
 function switchUser(){
   loggedInMember=null;
+  localStorage.removeItem('wg_session');
+  document.body.classList.add('pre-login');
   const roleSelect=document.getElementById('role-select');
-  roleSelect.innerHTML=`
-    <button class="role-btn" onclick="setRole('lead')" data-role="lead">Lead / Pat</button>
-    <button class="role-btn" onclick="setRole('defoliator')" data-role="defoliator">Defoliator</button>
-    <button class="role-btn" onclick="setRole('fertigator')" data-role="fertigator">Fertigator</button>
-    <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
-    <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
-    <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
-    <button class="role-btn" onclick="setRole('postprod')" data-role="postprod">Post Prod</button>
-  `;
+  roleSelect.innerHTML='';
   const loginBtn=document.createElement('button');
   loginBtn.className='role-btn';
   loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:6px';
   loginBtn.textContent='Sign in';
   loginBtn.onclick=showLoginModal;
   roleSelect.prepend(loginBtn);
-  setRole(currentRole);
   showLoginModal();
 }
 
 function skipLogin(){
-  document.body.classList.remove('pre-login');
-  document.getElementById('login-modal-bg').style.display='none';
+  // Skip disabled — must log in
+  document.getElementById('login-modal-bg').style.display='flex';
+}
+
+function restoreSession(){
+  const session=L('wg_session',null);
+  if(!session||!session.memberId||!session.expires) return false;
+  if(Date.now()>session.expires){ localStorage.removeItem('wg_session'); return false; }
+  const member=team.find(m=>m.id===session.memberId);
+  if(!member) return false;
+  finishLogin(member);
+  return true;
 }
 
 // ══════════════════════════════════════════════
@@ -2355,7 +2512,7 @@ function renderSettings(){
         ${room.paired?'<span class="tag tag-teal" style="font-size:9px">paired</span>':''}
       </div>
       <label>Strain</label>
-      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
       <label>Launch date (plants in)</label>
       <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
       <label>Flip date (day 1 of flower)</label>
@@ -2379,6 +2536,7 @@ function renderSettings(){
     {key:'ipm',label:'#ipm',desc:'IPM tech'},
     {key:'vegclone',label:'#veg-clone',desc:'Cloners'},
     {key:'postprod',label:'#post-production',desc:'Trim crew & post production'},
+    {key:'alerts',label:'#alerts',desc:'Tier 1 guardrail alerts — all leads'},
   ];
   whDefs.forEach(wh=>{
     const cell=document.createElement('div');
@@ -2476,12 +2634,16 @@ function removeTrimItem(id){
   renderTrimQueue();
 }
 function moveTrimItem(id,dir){
+  trimQueue=L('wg_trim_queue',[]);
   const idx=trimQueue.findIndex(i=>i.id===id);
   const swap=idx+dir;
   if(swap<0||swap>=trimQueue.length)return;
   [trimQueue[idx],trimQueue[swap]]=[trimQueue[swap],trimQueue[idx]];
   S('wg_trim_queue',trimQueue);
   renderTrimQueue();
+  // Keep METRC harvests tab in sync if visible
+  const harvestsEl=document.getElementById('metrc-sub-harvests');
+  if(harvestsEl&&harvestsEl.style.display!=='none') renderMetrcHarvests();
 }
 
 
@@ -2511,61 +2673,78 @@ function renderTrimQueue(){
   trimQueue=L('wg_trim_queue',[]);
   const list=document.getElementById('trim-queue-list');
   if(!list)return;
+  const isLead=currentRole==='lead';
+  // Stamp refresh time
+  const lbl=document.getElementById('queue-last-refresh');
+  if(lbl) lbl.textContent='Last refreshed: '+fmtTime();
+  // Show/hide add button
+  const addBtn=document.getElementById('add-trim-btn');
+  if(addBtn) addBtn.style.display=isLead?'inline-flex':'none';
   if(!trimQueue.length){
-    list.innerHTML=`<div class="empty-state">No strains in queue. Pat adds strains after each harvest.</div>`;
+    list.innerHTML=`<div class="empty-state">No harvests in queue yet. Upload a Harvests export in Settings → METRC.</div>`;
     return;
   }
   const priColor={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
-  const priLabel={high:'High priority',normal:'Normal',low:'Low priority'};
+  const priLabel={high:'🔴 Trim first',normal:'Normal',low:'⬇ Low'};
   const statusColor={pending:'var(--text3)',trimming:'var(--amber)',done:'var(--green)'};
   const statusLabel={pending:'Pending',trimming:'Trimming now',done:'Complete'};
-  list.innerHTML='';
-  trimQueue.forEach((item,idx)=>{
-    const room=rooms.find(r=>r.id===item.roomId);
+  const activeTrimQueue=trimQueue.filter(i=>i.status!=='done');
+  const doneQueue=trimQueue.filter(i=>i.status==='done');
+  const renderItems=(items,offset)=>items.map((item,idx)=>{
+    const realIdx=trimQueue.indexOf(item);
     const w=trimWeights[item.id]||{};
     const hasWeights=w.bigBuds||w.smallBuds||w.trim;
-    const card=document.createElement('div');
-    card.className='card';
-    card.style.cssText=`border-left:3px solid ${priColor[item.priority||'normal']};opacity:${item.status==='done'?'0.6':'1'}`;
-    card.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px;flex-wrap:wrap">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:16px;font-weight:700;color:var(--text3);font-family:var(--mono);min-width:28px">${idx+1}</span>
-            <div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-              <div style="font-size:11px;color:var(--text3)">${item.harvestBatch||item.strain}${item.harvestDate?' · '+item.harvestDate:''}</div>
-            </div>
+    const dateObj=item.harvestDate?new Date(item.harvestDate):null;
+    const dateStr=dateObj&&!isNaN(dateObj)?dateObj.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):item.harvestDate||'';
+    return`<div class="card" style="border-left:3px solid ${priColor[item.priority||'normal']};opacity:${item.status==='done'?'0.55':'1'};margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${isLead?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
+          <button onclick="moveTrimItem('${item.id}',-1)" ${realIdx===0?'disabled':''} style="font-size:14px;line-height:1;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:${realIdx===0?'var(--bg3)':'none'};color:${realIdx===0?'var(--border2)':'var(--text2)'};cursor:${realIdx===0?'default':'pointer'}">↑</button>
+          <button onclick="moveTrimItem('${item.id}',1)" ${realIdx>=trimQueue.length-1?'disabled':''} style="font-size:14px;line-height:1;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:${realIdx>=trimQueue.length-1?'var(--bg3)':'none'};color:${realIdx>=trimQueue.length-1?'var(--border2)':'var(--text2)'};cursor:${realIdx>=trimQueue.length-1?'default':'pointer'}">↓</button>
+        </div>`:''}
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:28px;flex-shrink:0">${offset+idx+1}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.strain}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:3px;align-items:center">
+            ${item.plantCount?`<span style="font-size:11px;padding:1px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);color:var(--green);font-family:var(--mono)">${item.plantCount} plants</span>`:''}
+            ${dateStr?`<span style="font-size:11px;color:var(--text3)">${dateStr}</span>`:''}
+            <span style="font-size:11px;font-weight:600;color:${priColor[item.priority||'normal']}">${priLabel[item.priority||'normal']}</span>
+            <span style="font-size:11px;padding:1px 7px;border-radius:var(--r);background:var(--bg3);color:${statusColor[item.status||'pending']}">${statusLabel[item.status||'pending']}</span>
+          </div>
+          ${item.notes?`<div style="font-size:11px;color:var(--text2);margin-top:4px;padding:4px 6px;background:var(--bg3);border-radius:var(--r)">${item.notes}</div>`:''}
+          ${hasWeights?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+            ${w.bigBuds?`<span style="font-size:11px;padding:1px 7px;background:var(--green-bg);color:var(--green);border-radius:var(--r)">Bigs: ${w.bigBuds}g</span>`:''}
+            ${w.smallBuds?`<span style="font-size:11px;padding:1px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--r)">Smalls: ${w.smallBuds}g</span>`:''}
+            ${w.trim?`<span style="font-size:11px;padding:1px 7px;background:var(--bg3);color:var(--text3);border-radius:var(--r)">Trim: ${w.trim}g</span>`:''}
+          </div>`:''}
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
+            ${item.status==='pending'?`<button onclick="markTrimInProgress('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">▶ Start</button>`:''}
+            ${item.status==='trimming'?`<button onclick="markTrimDone('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">✓ Done</button>`:''}
+            ${isLead?`<select onchange="updateTrimItemPriority('${item.id}',this.value)" style="font-size:11px;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+              <option value="high"${item.priority==='high'?' selected':''}>Trim first</option>
+              <option value="normal"${item.priority==='normal'?' selected':''}>Normal</option>
+              <option value="low"${item.priority==='low'?' selected':''}>Low priority</option>
+            </select>`:''}
+            ${isLead&&!item.fromMetrc?`<button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>`:''}
+            ${isLead?`<button onclick="removeTrimItem('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>`:''}
           </div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:600;color:${priColor[item.priority||'normal']}">${priLabel[item.priority||'normal']}</span>
-          <span style="font-size:11px;padding:2px 8px;border-radius:var(--r);background:var(--bg3);color:${statusColor[item.status||'pending']}">${statusLabel[item.status||'pending']}</span>
-        </div>
       </div>
-      ${item.notes?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--r)">${item.notes}</div>`:''}
-      ${hasWeights?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        ${w.bigBuds?`<span style="font-size:12px;padding:3px 9px;background:var(--green-bg);color:var(--green);border-radius:var(--r)">Big buds: ${w.bigBuds}g</span>`:''}
-        ${w.smallBuds?`<span style="font-size:12px;padding:3px 9px;background:var(--blue-bg);color:var(--blue);border-radius:var(--r)">Small buds: ${w.smallBuds}g</span>`:''}
-        ${w.trim?`<span style="font-size:12px;padding:3px 9px;background:var(--bg3);color:var(--text3);border-radius:var(--r)">Trim: ${w.trim}g</span>`:''}
-        ${w.purplTHC?`<span style="font-size:12px;padding:3px 9px;background:var(--purple-dim);color:var(--purple);border-radius:var(--r)">THC: ${w.purplTHC}%</span>`:''}
-      </div>`:''}
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
-        ${item.status==='pending'?`<button onclick="markTrimInProgress('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">Start trimming</button>`:''}
-        ${item.status==='trimming'?`<button onclick="markTrimDone('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:none;color:var(--green);cursor:pointer">Mark complete</button>`:''}
-        ${currentRole==='lead'?`<select onchange="updateTrimItemPriority('${item.id}',this.value)" style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
-          <option value="high"${item.priority==='high'?' selected':''}>Trim first</option>
-          <option value="normal"${item.priority==='normal'?' selected':''}>Normal</option>
-          <option value="low"${item.priority==='low'?' selected':''}>Low priority</option>
-        </select>`:''}
-        ${!item.fromMetrc?`<button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>`:``}
-        ${idx>0?`<button onclick="moveTrimItem('${item.id}',-1)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↑</button>`:''}
-        ${idx<trimQueue.length-1?`<button onclick="moveTrimItem('${item.id}',1)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↓</button>`:''}
-        <button onclick="removeTrimItem('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
-      </div>
-    `;
-    list.appendChild(card);
-  });
+    </div>`;
+  }).join('');
+
+  list.innerHTML='';
+  if(activeTrimQueue.length){
+    list.innerHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Queue — ${activeTrimQueue.length} active</div>`;
+    list.innerHTML+=renderItems(activeTrimQueue,0);
+  }
+  if(isLead){
+    list.innerHTML+=`<div style="margin-top:10px"><button onclick="openAddTrimItem()" style="font-size:12px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">+ Add manually</button></div>`;
+  }
+  if(doneQueue.length){
+    list.innerHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin:14px 0 8px">Completed</div>`;
+    list.innerHTML+=renderItems(doneQueue,activeTrimQueue.length);
+  }
 }
 
 function renderWeightCards(){
@@ -2670,7 +2849,14 @@ function showPostTab(tab,el){
   document.getElementById('postsub-queue').style.display=tab==='queue'?'block':'none';
   document.getElementById('postsub-weights').style.display=tab==='weights'?'block':'none';
   document.getElementById('postsub-preroll').style.display=tab==='preroll'?'block':'none';
-  if(tab==='queue') renderTrimQueue();
+  if(tab==='queue'){
+    // Show add button only for leads
+    const addBtn=document.getElementById('add-trim-btn');
+    if(addBtn) addBtn.style.display=currentRole==='lead'?'inline-flex':'none';
+    renderTrimQueue();
+    const lbl=document.getElementById('queue-last-refresh');
+    if(lbl) lbl.textContent='Last refreshed: '+fmtTime();
+  }
   if(tab==='weights') renderWeightCards();
   if(tab==='preroll') renderPrerollPriority();
 }
@@ -2690,8 +2876,12 @@ function showPage(page){
   if(page==='checks') loadChecks();
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
-  if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();}
-  if(page==='postprod') renderTrimQueue();
+  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
+  if(page==='daily-review'){renderDailyReview();}
+  if(page==='supplies'){renderSupplies();}
+  if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
+  if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
+  if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});}
 }
 
 
@@ -2722,9 +2912,124 @@ async function postToSheet(sheetName,rowData){
   }catch(e){console.warn('Sheet POST failed:',e);}
 }
 
+async function pushMetrcToCloud(){
+  if(!gsUrl) return;
+  // Send each dataset as a separate POST to stay within Apps Script limits
+  const datasets={
+    mother:metrcData.mother||[],
+    immature:metrcData.immature||[],
+    vegetative:metrcData.vegetative||[],
+    flowering:metrcData.flowering||[],
+    harvests:metrcData.harvests||[],
+    harvestPriority:metrcHarvestPriority||{},
+    trimQueue:L('wg_trim_queue',[]),
+    syncedBy:loggedInMember?loggedInMember.name:'Lead',
+    syncedAt:new Date().toISOString(),
+  };
+  const payload={action:'setMetrc',data:datasets};
+  // Try with CORS first so we can read the response
+  try{
+    const res=await fetch(gsUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'}, // text/plain avoids CORS preflight on Apps Script
+      body:JSON.stringify(payload)
+    });
+    const text=await res.text();
+    try{
+      const json=JSON.parse(text);
+      if(json.ok) {console.log('METRC pushed ✓');return;}
+    }catch(e){}
+  }catch(e){}
+  // Fallback: no-cors (fire and forget)
+  try{
+    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    console.log('METRC pushed (no-cors)');
+  }catch(e){console.warn('Push failed:',e);}
+}
+
+async function pullMetrcFromCloud(silent=false){
+  if(!gsUrl) return false;
+  const statusEl=document.getElementById('metrc-pull-status');
+  if(statusEl&&!silent) statusEl.textContent='Fetching…';
+  try{
+    const res=await fetch(gsUrl+'?action=getMetrc&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.data) throw new Error(json.error||'No data');
+    const d=json.data;
+    // Only overwrite local data if cloud data has MORE columns (richer data)
+    // This prevents stale single-column cloud data from wiping fresh multi-column local uploads
+    function shouldUse(cloudArr, localArr){
+      if(!cloudArr||!cloudArr.length) return false;
+      if(!localArr||!localArr.length) return true;
+      const cloudCols=Object.keys(cloudArr[0]||{}).length;
+      const localCols=Object.keys(localArr[0]||{}).length;
+      // Use cloud only if it has equal or more columns, AND more rows or same rows
+      return cloudCols>=localCols;
+    }
+    if(d.mother    &&shouldUse(d.mother,    metrcData.mother))    { metrcData.mother=d.mother;       S(METRC_KEYS.mother,d.mother); }
+    if(d.immature  &&shouldUse(d.immature,  metrcData.immature))  { metrcData.immature=d.immature;   S(METRC_KEYS.immature,d.immature); }
+    if(d.vegetative&&shouldUse(d.vegetative,metrcData.vegetative)){ metrcData.vegetative=d.vegetative;S(METRC_KEYS.vegetative,d.vegetative); }
+    if(d.flowering &&shouldUse(d.flowering, metrcData.flowering)) { metrcData.flowering=d.flowering; S(METRC_KEYS.flowering,d.flowering); }
+    if(d.harvests  &&shouldUse(d.harvests,  metrcData.harvests))  { metrcData.harvests=d.harvests;   S(METRC_KEYS.harvests,d.harvests); }
+    if(d.harvestPriority){ metrcHarvestPriority=d.harvestPriority;S(METRC_KEYS.harvestPriority,d.harvestPriority); }
+    if(d.trimQueue&&d.trimQueue.length){ S('wg_trim_queue',d.trimQueue); }
+    else if(d.harvests&&d.harvests.length){ syncHarvestsToTrimQueue(d.harvests); }
+    const syncInfo={};
+    ['mother','immature','vegetative','flowering','harvests'].forEach(k=>{
+      if(d[k]&&d[k].length) syncInfo[k]={time:d.syncedAt||'',date:(d.syncedAt||'').split('T')[0],count:d[k].length};
+    });
+    S(METRC_KEYS.sync,syncInfo);
+    updateMetrcSyncLabel();
+    renderCurrentMetrcTab();
+    renderTrimQueue();
+    renderRooms();
+    if(statusEl) statusEl.textContent=`✓ Synced from cloud — ${d.syncedBy||'Lead'} uploaded ${d.syncedAt?new Date(d.syncedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''}`;
+    if(statusEl) statusEl.style.color='var(--green)';
+    return true;
+  }catch(e){
+    if(statusEl&&!silent){statusEl.textContent='No cloud data yet — upload files in Settings first';statusEl.style.color='var(--text3)';}
+    return false;
+  }
+}
+
 // ══════════════════════════════════════════════
 // WEIGHT VERIFICATION FLOW
 // ══════════════════════════════════════════════
+async function pushWeightsToCloud(){
+  if(!gsUrl) return;
+  try{
+    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'setMetrc',data:{
+        trimWeights:trimWeights,
+        syncedBy:loggedInMember?loggedInMember.name:'Unknown',
+        syncedAt:new Date().toISOString()
+      }})
+    });
+    console.log('Weights pushed to cloud');
+  }catch(e){console.warn('Weight push failed:',e);}
+}
+
+async function pullWeightsFromCloud(){
+  if(!gsUrl) return;
+  try{
+    const res=await fetch(gsUrl+'?action=getMetrc&t='+Date.now());
+    const json=await res.json();
+    if(json.ok&&json.data&&json.data.trimWeights){
+      // Merge cloud weights with local — cloud wins for pending/approved states
+      const cloudW=json.data.trimWeights;
+      Object.entries(cloudW).forEach(([id,w])=>{
+        const local=trimWeights[id]||{};
+        // Use cloud version if it has a more advanced status
+        const statusOrder={entry:0,pending:1,approved:2};
+        const cloudStatus=statusOrder[w.status||'entry']||0;
+        const localStatus=statusOrder[local.status||'entry']||0;
+        if(cloudStatus>=localStatus) trimWeights[id]=w;
+      });
+      S('wg_trim_weights',trimWeights);
+    }
+  }catch(e){console.warn('Weight pull failed:',e);}
+}
+
 function submitWeightForVerification(itemId){
   if(!loggedInMember){alert('Sign in first to submit weights.');return;}
   if(!trimWeights[itemId]){alert('Enter weights before submitting.');return;}
@@ -2734,7 +3039,15 @@ function submitWeightForVerification(itemId){
   trimWeights[itemId].enteredBy=loggedInMember.name;
   trimWeights[itemId].approvedBy='';
   S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
   renderWeightCards();
+  // Notify #postprod Slack
+  const wh=webhooks['postprod'];
+  const item=trimQueue.find(i=>i.id===itemId);
+  if(wh&&wh.startsWith('https://hooks.slack.com/')&&item){
+    const msg=`*Weight submission pending verification* — ${item.strain}\nEntered by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g\n_Open Post Production → Log Weights to approve_`;
+    fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
+  }
 }
 function approveWeight(itemId){
   if(!loggedInMember){alert('Sign in first to approve.');return;}
@@ -2743,6 +3056,7 @@ function approveWeight(itemId){
   trimWeights[itemId].status='approved';
   trimWeights[itemId].approvedBy=loggedInMember.name;
   S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
   const item=trimQueue.find(i=>i.id===itemId);
   if(item){
     postToSheet('Weight_Log',[item.strain,item.harvestDate||'',w.bigBuds||'',w.smallsAndTrim||'',
@@ -2750,7 +3064,7 @@ function approveWeight(itemId){
   }
   const wh=webhooks['postprod'];
   if(wh&&wh.startsWith('https://hooks.slack.com/')){
-    const msg=`*Weight log approved* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
+    const msg=`*Weight log approved ✓* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
     fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
   }
   renderWeightCards();
@@ -2760,6 +3074,7 @@ function rejectWeight(itemId){
   trimWeights[itemId].enteredBy='';
   trimWeights[itemId].approvedBy='';
   S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
   renderWeightCards();
 }
 
@@ -2801,6 +3116,37 @@ function markChoreDone(id,freq){
   S(getChoreKey(freq)+'_'+id,{who,time:fmtTime(),date:dateToIso(TODAY)});
   renderChores();
 }
+function renderChores(){
+  const wrap=document.getElementById('chores-section');
+  if(!wrap)return;
+  const daily=CHORES.filter(c=>c.freq==='daily');
+  const weekly=CHORES.filter(c=>c.freq==='weekly');
+  const monthly=CHORES.filter(c=>c.freq==='monthly');
+  function choreRow(ch){
+    const log=getChoreLog(ch.id,ch.freq);
+    const done=!!log;
+    return`<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${done?'var(--green)':'var(--amber)'}"></div>
+      <div style="flex:1">
+        <span style="color:${done?'var(--text3)':'var(--text)'}${done?';text-decoration:line-through':''}">${ch.name}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:8px">${ch.cat}</span>
+        ${done?`<span style="font-size:10px;color:var(--text3);margin-left:6px">✓ ${log.who} ${log.time}</span>`:''}
+      </div>
+      ${!done?`<button onclick="markChoreDone('${ch.id}','${ch.freq}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Done</button>`:''}
+    </div>`;
+  }
+  function section(title,items){
+    const doneCount=items.filter(ch=>!!getChoreLog(ch.id,ch.freq)).length;
+    return`<div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 12px;background:var(--bg3);border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;border:1px solid var(--border)">
+        <span>${title}</span><span style="color:${doneCount===items.length?'var(--green)':'var(--text3)'}">${doneCount}/${items.length}</span>
+      </div>
+      <div class="card" style="padding:0;border-radius:0 0 var(--r) var(--r)">${items.map(choreRow).join('')}</div>
+    </div>`;
+  }
+  wrap.innerHTML=section('Daily',daily)+section('Weekly',weekly)+section('Monthly',monthly);
+}
+
 // ══════════════════════════════════════════════
 // MAXX OS v1.3 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
@@ -2818,7 +3164,7 @@ const MAXX_PHASES=[
   {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5},
   {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1},
   {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1},
-  {id:'DK', name:'Dark Period',    start:64, end:65, light:0,  co2:400,  dayTemp:68,nightTemp:68,rh:50,ecMin:null,ecMax:null},
+  {id:'DK', name:'Dark / Flush End',start:64, end:65, light:0,  co2:400,  dayTemp:69,nightTemp:69,rh:50,ecMin:null,ecMax:null},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
@@ -2851,16 +3197,63 @@ let metrcData={
 };
 let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 
+// ── GROWLINK LIVE DATA ──────────────────────────────────────────
+// Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
+let growlinkData = L('wg_growlink_rooms', {});
+
+// Map Growlink room names → dashboard room names
+const GROWLINK_ROOM_MAP = {
+  'Flower Room 1':'Room 1','Flower Room 2':'Room 2','Flower Room 3':'Room 3',
+  'Flower Room 4':'Room 4','Flower Room 5':'Room 5','Flower Room 6':'Room 6',
+  'Flower Room 7':'Room 7','Flower Room 8':'Room 8','Flower Room 9':'Room 9',
+  'Flower Room 10':'Room 10','Flower Room 11':'Room 11',
+  'Veg Room':'Veg Room','Mother Room':'Mother Room'
+};
+
+async function pullGrowlinkFromCloud(silent=false){
+  if(!gsUrl) return;
+  try{
+    const res=await fetch(gsUrl+'?action=getGrowlink&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.data||!json.data.rooms) return;
+    growlinkData=json.data.rooms;
+    S('wg_growlink_rooms', growlinkData);
+    const age=json.data.pushedAt?Math.round((Date.now()-new Date(json.data.pushedAt).getTime())/60000):null;
+    if(!silent) console.log('Growlink pulled:',Object.keys(growlinkData).length,'rooms, pushed',age,'min ago');
+    renderRooms();
+  }catch(e){ if(!silent) console.warn('Growlink pull failed:',e); }
+}
+
+function getGrowlinkForRoom(roomName){
+  // Match by exact name or by number
+  for(const [glName, dashName] of Object.entries(GROWLINK_ROOM_MAP)){
+    if(dashName===roomName) return growlinkData[glName]||null;
+  }
+  return null;
+}
+
 async function parseMetrcXLSX(file){
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onload=e=>{
       const tryParse=()=>{
         try{
-          const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+          const wb=XLSX.read(e.target.result,{type:'array',cellDates:true,raw:false});
           const ws=wb.Sheets[wb.SheetNames[0]];
-          const data=XLSX.utils.sheet_to_json(ws,{defval:''});
-          resolve(data.map(row=>{const clean={};Object.entries(row).forEach(([k,v])=>{clean[k]=v instanceof Date?v.toISOString().split('T')[0]:String(v===null||v===undefined?'':v);});return clean;}));
+          // Use header:1 to get array of arrays, then manually build objects
+          // This avoids SheetJS issues with certain METRC file formats
+          const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+          if(!aoa.length){resolve([]);return;}
+          const headers=aoa[0].map(h=>String(h||'').trim());
+          const data=aoa.slice(1).map(row=>{
+            const obj={};
+            headers.forEach((h,i)=>{
+              const v=row[i];
+              obj[h]=v instanceof Date?v.toISOString().split('T')[0]:String(v===null||v===undefined?'':v);
+            });
+            return obj;
+          }).filter(row=>Object.values(row).some(v=>v));
+          resolve(data);
         }catch(err){reject(err);}
       };
       if(typeof XLSX==='undefined'){
@@ -2892,22 +3285,25 @@ async function handleMetrcUpload(type,input){
   const file=input.files[0];if(!file)return;
   const statusEl=document.getElementById('mup-'+type+'-status');
   const cellEl=document.getElementById('mup-'+type);
-  statusEl.textContent='Reading…';
+  if(statusEl) statusEl.textContent='Reading…';
   try{
     let rows;
     if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')) rows=await parseMetrcXLSX(file);
     else{const text=await file.text();rows=parseMetrcCSV(text);}
+    console.log('[METRC] Parsed',type,':',rows.length,'rows, cols:',rows[0]?Object.keys(rows[0]):'empty');
     metrcData[type]=rows; S(METRC_KEYS[type],rows);
     const syncInfo=L(METRC_KEYS.sync,{});
     syncInfo[type]={time:fmtTime(),date:dateToIso(TODAY),count:rows.length};
     S(METRC_KEYS.sync,syncInfo);
-    statusEl.textContent='✓ '+rows.length+' rows';
-    cellEl.classList.add('loaded');
+    if(statusEl) statusEl.textContent='✓ '+rows.length+' rows';
+    if(cellEl) cellEl.classList.add('loaded');
     updateMetrcSyncLabel();
-    // Auto-sync harvests → trim queue
     if(type==='harvests') syncHarvestsToTrimQueue(rows);
     renderCurrentMetrcTab();
-  }catch(err){statusEl.textContent='✗ '+err.message;console.error(err);}
+  }catch(err){
+    console.error('[METRC] Upload error for',type,':',err);
+    if(statusEl) statusEl.textContent='✗ '+err.message;
+  }
 }
 
 
@@ -2916,8 +3312,8 @@ async function handleBulkMetrcUpload(input) {
   if (!files.length) return;
   const statusEl = document.getElementById('bulk-upload-status');
   statusEl.textContent = 'Reading ' + files.length + ' file(s)…';
+  statusEl.style.color = 'var(--text2)';
 
-  // Detect file type from filename
   function detectType(name) {
     const n = name.toLowerCase();
     if (n.includes('mother')) return 'mother';
@@ -2931,39 +3327,62 @@ async function handleBulkMetrcUpload(input) {
   let loaded = 0;
   for (const file of files) {
     const type = detectType(file.name);
-    if (!type) {
-      console.warn('Could not detect type for:', file.name);
-      continue;
-    }
+    if (!type) { console.warn('Could not detect type for:', file.name); continue; }
     const fakeInput = { files: [file] };
     await handleMetrcUpload(type, fakeInput);
     loaded++;
   }
 
-  statusEl.textContent = loaded + '/' + files.length + ' files loaded ✓';
+  statusEl.textContent = loaded + '/' + files.length + ' files loaded locally ✓';
   if (loaded < files.length) {
-    statusEl.textContent += ' (' + (files.length - loaded) + ' unrecognized — rename to include Mother/Planting/Veg/Flower/Harvest)';
+    statusEl.textContent += ' (' + (files.length - loaded) + ' unrecognized)';
   }
+
+  // Push to cloud so everyone gets it
+  if (gsUrl && loaded > 0) {
+    statusEl.textContent += ' — pushing to cloud…';
+    await pushMetrcToCloud();
+    statusEl.textContent = '✓ ' + loaded + ' files uploaded & pushed to cloud. All team members will get this data on next refresh.';
+    statusEl.style.color = 'var(--green)';
+  }
+
   renderCurrentMetrcTab();
 }
+function parseBatchDate(batch){
+  // METRC batch names start with MMDDYY e.g. "033126 Apple Fritter R8"
+  const m=batch.match(/^(\d{2})(\d{2})(\d{2})\s/);
+  if(m){
+    const mm=parseInt(m[1]),dd=parseInt(m[2]),yy=parseInt(m[3]);
+    const year=yy<50?2000+yy:1900+yy;
+    return new Date(year,mm-1,dd);
+  }
+  return null;
+}
+
 function syncHarvestsToTrimQueue(rows){
   if(!rows||!rows.length) return;
   trimQueue = L('wg_trim_queue',[]);
   let added = 0;
   rows.forEach(r=>{
-    const batch = r['Harvest Batch']||'';
-    const strain = r['Strain']||'';
-    const date = r['Date']||'';
-    if(!batch||!strain) return;
-    // Don't duplicate — match by harvest batch name
+    const batch = r['Harvest Batch']||r['Name']||r['Batch']||'';
+    // Try every possible plant count field name METRC might use
+    const plants = parseInt(
+      r['Plants']||r['Plant Count']||r['PlantCount']||
+      r['# Plants']||r['Number of Plants']||r['Count']||0
+    )||0;
+    // Try date field, fall back to parsing batch name prefix
+    const rawDate = (r['Date']||r['Harvest Date']||r['HarvestDate']||'').split('T')[0];
+    const batchDate = parseBatchDate(batch);
+    const dateFromBatch = batchDate ? dateToIso(batchDate) : '';
+    const date = rawDate || dateFromBatch;
+    if(!batch) return;
     if(trimQueue.find(q=>q.harvestBatch===batch)) return;
-    // Parse date for sort key — METRC format is YYYY-MM-DD or ISO
-    const sortDate = date.split('T')[0]||date;
     const item = {
       id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
-      strain,
+      strain: batch,
       harvestBatch: batch,
-      harvestDate: sortDate,
+      harvestDate: date,
+      plantCount: plants,
       roomId: '',
       priority: metrcHarvestPriority[batch]||'normal',
       notes: '',
@@ -2974,16 +3393,19 @@ function syncHarvestsToTrimQueue(rows){
     trimQueue.push(item);
     added++;
   });
-  // Sort: by lead priority first, then by date ascending (oldest first)
+  // Sort: priority first, then OLDEST first (ascending date)
   const priOrder={high:0,normal:1,low:2};
   trimQueue.sort((a,b)=>{
     const pa=priOrder[a.priority||'normal'];
     const pb=priOrder[b.priority||'normal'];
     if(pa!==pb) return pa-pb;
-    return new Date(a.harvestDate||0)-new Date(b.harvestDate||0);
+    // Parse dates — use batch name date as most reliable
+    const da=parseBatchDate(a.harvestBatch||a.strain)||new Date(a.harvestDate||0);
+    const db=parseBatchDate(b.harvestBatch||b.strain)||new Date(b.harvestDate||0);
+    return da-db; // ascending = oldest first
   });
   S('wg_trim_queue',trimQueue);
-  if(added>0) console.log('Synced '+added+' harvests to trim queue');
+  console.log('Synced '+added+' harvests. First item:', trimQueue[0]?.strain, trimQueue[0]?.harvestDate);
 }
 
 function updateMetrcSyncLabel(){
@@ -3006,8 +3428,7 @@ function buildMetrcTabNav(){
   const tabDefs = [
     {key:'mothers',    label:'Mothers'},
     {key:'clones',     label:'Clone batches'},
-    {key:'vegetative', label:'Vegetative'},
-    {key:'flowering',  label:'Flowering'},
+    {key:'strains', label:'Strains'},
     {key:'harvests',   label:'Harvests / Trim queue'},
   ];
   nav.innerHTML = tabDefs
@@ -3024,7 +3445,7 @@ function showMetrcTab(tab,el){
   if(!allowedTabs.includes(tab)) return;
   document.querySelectorAll('#metrc-tab-nav .nav-tab').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
-  ['mothers','clones','vegetative','flowering','harvests'].forEach(t=>{
+  ['mothers','clones','strains','harvests'].forEach(t=>{
     const d=document.getElementById('metrc-sub-'+t);
     if(d) d.style.display=t===tab?'block':'none';
   });
@@ -3033,8 +3454,7 @@ function showMetrcTab(tab,el){
   if(note) note.textContent = currentRole==='lead' ? 'Leads can adjust trim priority.' : '';
   if(tab==='mothers') renderMetrcMothers();
   if(tab==='clones') renderMetrcClones();
-  if(tab==='vegetative') renderMetrcVegetative();
-  if(tab==='flowering') renderMetrcFlowering();
+  if(tab==='strains') renderMetrcStrains();
   if(tab==='harvests') renderMetrcHarvests();
 }
 
@@ -3042,176 +3462,185 @@ function renderCurrentMetrcTab(){
   buildMetrcTabNav();
 }
 
-function renderMetrcVegetative(){
-  const grid=document.getElementById('metrc-vegetative-grid');
-  const rows=metrcData.vegetative;
-  if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative export.</div>';return;}
-  const byStrain={};
-  rows.forEach(r=>{
-    const s=r['Strain']||'—';
-    const loc=r['Location']||'Unknown';
-    if(!byStrain[s])byStrain[s]={count:0,locations:{}};
-    byStrain[s].count++;
-    byStrain[s].locations[loc]=(byStrain[s].locations[loc]||0)+1;
-  });
-  const strains=Object.keys(byStrain).sort();
-  grid.innerHTML=strains.map(strain=>{
-    const d=byStrain[strain];
-    const locParts=Object.entries(d.locations).map(([loc,n])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc} (${n})</span>`).join('');
-    return`<div class="card" style="border-left:3px solid var(--blue)">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:6px">${d.count}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">${locParts}</div>
-    </div>`;
-  }).join('');
-}
-
 function renderMetrcMothers(){
   const grid=document.getElementById('metrc-mothers-grid');
   const countEl=document.getElementById('metrc-mother-count');
-  const search=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase();
   const rows=metrcData.mother;
-  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Mother Plants export to see data here.</div>';if(countEl)countEl.textContent='';return;}
+  if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Mother Plants export to see data here.</div>';if(countEl)countEl.textContent='';return;}
   const byStrain={};
   rows.forEach(r=>{
-    const strain=r['Strain']||'—';
-    if(search&&!strain.toLowerCase().includes(search))return;
+    const strain=r['Strain']||r['StrainName']||r['Strain Name']||'—';
     if(!byStrain[strain])byStrain[strain]={count:0,locations:{},cloned:0};
     byStrain[strain].count++;
-    const loc=r['Location']||'Unknown';
+    const loc=r['Location']||r['LocationName']||'Unknown';
     byStrain[strain].locations[loc]=(byStrain[strain].locations[loc]||0)+1;
     byStrain[strain].cloned+=parseInt(r['Cloned']||0)||0;
   });
   const clonesByStrain={};
-  metrcData.immature.forEach(r=>{const s=r['Strain']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
+  metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
   const strains=Object.keys(byStrain).sort();
-  if(countEl) countEl.textContent=strains.length+' strains · '+rows.length+' mothers';
-  if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains match.</div>';return;}
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers';
+  if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains found.</div>';return;}
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
-    const locParts=Object.entries(d.locations).map(([loc,cnt])=>`<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${loc.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')} (${cnt})</span>`).join('');
+    const locParts=Object.entries(d.locations).map(([loc,cnt])=>'<span style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">'+loc.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')+' ('+cnt+')</span>').join('');
     const clones=clonesByStrain[strain]||0;
     const bc=d.count>=8?'var(--green)':d.count>=4?'var(--amber)':'var(--red)';
-    return`<div class="card" style="border-left:3px solid ${bc}">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${bc};margin-bottom:2px">${d.count}</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">mother${d.count!==1?'s':''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${locParts}</div>
-      ${clones?`<div style="font-size:11px;color:var(--blue)">🌱 ${clones} clones in progress</div>`:''}
-    </div>`;
+    return '<div class="card" style="border-left:3px solid '+bc+'">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">'+strain+'</div>'
+      +'<div style="font-size:24px;font-weight:700;font-family:var(--mono);color:'+bc+';margin-bottom:2px">'+d.count+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">mother'+(d.count!==1?'s':'')+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">'+locParts+'</div>'
+      +(clones?'<div style="font-size:11px;color:var(--blue)">\ud83c\udf31 '+clones+' clones in progress</div>':'')
+      +'</div>';
   }).join('');
 }
 
 function renderMetrcClones(){
   const grid=document.getElementById('metrc-clones-grid');
   const countEl=document.getElementById('metrc-clone-count');
-  const search=(document.getElementById('metrc-clone-search')?.value||'').toLowerCase();
   const rows=metrcData.immature;
-  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Immature/Clones export.</div>';if(countEl)countEl.textContent='';return;}
+  if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Immature/Clones export.</div>';if(countEl)countEl.textContent='';return;}
   const byStrain={};
   rows.forEach(r=>{
-    const strain=r['Strain']||'—';
-    if(search&&!strain.toLowerCase().includes(search))return;
+    const strain=r['Strain']||r['StrainName']||r['Strain Name']||'—';
     if(!byStrain[strain])byStrain[strain]={batches:[],totalPlants:0};
     byStrain[strain].batches.push(r);
     byStrain[strain].totalPlants+=parseInt(r['Plants']||0)||0;
   });
   const mothersByStrain={};
-  metrcData.mother.forEach(r=>{const s=r['Strain']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
+  metrcData.mother.forEach(r=>{const s=r['Strain']||r['StrainName']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
   const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].totalPlants-byStrain[a].totalPlants);
   const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
-  if(countEl) countEl.textContent=strains.length+' strains · '+total+' clones';
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones';
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
     const mc=mothersByStrain[strain]||0;
     const dates=d.batches.map(b=>b['Batch Date']||'').filter(Boolean).sort().reverse();
-    return`<div class="card" style="border-left:3px solid var(--blue)">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${strain}</div>
-      <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:2px">${d.totalPlants}</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">clones · ${d.batches.length} batch${d.batches.length!==1?'es':''}</div>
-      ${mc?`<div style="font-size:11px;color:var(--green)">🌿 ${mc} mother${mc!==1?'s':''} active</div>`:'<div style="font-size:11px;color:var(--amber)">⚠ No mothers on record</div>'}
-      ${dates[0]?`<div style="font-size:10px;color:var(--text3);margin-top:4px">Latest: ${dates[0]}</div>`:''}
-    </div>`;
+    return '<div class="card" style="border-left:3px solid var(--blue)">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">'+strain+'</div>'
+      +'<div style="font-size:24px;font-weight:700;font-family:var(--mono);color:var(--blue);margin-bottom:2px">'+d.totalPlants+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">clones \u00b7 '+d.batches.length+' batch'+(d.batches.length!==1?'es':'')+'</div>'
+      +(mc?'<div style="font-size:11px;color:var(--green)">\ud83c\udf3f '+mc+' mother'+(mc!==1?'s':'')+' active</div>':'<div style="font-size:11px;color:var(--amber)">\u26a0 No mothers on record</div>')
+      +(dates[0]?'<div style="font-size:10px;color:var(--text3);margin-top:4px">Latest: '+dates[0]+'</div>':'')
+      +'</div>';
   }).join('');
 }
 
-function renderMetrcFlowering(){
-  const grid=document.getElementById('metrc-flowering-grid');
-  const rows=metrcData.flowering;
-  if(!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Flowering export.</div>';return;}
-  const byRoom={};
-  rows.forEach(r=>{const loc=r['Location']||'Unknown';const strain=r['Strain']||'—';if(!byRoom[loc])byRoom[loc]={};byRoom[loc][strain]=(byRoom[loc][strain]||0)+1;});
-  const roomOrder=['Grow Room 1','Grow Room 2','Grow Room 3','Grow Room 4','Grow Room 5','Grow Room 6','Grow Room 7','Grow Room 8','Grow Room 9','Grow Room 10','Grow Room 11'];
-  const sortedRooms=[...roomOrder.filter(r=>byRoom[r]),...Object.keys(byRoom).filter(r=>!roomOrder.includes(r)).sort()];
-  grid.innerHTML=sortedRooms.map(room=>{
-    const strains=byRoom[room];
-    const total=Object.values(strains).reduce((a,b)=>a+b,0);
-    const dashRoom=rooms.find(r=>r.name===room);
-    const fd=dashRoom?flowerDay(dashRoom):null;
-    const phase=fd?getPhaseForDay(fd):null;
-    const strainRows=Object.entries(strains).sort((a,b)=>b[1]-a[1]).map(([s,n])=>{
-      const pct=Math.round((n/total)*100);
-      return`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div style="flex:1;font-size:12px;color:var(--text)">${s}</div>
-        <div style="font-family:var(--mono);font-size:12px;font-weight:600;min-width:28px;text-align:right">${n}</div>
-        <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px"><div style="width:${pct}%;height:100%;background:var(--green);border-radius:2px"></div></div>
-      </div>`;
-    }).join('');
-    return`<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div>
-          <div style="font-size:14px;font-weight:700">${room}</div>
-          ${fd?`<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Day ${fd} / ${CYCLE}${phase?' · '+phase.name:''}</div>`:''}
-        </div>
-        <div style="text-align:right"><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">${total}</div><div style="font-size:10px;color:var(--text3)">plants</div></div>
-      </div>
-      ${strainRows}
-    </div>`;
+function renderMetrcStrains(){
+  const grid=document.getElementById('metrc-strains-grid');
+  if(!grid)return;
+  const vegRows=metrcData.vegetative||[];
+  const flowerRows=metrcData.flowering||[];
+  if(!vegRows.length&&!flowerRows.length){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative and Flowering exports to see strain data.</div>';
+    return;
+  }
+  const byStrain={};
+  vegRows.forEach(r=>{
+    const s=r['Strain']||r['StrainName']||r['Strain Name']||'Unknown';
+    const loc=r['Location']||r['LocationName']||r['Location Name']||'Unknown';
+    if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
+    byStrain[s].veg++;
+    byStrain[s].vegLocs[loc]=(byStrain[s].vegLocs[loc]||0)+1;
+  });
+  flowerRows.forEach(r=>{
+    const s=r['Strain']||r['StrainName']||r['Strain Name']||'Unknown';
+    const loc=r['Location']||r['LocationName']||r['Location Name']||'Unknown';
+    if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
+    byStrain[s].flower++;
+    byStrain[s].flowerLocs[loc]=(byStrain[s].flowerLocs[loc]||0)+1;
+  });
+  const totalVeg=vegRows.length;
+  const totalFlower=flowerRows.length;
+  const strains=Object.keys(byStrain).sort((a,b)=>(byStrain[b].veg+byStrain[b].flower)-(byStrain[a].veg+byStrain[a].flower)||a.localeCompare(b));
+  const summary='<div style="grid-column:1/-1;display:flex;gap:24px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);margin-bottom:8px;flex-wrap:wrap">'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+totalVeg+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Veg plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].veg>0).length+' strains</div></div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">'+totalFlower+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Flowering plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].flower>0).length+' strains</div></div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--text)">'+strains.length+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Total strains</div></div></div>'
+    +'</div>';
+  const cards=strains.map(strain=>{
+    const d=byStrain[strain];
+    const isUnk=strain==='Unknown';
+    const accent=isUnk?'var(--text3)':d.flower>0?'var(--green)':'var(--blue)';
+    const vegLocs=Object.entries(d.vegLocs).sort((a,b)=>b[1]-a[1])
+      .map(function(e){return'<span style="font-size:10px;padding:2px 6px;background:var(--blue-dim);border:1px solid var(--blue);border-radius:var(--r);font-family:var(--mono);color:var(--blue)">'+e[0].replace('Veg Room ','Veg ').replace('Mother Room','Mothers')+' \u00b7 '+e[1]+'</span>';}).join('');
+    const flowerLocs=Object.entries(d.flowerLocs).sort((a,b)=>b[1]-a[1])
+      .map(function(e){return'<span style="font-size:10px;padding:2px 6px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);font-family:var(--mono);color:var(--green)">'+e[0].replace('Grow Room ','R').replace('Flower Room ','R')+' \u00b7 '+e[1]+'</span>';}).join('');
+    let html='<div class="card" style="border-left:3px solid '+accent+'">';
+    html+='<div style="font-size:14px;font-weight:700;color:'+(isUnk?'var(--text3)':'var(--text)')+';font-style:'+(isUnk?'italic':'normal')+';margin-bottom:6px">'+strain+'</div>';
+    html+='<div style="display:flex;gap:16px;margin-bottom:8px">';
+    if(d.flower>0) html+='<div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">'+d.flower+'</div><div style="font-size:10px;color:var(--text3)">flowering</div></div>';
+    if(d.veg>0) html+='<div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+d.veg+'</div><div style="font-size:10px;color:var(--text3)">veg</div></div>';
+    html+='</div>';
+    if(flowerLocs) html+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'+flowerLocs+'</div>';
+    if(vegLocs) html+='<div style="display:flex;flex-wrap:wrap;gap:3px">'+vegLocs+'</div>';
+    html+='</div>';
+    return html;
   }).join('');
+  grid.innerHTML=summary+cards;
 }
+
 
 function renderMetrcHarvests(){
   const list=document.getElementById('metrc-harvests-list');
   const rows=metrcData.harvests;
   if(!rows.length){list.innerHTML='<div class="empty-state">Upload the Harvests export.</div>';return;}
-  const priOrder={high:0,normal:1,low:2};
-  const sorted=[...rows].sort((a,b)=>{
-    const pa=metrcHarvestPriority[a['Harvest Batch']]||'normal';
-    const pb=metrcHarvestPriority[b['Harvest Batch']]||'normal';
-    if(pa!==pb)return(priOrder[pa]||1)-(priOrder[pb]||1);
-    return new Date(b['Date']||0)-new Date(a['Date']||0);
-  });
+  const isLead=currentRole==='lead';
+  // Use trim queue order if already set, otherwise sort oldest-first by batch date
+  trimQueue=L('wg_trim_queue',[]);
+  let sorted;
+  if(trimQueue.length){
+    const queueOrder={};
+    trimQueue.forEach((q,i)=>{ queueOrder[q.harvestBatch||q.strain]=i; });
+    sorted=[...rows].sort((a,b)=>{
+      const ba=a['Harvest Batch']||a['Name']||a['Batch']||'';
+      const bb=b['Harvest Batch']||b['Name']||b['Batch']||'';
+      const ia=queueOrder[ba]!==undefined?queueOrder[ba]:9999;
+      const ib=queueOrder[bb]!==undefined?queueOrder[bb]:9999;
+      if(ia!==ib) return ia-ib;
+      const da=parseBatchDate(ba)||new Date(0);
+      const db=parseBatchDate(bb)||new Date(0);
+      return da-db;
+    });
+  } else {
+    sorted=[...rows].sort((a,b)=>{
+      const ba=a['Harvest Batch']||a['Name']||a['Batch']||'';
+      const bb=b['Harvest Batch']||b['Name']||b['Batch']||'';
+      const da=parseBatchDate(ba)||new Date(a['Date']||0);
+      const db=parseBatchDate(bb)||new Date(b['Date']||0);
+      return da-db; // oldest first
+    });
+  }
   const priColors={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
   const priLabels={high:'Trim first',normal:'Normal',low:'Low priority'};
-  const isLead=currentRole==='lead';
   list.innerHTML=sorted.map((r,idx)=>{
-    const batch=r['Harvest Batch']||'—';
-    const strain=r['Strain']||'—';
-    const plants=r['Plants']||'—';
-    const weightG=parseInt(r['Weight']||r['Wet Weight']||0)||0;
-    const weightLb=(weightG/453.592).toFixed(1);
-    const date=r['Date']||'';
-    const lab=r['Lab Testing']||'';
+    const batch=r['Harvest Batch']||r['Name']||r['Batch']||'—';
+    const plants=parseInt(r['Plants']||r['Plant Count']||r['PlantCount']||r['# Plants']||r['Number of Plants']||r['Count']||0)||0;
+    // Get date from batch name prefix (most reliable) or Date field
+    const batchDate=parseBatchDate(batch);
+    const rawDate=(r['Date']||r['Harvest Date']||r['HarvestDate']||'').split('T')[0];
+    const displayDate=batchDate
+      ? batchDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : rawDate ? new Date(rawDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     const pri=metrcHarvestPriority[batch]||'normal';
     const bc=priColors[pri];
-    return`<div class="card" style="border-left:4px solid ${bc}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div style="flex:1;min-width:200px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <span style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:24px">${idx+1}</span>
-            <div>
-              <div style="font-size:14px;font-weight:700">${strain}</div>
-              <div style="font-size:11px;color:var(--text3)">${batch}</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${plants} plants</span>
-            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${weightLb} lb</span>
-            <span style="font-size:12px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono)">${date}</span>
-            ${lab!=='NotSubmitted'?`<span style="font-size:11px;padding:2px 8px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);color:var(--blue)">${lab}</span>`:''}
+    return`<div class="card" style="border-left:4px solid ${bc};margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${isLead?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
+          <button onclick="moveHarvestItem(${idx},-1,this)" ${idx===0?'disabled':''} style="font-size:14px;line-height:1;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:${idx===0?'var(--bg3)':'none'};color:${idx===0?'var(--border2)':'var(--text2)'};cursor:${idx===0?'default':'pointer'}">↑</button>
+          <button onclick="moveHarvestItem(${idx},1,this)" ${idx>=sorted.length-1?'disabled':''} style="font-size:14px;line-height:1;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:${idx>=sorted.length-1?'var(--bg3)':'none'};color:${idx>=sorted.length-1?'var(--border2)':'var(--text2)'};cursor:${idx>=sorted.length-1?'default':'pointer'}">↓</button>
+        </div>`:''}
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:28px;flex-shrink:0">${idx+1}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono)">${batch}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">
+            ${plants?`<span style="font-size:11px;padding:1px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);font-family:var(--mono);color:var(--green)">${plants} plants</span>`:''}
+            ${displayDate?`<span style="font-size:11px;color:var(--text3)">${displayDate}</span>`:''}
+            <span style="font-size:11px;font-weight:600;color:${bc}">${priLabels[pri]}</span>
           </div>
         </div>
-        ${isLead?`<select onchange="setHarvestPriority('${batch.replace(/'/g,"\'")}',this.value)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+        ${isLead?`<select onchange="setHarvestPriority('${batch.replace(/'/g,"\\'")}',this.value)" style="font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);flex-shrink:0">
           <option value="high"${pri==='high'?' selected':''}>Trim first</option>
           <option value="normal"${pri==='normal'?' selected':''}>Normal</option>
           <option value="low"${pri==='low'?' selected':''}>Low priority</option>
@@ -3219,6 +3648,35 @@ function renderMetrcHarvests(){
       </div>
     </div>`;
   }).join('');
+}
+
+function moveHarvestItem(idx, dir, btn){
+  // Reorder in the METRC harvests view and sync order to trim queue
+  const list=document.getElementById('metrc-harvests-list');
+  const cards=Array.from(list.children);
+  const swap=idx+dir;
+  if(swap<0||swap>=cards.length) return;
+  // Swap DOM
+  if(dir===-1) list.insertBefore(cards[idx],cards[swap]);
+  else list.insertBefore(cards[swap],cards[idx]);
+  // Rebuild trim queue order to match new display order
+  trimQueue=L('wg_trim_queue',[]);
+  const newCards=Array.from(list.children);
+  const batchOrder={};
+  newCards.forEach((card,i)=>{
+    // Extract batch name from the mono font div
+    const batchEl=card.querySelector('[style*="font-family:var(--mono)"]');
+    if(batchEl) batchOrder[batchEl.textContent.trim()]=i;
+  });
+  trimQueue.sort((a,b)=>{
+    const ia=batchOrder[a.harvestBatch||a.strain]!==undefined?batchOrder[a.harvestBatch||a.strain]:9999;
+    const ib=batchOrder[b.harvestBatch||b.strain]!==undefined?batchOrder[b.harvestBatch||b.strain]:9999;
+    return ia-ib;
+  });
+  S('wg_trim_queue',trimQueue);
+  // Re-render both to get correct numbering and button states
+  renderMetrcHarvests();
+  renderTrimQueue();
 }
 
 function setHarvestPriority(batch,priority){
@@ -3254,9 +3712,9 @@ function onMotherTagInput(val) {
   if (!val || val.length < 4) { hint.textContent = ''; return; }
   const match = metrcData.mother.find(r => (r['Tag']||'').endsWith(val));
   if (match) {
-    // loc unused - fixed
+    const loc = (r['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
     hint.style.color = 'var(--green)';
-    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
+    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'');
     // Auto-fill strain if empty
     const strainInput = document.getElementById('ce-strain');
     if (strainInput && !strainInput.value) strainInput.value = match['Strain']||'';
@@ -3380,6 +3838,7 @@ function updateChore(i, field, val) {
   chores[i][field] = val;
   S('wg_custom_chores', chores);
   renderChores();
+  pushConfigDebounced();
 }
 
 function removeChore(i) {
@@ -3387,6 +3846,7 @@ function removeChore(i) {
   chores.splice(i, 1);
   S('wg_custom_chores', chores);
   renderChoresEditor();
+  pushConfigDebounced();
   renderChores();
 }
 
@@ -3430,6 +3890,7 @@ function removeCustomTask(i) {
   customTasks.splice(i, 1);
   S('wg_custom_tasks', customTasks);
   renderCustomTasksEditor();
+  pushConfigDebounced();
 }
 
 function addCustomTask() {
@@ -3441,7 +3902,7 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
-applyRolePerms();
+try { applyRolePerms(); } catch(e){ console.error('applyRolePerms:',e); }
 document.getElementById('topbar-date').textContent = TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 // add login button to topbar
 const loginBtn=document.createElement('button');
@@ -3450,29 +3911,635 @@ loginBtn.style.cssText='border-color:var(--teal);color:var(--teal);margin-right:
 loginBtn.textContent='Sign in';
 loginBtn.onclick=showLoginModal;
 document.getElementById('role-select').prepend(loginBtn);
-setRole('lead');
-renderRooms();
-renderTodayLog();
-renderChores();
-updateMetrcSyncLabel();
-// Blur content until logged in — only if team loaded correctly
+// Show login modal FIRST — try to restore saved session, otherwise require login
 if(team && team.length){
-  document.body.classList.add('pre-login');
-  showLoginModal();
-} else {
-  // Team failed to load — show dashboard immediately as lead
-  document.body.classList.remove('pre-login');
-  setRole('lead');
-}
-// auto-refresh checks silently on load to catch today's submissions
-setTimeout(()=>loadChecks(),800);
-// Safety net: if still pre-login after 3s, force remove it
-setTimeout(()=>{
-  if(document.body.classList.contains('pre-login')){
-    document.body.classList.remove('pre-login');
-    setRole('lead');
+  if(!restoreSession()){
+    document.body.classList.add('pre-login');
+    showLoginModal();
   }
-},3000);
+}
+try { setRole(currentRole); } catch(e){ console.error('setRole:',e); try{setRole('lead');}catch(e2){} }
+try { renderRooms(); } catch(e){ console.error('renderRooms:',e); }
+try { renderTodayLog(); } catch(e){ console.error('renderTodayLog:',e); }
+try { renderChores(); } catch(e){ console.error('renderChores:',e); }
+try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
+// auto-refresh checks silently on load
+setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
+// Pull Growlink first — fast, works on all devices including mobile
+setTimeout(async ()=>{
+  try{ await pullGrowlinkFromCloud(true); }catch(e){}
+},800);
+// Pull config (rooms, team, chores, supplies, logs etc) on every load
+setTimeout(async ()=>{
+  try{
+    await pullConfigFromCloud(true);
+    renderRooms();
+    renderAssignments();
+    renderChores();
+    try{renderSupplies();}catch(e){}
+  }catch(e){}
+},1000);
+// Pull METRC + Growlink again after METRC loads
+setTimeout(async ()=>{
+  try{
+    const pulled = await pullMetrcFromCloud(true);
+    if(pulled){
+      if(metrcData.harvests&&metrcData.harvests.length){
+        syncHarvestsToTrimQueue(metrcData.harvests);
+      }
+      try{renderRooms();}catch(e){}
+      try{renderTrimQueue();}catch(e){}
+    }
+    try{ await pullGrowlinkFromCloud(true); }catch(e){}
+  }catch(e){console.warn('Background pull failed:',e);}
+},1200);
+
+// ══════════════════════════════════════════════
+// SUPPLIES
+// ══════════════════════════════════════════════
+let supplies = L('wg_supplies', []);
+
+const SUPPLY_CAT_COLORS = {
+  'Nutrients':  {bg:'var(--green-bg)',  border:'var(--green-dim)',  text:'var(--green)'},
+  'Additives':  {bg:'var(--amber-bg)',  border:'var(--amber-dim)',  text:'var(--amber)'},
+  'Substrate':  {bg:'var(--blue-bg)',   border:'var(--blue-dim)',   text:'var(--blue)'},
+  'Packaging':  {bg:'var(--purple-dim)',border:'var(--purple-dim)', text:'var(--purple)'},
+  'Sanitation': {bg:'var(--teal-dim)',  border:'var(--teal-dim)',   text:'var(--teal)'},
+  'Hardware':   {bg:'var(--bg3)',       border:'var(--border2)',    text:'var(--text2)'},
+  'Other':      {bg:'var(--bg3)',       border:'var(--border2)',    text:'var(--text3)'},
+};
+
+function openSupplyModal(editId) {
+  const modal = document.getElementById('supply-modal-bg');
+  document.getElementById('supply-modal-title').textContent = editId ? 'Edit supply receipt' : 'Log supply receipt';
+  document.getElementById('sm-name').value = '';
+  document.getElementById('sm-category').value = 'Nutrients';
+  document.getElementById('sm-form').value = 'Bag';
+  document.getElementById('sm-qty').value = '';
+  document.getElementById('sm-unit-size').value = '';
+  document.getElementById('sm-date').value = dateToIso(TODAY);
+  document.getElementById('sm-vendor').value = '';
+  document.getElementById('sm-notes').value = '';
+  if (editId) {
+    const item = supplies.find(s => s.id === editId);
+    if (item) {
+      document.getElementById('sm-name').value = item.name || '';
+      document.getElementById('sm-category').value = item.category || 'Other';
+      document.getElementById('sm-form').value = item.form || 'Bag';
+      document.getElementById('sm-qty').value = item.qty || '';
+      document.getElementById('sm-unit-size').value = item.unitSize || '';
+      document.getElementById('sm-date').value = item.dateReceived || '';
+      document.getElementById('sm-vendor').value = item.vendor || '';
+      document.getElementById('sm-notes').value = item.notes || '';
+    }
+    modal.dataset.editId = editId;
+  } else {
+    delete modal.dataset.editId;
+  }
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('sm-name').focus(), 100);
+}
+
+function closeSupplyModal() {
+  document.getElementById('supply-modal-bg').classList.remove('open');
+}
+
+function confirmSupply() {
+  const name = document.getElementById('sm-name').value.trim();
+  if (!name) { document.getElementById('sm-name').focus(); return; }
+  const qty = parseInt(document.getElementById('sm-qty').value) || 0;
+  if (!qty) { document.getElementById('sm-qty').focus(); return; }
+
+  const item = {
+    id: document.getElementById('supply-modal-bg').dataset.editId || ('sup_' + Date.now()),
+    name,
+    category: document.getElementById('sm-category').value,
+    form: document.getElementById('sm-form').value,
+    qty,
+    unitSize: document.getElementById('sm-unit-size').value.trim(),
+    dateReceived: document.getElementById('sm-date').value,
+    vendor: document.getElementById('sm-vendor').value.trim(),
+    notes: document.getElementById('sm-notes').value.trim(),
+    loggedBy: loggedInMember ? loggedInMember.name : 'Unknown',
+    loggedAt: new Date().toISOString(),
+  };
+
+  const editId = document.getElementById('supply-modal-bg').dataset.editId;
+  if (editId) {
+    const idx = supplies.findIndex(s => s.id === editId);
+    if (idx !== -1) supplies[idx] = item;
+  } else {
+    supplies.unshift(item);
+  }
+  S('wg_supplies', supplies);
+  pushConfigDebounced();
+
+  // Post to sheet
+  postToSheet('Supply_Log', [
+    item.dateReceived, item.name, item.category, item.form,
+    item.qty, item.unitSize, item.vendor, item.notes, item.loggedBy
+  ]);
+
+  closeSupplyModal();
+  renderSupplies();
+}
+
+function deleteSupply(id) {
+  if (!confirm('Remove this supply entry?')) return;
+  supplies = supplies.filter(s => s.id !== id);
+  S('wg_supplies', supplies);
+  pushConfigDebounced();
+  renderSupplies();
+}
+
+function renderSupplies() {
+  supplies = L('wg_supplies', []);
+  const search = (document.getElementById('supply-search')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('supply-category-filter')?.value || '';
+
+  let filtered = supplies.filter(s => {
+    const matchSearch = !search || s.name.toLowerCase().includes(search) ||
+      (s.vendor || '').toLowerCase().includes(search) ||
+      (s.category || '').toLowerCase().includes(search);
+    const matchCat = !catFilter || s.category === catFilter;
+    return matchSearch && matchCat;
+  });
+
+  // Summary cards — total entries per category
+  const summaryEl = document.getElementById('supplies-summary');
+  if (summaryEl) {
+    const byCat = {};
+    supplies.forEach(s => { byCat[s.category] = (byCat[s.category] || 0) + 1; });
+    const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    summaryEl.innerHTML = [
+      { label: 'Total receipts', val: supplies.length, color: 'var(--text)' },
+      ...cats.slice(0, 4).map(([cat, n]) => ({
+        label: cat, val: n,
+        color: (SUPPLY_CAT_COLORS[cat] || SUPPLY_CAT_COLORS['Other']).text
+      }))
+    ].map(s => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+      <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div>
+    </div>`).join('');
+  }
+
+  const list = document.getElementById('supplies-list');
+  if (!list) return;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">${supplies.length ? 'No supplies match your search.' : 'No supply receipts logged yet. Click "+ Log receipt" to get started.'}</div>`;
+    return;
+  }
+
+  const isLead = currentRole === 'lead';
+  list.innerHTML = filtered.map(item => {
+    const cc = SUPPLY_CAT_COLORS[item.category] || SUPPLY_CAT_COLORS['Other'];
+    const dateStr = item.dateReceived
+      ? new Date(item.dateReceived + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})
+      : '—';
+    return `<div class="card" style="border-left:3px solid ${cc.text}">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${item.name}</div>
+            <span style="font-size:10px;padding:2px 7px;border-radius:var(--r);background:${cc.bg};border:1px solid ${cc.border};color:${cc.text}">${item.category}</span>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text)">${item.qty} <span style="font-weight:400;color:var(--text3)">${item.form}${item.qty !== 1 && item.form !== 'Each' ? 's' : ''}</span></span>
+            ${item.unitSize ? `<span style="font-size:12px;color:var(--text3)">${item.unitSize} each</span>` : ''}
+            <span style="font-size:12px;color:var(--text3)">${dateStr}</span>
+            ${item.vendor ? `<span style="font-size:12px;color:var(--text3)">· ${item.vendor}</span>` : ''}
+          </div>
+          ${item.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:5px;padding:4px 8px;background:var(--bg3);border-radius:var(--r);font-style:italic">${item.notes}</div>` : ''}
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">Logged by ${item.loggedBy}</div>
+        </div>
+        ${isLead ? `<div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="openSupplyModal('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>
+          <button onclick="deleteSupply('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ══════════════════════════════════════════════
+// CONFIG CLOUD SYNC
+// Syncs: rooms, team, rolePerms, customChores,
+//        customTasks, supplies, todayLogs,
+//        cloneSessions, alertLog
+// ══════════════════════════════════════════════
+
+async function pushConfigToCloud(silent=false){
+  if(!gsUrl) return;
+  // Gather today logs for last 7 days
+  const todayLogs={};
+  for(let i=0;i<7;i++){
+    const d=new Date(TODAY); d.setDate(d.getDate()-i);
+    const key='wg_log_'+dateToIso(d);
+    const log=L(key,null);
+    if(log&&log.length) todayLogs[dateToIso(d)]=log;
+  }
+  // Gather clone sessions for last 4 weeks
+  const cloneSessions={};
+  for(let i=0;i<4;i++){
+    const d=new Date(TODAY); d.setDate(d.getDate()-(i*7));
+    const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1);
+    const mon=new Date(d.setDate(diff));
+    const wk=mon.toISOString().split('T')[0];
+    const key='cloneweek_'+wk;
+    const sessions=L(key,null);
+    if(sessions&&sessions.length) cloneSessions[key]=sessions;
+  }
+  const payload={
+    action:'setConfig',
+    data:{
+      rooms,
+      team,
+      rolePerms,
+      customChores:L('wg_custom_chores',null),
+      customTasks:L('wg_custom_tasks',[]),
+      supplies:L('wg_supplies',[]),
+      alertLog:L('wg_alert_log',[]),
+      todayLogs,
+      cloneSessions,
+      syncedBy:loggedInMember?loggedInMember.name:'Unknown',
+      syncedAt:new Date().toISOString(),
+    }
+  };
+  try{
+    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify(payload)});
+    if(!silent) console.log('[Config] Pushed to cloud');
+  }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
+}
+
+async function pullConfigFromCloud(silent=false){
+  if(!gsUrl) return false;
+  try{
+    const res=await fetch(gsUrl+'?action=getConfig&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.data) return false;
+    const d=json.data;
+
+    // Rooms — only overwrite if cloud has more recent flip dates
+    if(d.rooms&&d.rooms.length){
+      const cloudRooms=d.rooms;
+      rooms=rooms.map((local,i)=>{
+        const cloud=cloudRooms.find(r=>r.id===local.id);
+        if(!cloud) return local;
+        // Cloud wins for flip/launch dates and notes — lead-set data
+        return{...local,
+          flipDate:cloud.flipDate||local.flipDate,
+          launchDate:cloud.launchDate||local.launchDate,
+          strain:cloud.strain||local.strain,
+          note:cloud.note||local.note,
+        };
+      });
+      S('wg_rooms_v2',rooms);
+    }
+
+    // Team & role perms — cloud wins (lead manages these)
+    if(d.team&&d.team.length){ team=d.team; S('wg_team',team); }
+    if(d.rolePerms){ rolePerms=d.rolePerms; S('wg_role_perms',rolePerms); applyRolePerms(); }
+
+    // Custom chores & tasks
+    if(d.customChores){ S('wg_custom_chores',d.customChores); }
+    if(d.customTasks&&d.customTasks.length){ customTasks=d.customTasks; S('wg_custom_tasks',customTasks); }
+
+    // Supplies — merge by id (keep local entries not yet in cloud)
+    if(d.supplies&&d.supplies.length){
+      const local=L('wg_supplies',[]);
+      const cloudIds=new Set(d.supplies.map(s=>s.id));
+      const localOnly=local.filter(s=>!cloudIds.has(s.id));
+      supplies=[...d.supplies,...localOnly];
+      S('wg_supplies',supplies);
+    }
+
+    // Today logs — merge per day
+    if(d.todayLogs){
+      Object.entries(d.todayLogs).forEach(([date,log])=>{
+        const localLog=L('wg_log_'+date,[]);
+        // Merge: add cloud entries not in local
+        const localIds=new Set(localLog.map(e=>e.id));
+        const merged=[...localLog,...log.filter(e=>!localIds.has(e.id))];
+        merged.sort((a,b)=>a.id-b.id);
+        S('wg_log_'+date,merged);
+        if(date===dateToIso(TODAY)) todayLog=merged;
+      });
+    }
+
+    // Clone sessions — merge per week
+    if(d.cloneSessions){
+      Object.entries(d.cloneSessions).forEach(([wk,sessions])=>{
+        const localS=L(wk,[]);
+        const localTimes=new Set(localS.map(s=>s.time+'_'+s.strain));
+        const merged=[...localS,...sessions.filter(s=>!localTimes.has(s.time+'_'+s.strain))];
+        S(wk,merged);
+        if(wk===getWeekKey()) cloneSessions=merged;
+      });
+    }
+
+    // Alert log — merge
+    if(d.alertLog&&d.alertLog.length){
+      const local=L('wg_alert_log',[]);
+      const localIds=new Set(local.map(e=>e.id));
+      const merged=[...local,...d.alertLog.filter(e=>!localIds.has(e.id))];
+      merged.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+      S('wg_alert_log',merged);
+    }
+
+    if(!silent) console.log('[Config] Pulled from cloud, synced by',d.syncedBy);
+    return true;
+  }catch(e){
+    if(!silent) console.warn('[Config] Pull failed:',e);
+    return false;
+  }
+}
+
+// Auto-push config whenever lead changes key settings
+function pushConfigDebounced(){
+  if(_configPushTimer) clearTimeout(_configPushTimer);
+  _configPushTimer=setTimeout(()=>pushConfigToCloud(true), 2000);
+}
+let _configPushTimer=null;
+
+// ══════════════════════════════════════════════
+// GUARDRAIL ENGINE
+// ══════════════════════════════════════════════
+
+// Persistent alert log stored in localStorage
+// Each entry: {id, room, param, value, setpoint, tier, phase, timestamp, ack, note}
+const ALERT_LOG_KEY = 'wg_alert_log';
+const T1_PENDING_KEY = 'wg_t1_pending'; // tracks sustained deviations before firing
+
+function getAlertLog(){ return L(ALERT_LOG_KEY,[]); }
+function saveAlertLog(log){ S(ALERT_LOG_KEY, log); }
+
+// Maxx OS phase thresholds — derived from MAXX_PHASES
+// T2 = inner band (log only), T1 = outer band (Slack alert after 15 min)
+function getGuardrailsForPhase(phaseId){
+  const p = MAXX_PHASES.find(x=>x.id===phaseId);
+  if(!p) return null;
+  return {
+    temp:  { setpoint:p.dayTemp, t2Low:p.dayTemp-4,  t2High:p.dayTemp+4,  t1Low:p.dayTemp-10, t1High:p.dayTemp+10 },
+    rh:    { setpoint:p.rh,      t2Low:p.rh-7,       t2High:p.rh+7,       t1Low:p.rh-15,      t1High:p.rh+15 },
+    co2:   { setpoint:p.co2,     t2Low:p.co2-150,    t2High:p.co2+150,    t1Low:p.co2-300,    t1High:p.co2+300 },
+    soilEC:     { t1High:10 },
+    soilMoisture: { t1Low:10 },
+    dewPoint:   { t1High:60 }, // hard ceiling, always T1
+  };
+}
+
+function calcDewPoint(tempF, rh){
+  if(!tempF||!rh) return null;
+  const tempC = (tempF - 32) * 5/9;
+  const a=17.27, b=237.7;
+  const alpha=(a*tempC)/(b+tempC)+Math.log(rh/100);
+  const dpC=(b*alpha)/(a-alpha);
+  return dpC*9/5+32; // back to °F
+}
+
+// Evaluate a single room's sensor data against its phase guardrails
+// Returns array of {param, value, setpoint, tier, message}
+function evaluateRoom(roomName, sensors, phaseId){
+  const g = getGuardrailsForPhase(phaseId);
+  if(!g||!sensors) return [];
+  const issues = [];
+
+  function check(param, value, thresholds, label, unit){
+    if(value===null||value===undefined) return;
+    const v = parseFloat(value);
+    if(isNaN(v)) return;
+
+    // T1 check (outer band / hard ceilings)
+    if(thresholds.t1High!==undefined && v > thresholds.t1High){
+      issues.push({param, value:v, setpoint:thresholds.setpoint||thresholds.t1High, tier:1,
+        message:`${roomName} — ${label} HIGH: ${v.toFixed(1)}${unit} (limit ${thresholds.t1High}${unit})`});
+      return;
+    }
+    if(thresholds.t1Low!==undefined && v < thresholds.t1Low){
+      issues.push({param, value:v, setpoint:thresholds.setpoint||thresholds.t1Low, tier:1,
+        message:`${roomName} — ${label} LOW: ${v.toFixed(1)}${unit} (limit ${thresholds.t1Low}${unit})`});
+      return;
+    }
+    // T2 check (inner band)
+    if(thresholds.t2High!==undefined && v > thresholds.t2High){
+      issues.push({param, value:v, setpoint:thresholds.setpoint, tier:2,
+        message:`${roomName} — ${label} above target: ${v.toFixed(1)}${unit} (target ≤${thresholds.t2High}${unit})`});
+      return;
+    }
+    if(thresholds.t2Low!==undefined && v < thresholds.t2Low){
+      issues.push({param, value:v, setpoint:thresholds.setpoint, tier:2,
+        message:`${roomName} — ${label} below target: ${v.toFixed(1)}${unit} (target ≥${thresholds.t2Low}${unit})`});
+    }
+  }
+
+  check('temp',        sensors.temp,         g.temp,         'Temp',     '°F');
+  check('rh',          sensors.humidity,      g.rh,           'RH',       '%');
+  check('co2',         sensors.co2,           g.co2,          'CO₂',      'ppm');
+  check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
+  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
+
+  // Dew point hard ceiling
+  const dp = calcDewPoint(sensors.temp, sensors.humidity);
+  if(dp!==null) check('dewPoint', dp, g.dewPoint, 'Dew point', '°F');
+
+  return issues;
+}
+
+// Run guardrail check across all rooms — called after every Growlink pull
+function runGuardrails(){
+  if(!growlinkData||!Object.keys(growlinkData).length) return;
+  const now = Date.now();
+  const pending = L(T1_PENDING_KEY, {}); // {key: firstSeenTimestamp}
+  const log = getAlertLog();
+  const T1_SUSTAIN_MS = 15 * 60 * 1000; // 15 minutes
+  const newT1s = [];
+
+  rooms.forEach(room=>{
+    const gl = getGrowlinkForRoom(room.name);
+    if(!gl||!gl.fetchedAt) return;
+
+    // Don't evaluate stale data (>20 min old)
+    const age = now - new Date(gl.fetchedAt).getTime();
+    if(age > 20*60*1000) return;
+
+    const fd = flowerDay(room);
+    const phase = fd ? getPhaseForDay(fd) : null;
+    if(!phase) return;
+
+    const issues = evaluateRoom(room.name, gl, phase.id);
+
+    issues.forEach(issue=>{
+      const key = room.name+'|'+issue.param+'|'+issue.tier;
+      const entry = {
+        id: now+'_'+key.replace(/[^a-z0-9]/gi,'_'),
+        room: room.name,
+        param: issue.param,
+        value: issue.value,
+        setpoint: issue.setpoint,
+        tier: issue.tier,
+        phase: phase.id,
+        message: issue.message,
+        timestamp: new Date().toISOString(),
+        ack: false,
+        note: '',
+      };
+
+      if(issue.tier===1){
+        // Dew point fires immediately, others need 15 min sustained
+        if(issue.param==='dewPoint'){
+          // Always log + fire immediately
+          log.unshift(entry);
+          newT1s.push(entry);
+          delete pending[key];
+        } else {
+          if(!pending[key]){
+            pending[key] = now; // start the clock
+          } else if(now - pending[key] >= T1_SUSTAIN_MS){
+            // Sustained 15+ min — fire alert (once per hour max)
+            const recentSame = log.find(l=>l.room===room.name&&l.param===issue.param&&l.tier===1&&
+              (now - new Date(l.timestamp).getTime()) < 60*60*1000);
+            if(!recentSame){
+              log.unshift(entry);
+              newT1s.push(entry);
+            }
+            delete pending[key]; // reset so next 15-min window can fire again
+          }
+        }
+      } else {
+        // T2 — log once per 2 hours per room+param
+        const recentT2 = log.find(l=>l.room===room.name&&l.param===issue.param&&l.tier===2&&
+          (now - new Date(l.timestamp).getTime()) < 2*60*60*1000);
+        if(!recentT2) log.unshift(entry);
+        delete pending[key]; // clear T1 pending if back in T1 range but still T2
+      }
+    });
+
+    // Clear pending for params that are back in range
+    const issuedParams = new Set(issues.map(i=>room.name+'|'+i.param+'|1'));
+    Object.keys(pending).forEach(k=>{
+      if(k.startsWith(room.name+'|')&&!issuedParams.has(k)) delete pending[k];
+    });
+  });
+
+  // Trim log to last 7 days
+  const cutoff = now - 7*24*60*60*1000;
+  const trimmed = log.filter(l=>new Date(l.timestamp).getTime()>cutoff);
+  saveAlertLog(trimmed);
+  setTimeout(()=>pushConfigToCloud(true),1000);
+  S(T1_PENDING_KEY, pending);
+
+  // Fire Slack for new T1s
+  if(newT1s.length) fireT1Slack(newT1s);
+
+  // Update any visible Daily Review page
+  try{ if(document.getElementById('daily-review-list')?.closest('.page')?.style.display!=='none') renderDailyReview(); }catch(e){}
+}
+
+// Send T1 alerts to #alerts Slack channel
+async function fireT1Slack(alerts){
+  const wh = webhooks['alerts'];
+  if(!wh||!wh.startsWith('https://hooks.slack.com/')) return;
+
+  const lines = alerts.map(a=>{
+    const emoji = a.param==='dewPoint'?'🚨':a.param==='soilEC'?'⚠️':a.param==='soilMoisture'?'💧':'🌡️';
+    return `${emoji} *${a.message}*`;
+  });
+
+  const text = `*WG ALERT — Tier 1 Environmental*\n${lines.join('\n')}\n_${new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}_\n<!subteam^leads> FYI`;
+
+  try{
+    await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  }catch(e){ console.warn('[Guardrails] Slack T1 failed:',e); }
+}
+
+// ── Daily Review rendering ────────────────────────────────────────
+function renderDailyReview(){
+  const log = getAlertLog();
+  const summaryEl = document.getElementById('daily-review-summary');
+  const listEl = document.getElementById('daily-review-list');
+  if(!summaryEl||!listEl) return;
+
+  const now = Date.now();
+  const today = log.filter(l=>(now-new Date(l.timestamp).getTime())<24*60*60*1000);
+  const t1Today = today.filter(l=>l.tier===1);
+  const t2Today = today.filter(l=>l.tier===2);
+  const unacked = t1Today.filter(l=>!l.ack);
+
+  summaryEl.innerHTML = [
+    {label:'T1 alerts today', val:t1Today.length, color:t1Today.length?'var(--red)':'var(--green)'},
+    {label:'Unacknowledged', val:unacked.length, color:unacked.length?'var(--red)':'var(--green)'},
+    {label:'T2 deviations today', val:t2Today.length, color:t2Today.length?'var(--amber)':'var(--green)'},
+    {label:'Total log entries', val:log.length, color:'var(--text2)'},
+  ].map(s=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+    <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div>
+  </div>`).join('');
+
+  if(!log.length){
+    listEl.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">No deviations logged yet. Guardrails run automatically after each Growlink sync.</div>';
+    return;
+  }
+
+  // Group by date
+  const byDate={};
+  log.forEach(l=>{
+    const d=l.timestamp.split('T')[0];
+    if(!byDate[d]) byDate[d]=[];
+    byDate[d].push(l);
+  });
+
+  listEl.innerHTML = Object.keys(byDate).sort().reverse().map(date=>{
+    const entries = byDate[date];
+    const dateLabel = new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const rows = entries.map(e=>{
+      const t = new Date(e.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const tierColor = e.tier===1?'var(--red)':'var(--amber)';
+      const tierLabel = e.tier===1?'T1':'T2';
+      const ackBtn = e.tier===1&&!e.ack
+        ? `<button onclick="ackAlert('${e.id}')" style="font-size:10px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">Acknowledge</button>`
+        : (e.ack?`<span style="font-size:10px;color:var(--text3)">✓ Acked</span>`:'');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:${e.tier===1?'var(--red-bg)':'var(--amber-bg)'};color:${tierColor};min-width:24px;text-align:center">${tierLabel}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text3);min-width:52px">${t}</span>
+        <span style="flex:1;font-size:12px;color:var(--text)">${e.message}</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${e.phase||''}</span>
+        ${ackBtn}
+      </div>`;
+    }).join('');
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden">
+      <div style="padding:8px 12px;background:var(--bg3);font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.05em;display:flex;justify-content:space-between">
+        <span>${dateLabel}</span>
+        <span style="color:var(--text3)">${entries.filter(e=>e.tier===1).length} T1 · ${entries.filter(e=>e.tier===2).length} T2</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function ackAlert(id){
+  const log = getAlertLog();
+  const entry = log.find(l=>l.id===id);
+  if(entry){ entry.ack=true; saveAlertLog(log); renderDailyReview(); }
+}
+
+function clearOldAlerts(){
+  const cutoff = Date.now() - 7*24*60*60*1000;
+  const log = getAlertLog().filter(l=>new Date(l.timestamp).getTime()>cutoff);
+  saveAlertLog(log);
+  renderDailyReview();
+}
+
+// Hook guardrails into Growlink pull
+const _origPullGL = pullGrowlinkFromCloud;
+pullGrowlinkFromCloud = async function(silent){
+  const result = await _origPullGL(silent);
+  try{ runGuardrails(); }catch(e){ console.warn('[Guardrails] Error:',e); }
+  return result;
+};
+
 </script>
 </body>
 </html>
