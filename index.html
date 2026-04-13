@@ -414,6 +414,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
   <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
+  <button class="nav-tab" onclick="showPage('supplies')" data-page="supplies" data-roles="lead,fertigator">Supplies</button>
   <button class="nav-tab" onclick="showPage('settings')" data-page="settings" data-roles="lead">Settings</button>
 </div>
 
@@ -829,6 +830,78 @@ button { cursor: pointer; }
     <div id="daily-review-list" style="display:grid;gap:6px"></div>
   </div>
 
+  <!-- ══ PAGE: SUPPLIES ══ -->
+  <div id="page-supplies" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="section-title">Supply inventory</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Track supply receipts — auto-depletion estimates coming soon</div>
+      </div>
+      <button onclick="openSupplyModal()" class="btn-primary">+ Log receipt</button>
+    </div>
+    <div id="supplies-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px"></div>
+    <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+      <input id="supply-search" type="text" placeholder="Search supplies..." style="flex:1;min-width:180px;font-size:13px" oninput="renderSupplies()"/>
+      <select id="supply-category-filter" style="font-size:13px;padding:7px 10px" onchange="renderSupplies()">
+        <option value="">All categories</option>
+        <option value="Nutrients">Nutrients</option>
+        <option value="Additives">Additives</option>
+        <option value="Substrate">Substrate</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Sanitation">Sanitation</option>
+        <option value="Hardware">Hardware</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div id="supplies-list" style="display:grid;gap:8px"></div>
+  </div>
+
+  <!-- SUPPLY MODAL -->
+  <div class="modal-bg" id="supply-modal-bg">
+    <div class="modal" style="max-width:480px">
+      <h3 id="supply-modal-title">Log supply receipt</h3>
+      <label>Supply name</label>
+      <input id="sm-name" placeholder="e.g. Athena Bloom, Grodan Slabs, 1lb Ziploc bags"/>
+      <label>Category</label>
+      <select id="sm-category">
+        <option value="Nutrients">Nutrients</option>
+        <option value="Additives">Additives</option>
+        <option value="Substrate">Substrate</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Sanitation">Sanitation</option>
+        <option value="Hardware">Hardware</option>
+        <option value="Other">Other</option>
+      </select>
+      <label>Form / container type</label>
+      <select id="sm-form">
+        <option value="Bag">Bag</option>
+        <option value="Jug">Jug</option>
+        <option value="Barrel">Barrel</option>
+        <option value="Pallet">Pallet</option>
+        <option value="Box">Box</option>
+        <option value="Case">Case</option>
+        <option value="Drum">Drum</option>
+        <option value="Tote">Tote</option>
+        <option value="Each">Each (individual units)</option>
+        <option value="Other">Other</option>
+      </select>
+      <label>Quantity received</label>
+      <input id="sm-qty" type="number" min="1" placeholder="e.g. 4"/>
+      <label>Unit size / weight (optional)</label>
+      <input id="sm-unit-size" placeholder="e.g. 25 lbs, 2.5 gal, 1 kg"/>
+      <label>Date received</label>
+      <input id="sm-date" type="date"/>
+      <label>Vendor / supplier (optional)</label>
+      <input id="sm-vendor" placeholder="e.g. Athena, Grodan, Amazon"/>
+      <label>Notes (optional)</label>
+      <input id="sm-notes" placeholder="e.g. PO #1234, lot number, expiry date"/>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeSupplyModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmSupply()">Save receipt</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -994,9 +1067,9 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review'], roomView:'full'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
-  fertigator: {pages:['assignments','rooms','clonetracker','today-log','additive','checks','slack','metrc'], roomView:'basic'},
+  fertigator: {pages:['assignments','rooms','clonetracker','today-log','additive','checks','slack','metrc','supplies'], roomView:'basic'},
   cloner:     {pages:['assignments','rooms','clonetracker','today-log','metrc'], roomView:'basic'},
   ipm:        {pages:['assignments','rooms','today-log','checks','additive'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','checks'], roomView:'none'},
@@ -2128,6 +2201,7 @@ const ALL_PAGES=[
   {key:'settings',label:'Settings'},
   {key:'metrc',label:'METRC Data'},
   {key:'daily-review',label:'Daily Review'},
+  {key:'supplies',label:'Supplies'},
 ];
 
 const ROLE_LABELS={
@@ -2785,6 +2859,7 @@ function showPage(page){
   if(page==='assignments'){renderAssignments();renderChores();}
   if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
   if(page==='daily-review'){renderDailyReview();}
+  if(page==='supplies'){renderSupplies();}
   if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
   if(page==='postprod'){pullMetrcFromCloud(true);renderTrimQueue();}
@@ -3801,6 +3876,173 @@ setTimeout(async ()=>{
     try{ await pullGrowlinkFromCloud(true); }catch(e){}
   }catch(e){console.warn('Background pull failed:',e);}
 },1200);
+
+// ══════════════════════════════════════════════
+// SUPPLIES
+// ══════════════════════════════════════════════
+let supplies = L('wg_supplies', []);
+
+const SUPPLY_CAT_COLORS = {
+  'Nutrients':  {bg:'var(--green-bg)',  border:'var(--green-dim)',  text:'var(--green)'},
+  'Additives':  {bg:'var(--amber-bg)',  border:'var(--amber-dim)',  text:'var(--amber)'},
+  'Substrate':  {bg:'var(--blue-bg)',   border:'var(--blue-dim)',   text:'var(--blue)'},
+  'Packaging':  {bg:'var(--purple-dim)',border:'var(--purple-dim)', text:'var(--purple)'},
+  'Sanitation': {bg:'var(--teal-dim)',  border:'var(--teal-dim)',   text:'var(--teal)'},
+  'Hardware':   {bg:'var(--bg3)',       border:'var(--border2)',    text:'var(--text2)'},
+  'Other':      {bg:'var(--bg3)',       border:'var(--border2)',    text:'var(--text3)'},
+};
+
+function openSupplyModal(editId) {
+  const modal = document.getElementById('supply-modal-bg');
+  document.getElementById('supply-modal-title').textContent = editId ? 'Edit supply receipt' : 'Log supply receipt';
+  document.getElementById('sm-name').value = '';
+  document.getElementById('sm-category').value = 'Nutrients';
+  document.getElementById('sm-form').value = 'Bag';
+  document.getElementById('sm-qty').value = '';
+  document.getElementById('sm-unit-size').value = '';
+  document.getElementById('sm-date').value = dateToIso(TODAY);
+  document.getElementById('sm-vendor').value = '';
+  document.getElementById('sm-notes').value = '';
+  if (editId) {
+    const item = supplies.find(s => s.id === editId);
+    if (item) {
+      document.getElementById('sm-name').value = item.name || '';
+      document.getElementById('sm-category').value = item.category || 'Other';
+      document.getElementById('sm-form').value = item.form || 'Bag';
+      document.getElementById('sm-qty').value = item.qty || '';
+      document.getElementById('sm-unit-size').value = item.unitSize || '';
+      document.getElementById('sm-date').value = item.dateReceived || '';
+      document.getElementById('sm-vendor').value = item.vendor || '';
+      document.getElementById('sm-notes').value = item.notes || '';
+    }
+    modal.dataset.editId = editId;
+  } else {
+    delete modal.dataset.editId;
+  }
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('sm-name').focus(), 100);
+}
+
+function closeSupplyModal() {
+  document.getElementById('supply-modal-bg').classList.remove('open');
+}
+
+function confirmSupply() {
+  const name = document.getElementById('sm-name').value.trim();
+  if (!name) { document.getElementById('sm-name').focus(); return; }
+  const qty = parseInt(document.getElementById('sm-qty').value) || 0;
+  if (!qty) { document.getElementById('sm-qty').focus(); return; }
+
+  const item = {
+    id: document.getElementById('supply-modal-bg').dataset.editId || ('sup_' + Date.now()),
+    name,
+    category: document.getElementById('sm-category').value,
+    form: document.getElementById('sm-form').value,
+    qty,
+    unitSize: document.getElementById('sm-unit-size').value.trim(),
+    dateReceived: document.getElementById('sm-date').value,
+    vendor: document.getElementById('sm-vendor').value.trim(),
+    notes: document.getElementById('sm-notes').value.trim(),
+    loggedBy: loggedInMember ? loggedInMember.name : 'Unknown',
+    loggedAt: new Date().toISOString(),
+  };
+
+  const editId = document.getElementById('supply-modal-bg').dataset.editId;
+  if (editId) {
+    const idx = supplies.findIndex(s => s.id === editId);
+    if (idx !== -1) supplies[idx] = item;
+  } else {
+    supplies.unshift(item);
+  }
+  S('wg_supplies', supplies);
+
+  // Post to sheet
+  postToSheet('Supply_Log', [
+    item.dateReceived, item.name, item.category, item.form,
+    item.qty, item.unitSize, item.vendor, item.notes, item.loggedBy
+  ]);
+
+  closeSupplyModal();
+  renderSupplies();
+}
+
+function deleteSupply(id) {
+  if (!confirm('Remove this supply entry?')) return;
+  supplies = supplies.filter(s => s.id !== id);
+  S('wg_supplies', supplies);
+  renderSupplies();
+}
+
+function renderSupplies() {
+  supplies = L('wg_supplies', []);
+  const search = (document.getElementById('supply-search')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('supply-category-filter')?.value || '';
+
+  let filtered = supplies.filter(s => {
+    const matchSearch = !search || s.name.toLowerCase().includes(search) ||
+      (s.vendor || '').toLowerCase().includes(search) ||
+      (s.category || '').toLowerCase().includes(search);
+    const matchCat = !catFilter || s.category === catFilter;
+    return matchSearch && matchCat;
+  });
+
+  // Summary cards — total entries per category
+  const summaryEl = document.getElementById('supplies-summary');
+  if (summaryEl) {
+    const byCat = {};
+    supplies.forEach(s => { byCat[s.category] = (byCat[s.category] || 0) + 1; });
+    const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    summaryEl.innerHTML = [
+      { label: 'Total receipts', val: supplies.length, color: 'var(--text)' },
+      ...cats.slice(0, 4).map(([cat, n]) => ({
+        label: cat, val: n,
+        color: (SUPPLY_CAT_COLORS[cat] || SUPPLY_CAT_COLORS['Other']).text
+      }))
+    ].map(s => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+      <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div>
+    </div>`).join('');
+  }
+
+  const list = document.getElementById('supplies-list');
+  if (!list) return;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">${supplies.length ? 'No supplies match your search.' : 'No supply receipts logged yet. Click "+ Log receipt" to get started.'}</div>`;
+    return;
+  }
+
+  const isLead = currentRole === 'lead';
+  list.innerHTML = filtered.map(item => {
+    const cc = SUPPLY_CAT_COLORS[item.category] || SUPPLY_CAT_COLORS['Other'];
+    const dateStr = item.dateReceived
+      ? new Date(item.dateReceived + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})
+      : '—';
+    return `<div class="card" style="border-left:3px solid ${cc.text}">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${item.name}</div>
+            <span style="font-size:10px;padding:2px 7px;border-radius:var(--r);background:${cc.bg};border:1px solid ${cc.border};color:${cc.text}">${item.category}</span>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text)">${item.qty} <span style="font-weight:400;color:var(--text3)">${item.form}${item.qty !== 1 && item.form !== 'Each' ? 's' : ''}</span></span>
+            ${item.unitSize ? `<span style="font-size:12px;color:var(--text3)">${item.unitSize} each</span>` : ''}
+            <span style="font-size:12px;color:var(--text3)">${dateStr}</span>
+            ${item.vendor ? `<span style="font-size:12px;color:var(--text3)">· ${item.vendor}</span>` : ''}
+          </div>
+          ${item.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:5px;padding:4px 8px;background:var(--bg3);border-radius:var(--r);font-style:italic">${item.notes}</div>` : ''}
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">Logged by ${item.loggedBy}</div>
+        </div>
+        ${isLead ? `<div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="openSupplyModal('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>
+          <button onclick="deleteSupply('${item.id}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ══════════════════════════════════════════════
 // GUARDRAIL ENGINE
 // ══════════════════════════════════════════════
