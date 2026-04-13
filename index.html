@@ -1188,11 +1188,17 @@ function renderRooms(){
         const metrcRoomName=room.name.replace('Room ','Grow Room ');
         const flowerRows=(metrcData&&metrcData.flowering)||[];
         const vegRows=(metrcData&&metrcData.vegetative)||[];
-        // Show flowering plants for flower rooms, veg plants for veg rooms
         const stage_=getStage(room);
         const isVegRoom=stage_==='veg'||(!room.flipDate&&room.launchDate);
-        const sourceRows=isVegRoom?vegRows:flowerRows;
-        const roomPlants=sourceRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+        // Try flowering first; fall back to veg (e.g. recently flipped rooms not yet in METRC flower)
+        let sourceRows=isVegRoom?vegRows:flowerRows;
+        let roomPlants=sourceRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+        let usingVegFallback=false;
+        if(!roomPlants.length&&!isVegRoom){
+          // Fallback: check veg file (plant may not have moved to flower in METRC yet)
+          roomPlants=vegRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+          if(roomPlants.length) usingVegFallback=true;
+        }
         if(!roomPlants.length) return '';
         const byStrain={};
         roomPlants.forEach(r=>{const s=r['Strain']||r['StrainName']||'Unknown';byStrain[s]=(byStrain[s]||0)+1;});
@@ -1206,7 +1212,7 @@ function renderRooms(){
         }).join('');
         return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
-            <span>${isVegRoom?'METRC Veg':'METRC Plants'}</span><span style="font-family:var(--mono);color:${isVegRoom?'var(--blue)':'var(--green)'}">${total} total</span>
+            <span>${(isVegRoom||usingVegFallback)?'METRC Veg':'METRC Plants'}</span><span style="font-family:var(--mono);color:${(isVegRoom||usingVegFallback)?'var(--blue)':'var(--green)'}">${total} total</span>
           </div>
           ${strainPills}
         </div>`;
