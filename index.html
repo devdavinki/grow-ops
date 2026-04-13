@@ -1502,6 +1502,7 @@ function logCloneCut(clearStrain=false){
   }
   cloneSessions.push({strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)});
   S(getWeekKey(),cloneSessions);
+  pushConfigDebounced();
   postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
   // Always clear count and mother tag
   if(document.getElementById('ce-mother-tag')) document.getElementById('ce-mother-tag').value='';
@@ -1811,6 +1812,7 @@ function confirmComplete(){
   todayLog.push(entry);
   S('wg_log_'+dateToIso(TODAY),todayLog);
   closeModal();
+  pushConfigDebounced();
   renderAssignments();
   renderRooms();
   renderTodayLog();
@@ -2250,7 +2252,7 @@ let team=L('wg_team',null);
 const _needsReset = !team || team.length===0 || team.every(m=>!m.agtId) ||
   !team.find(m=>m.name==='Devon'&&m.role==='lead'&&m.agtId==='005963');
 if(_needsReset){
-  team=DEFAULT_TEAM.slice(); S('wg_team',team);
+  team=DEFAULT_TEAM.slice(); S('wg_team',team);pushConfigDebounced();
 } else {
   DEFAULT_TEAM.forEach(dt=>{
     const ex=team.find(m=>m.name===dt.name);
@@ -2367,6 +2369,7 @@ function toggleRolePerm(role,page,enabled){
   }
   S('wg_role_perms',rolePerms);
   applyRolePerms();
+  pushConfigDebounced();
   // re-apply nav visibility for current role
   setRole(currentRole);
 }
@@ -2493,7 +2496,7 @@ function renderSettings(){
         ${room.paired?'<span class="tag tag-teal" style="font-size:9px">paired</span>':''}
       </div>
       <label>Strain</label>
-      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
       <label>Launch date (plants in)</label>
       <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
       <label>Flip date (day 1 of flower)</label>
@@ -3819,6 +3822,7 @@ function updateChore(i, field, val) {
   chores[i][field] = val;
   S('wg_custom_chores', chores);
   renderChores();
+  pushConfigDebounced();
 }
 
 function removeChore(i) {
@@ -3826,6 +3830,7 @@ function removeChore(i) {
   chores.splice(i, 1);
   S('wg_custom_chores', chores);
   renderChoresEditor();
+  pushConfigDebounced();
   renderChores();
 }
 
@@ -3869,6 +3874,7 @@ function removeCustomTask(i) {
   customTasks.splice(i, 1);
   S('wg_custom_tasks', customTasks);
   renderCustomTasksEditor();
+  pushConfigDebounced();
 }
 
 function addCustomTask() {
@@ -3907,6 +3913,16 @@ setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
 setTimeout(async ()=>{
   try{ await pullGrowlinkFromCloud(true); }catch(e){}
 },800);
+// Pull config (rooms, team, chores, supplies, logs etc) on every load
+setTimeout(async ()=>{
+  try{
+    await pullConfigFromCloud(true);
+    renderRooms();
+    renderAssignments();
+    renderChores();
+    try{renderSupplies();}catch(e){}
+  }catch(e){}
+},1000);
 // Pull METRC + Growlink again after METRC loads
 setTimeout(async ()=>{
   try{
@@ -4000,6 +4016,7 @@ function confirmSupply() {
     supplies.unshift(item);
   }
   S('wg_supplies', supplies);
+  pushConfigDebounced();
 
   // Post to sheet
   postToSheet('Supply_Log', [
@@ -4015,6 +4032,7 @@ function deleteSupply(id) {
   if (!confirm('Remove this supply entry?')) return;
   supplies = supplies.filter(s => s.id !== id);
   S('wg_supplies', supplies);
+  pushConfigDebounced();
   renderSupplies();
 }
 
@@ -4087,6 +4105,148 @@ function renderSupplies() {
     </div>`;
   }).join('');
 }
+
+
+// ══════════════════════════════════════════════
+// CONFIG CLOUD SYNC
+// Syncs: rooms, team, rolePerms, customChores,
+//        customTasks, supplies, todayLogs,
+//        cloneSessions, alertLog
+// ══════════════════════════════════════════════
+
+async function pushConfigToCloud(silent=false){
+  if(!gsUrl) return;
+  // Gather today logs for last 7 days
+  const todayLogs={};
+  for(let i=0;i<7;i++){
+    const d=new Date(TODAY); d.setDate(d.getDate()-i);
+    const key='wg_log_'+dateToIso(d);
+    const log=L(key,null);
+    if(log&&log.length) todayLogs[dateToIso(d)]=log;
+  }
+  // Gather clone sessions for last 4 weeks
+  const cloneSessions={};
+  for(let i=0;i<4;i++){
+    const d=new Date(TODAY); d.setDate(d.getDate()-(i*7));
+    const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1);
+    const mon=new Date(d.setDate(diff));
+    const wk=mon.toISOString().split('T')[0];
+    const key='cloneweek_'+wk;
+    const sessions=L(key,null);
+    if(sessions&&sessions.length) cloneSessions[key]=sessions;
+  }
+  const payload={
+    action:'setConfig',
+    data:{
+      rooms,
+      team,
+      rolePerms,
+      customChores:L('wg_custom_chores',null),
+      customTasks:L('wg_custom_tasks',[]),
+      supplies:L('wg_supplies',[]),
+      alertLog:L('wg_alert_log',[]),
+      todayLogs,
+      cloneSessions,
+      syncedBy:loggedInMember?loggedInMember.name:'Unknown',
+      syncedAt:new Date().toISOString(),
+    }
+  };
+  try{
+    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify(payload)});
+    if(!silent) console.log('[Config] Pushed to cloud');
+  }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
+}
+
+async function pullConfigFromCloud(silent=false){
+  if(!gsUrl) return false;
+  try{
+    const res=await fetch(gsUrl+'?action=getConfig&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.data) return false;
+    const d=json.data;
+
+    // Rooms — only overwrite if cloud has more recent flip dates
+    if(d.rooms&&d.rooms.length){
+      const cloudRooms=d.rooms;
+      rooms=rooms.map((local,i)=>{
+        const cloud=cloudRooms.find(r=>r.id===local.id);
+        if(!cloud) return local;
+        // Cloud wins for flip/launch dates and notes — lead-set data
+        return{...local,
+          flipDate:cloud.flipDate||local.flipDate,
+          launchDate:cloud.launchDate||local.launchDate,
+          strain:cloud.strain||local.strain,
+          note:cloud.note||local.note,
+        };
+      });
+      S('wg_rooms_v2',rooms);
+    }
+
+    // Team & role perms — cloud wins (lead manages these)
+    if(d.team&&d.team.length){ team=d.team; S('wg_team',team); }
+    if(d.rolePerms){ rolePerms=d.rolePerms; S('wg_role_perms',rolePerms); applyRolePerms(); }
+
+    // Custom chores & tasks
+    if(d.customChores){ S('wg_custom_chores',d.customChores); }
+    if(d.customTasks&&d.customTasks.length){ customTasks=d.customTasks; S('wg_custom_tasks',customTasks); }
+
+    // Supplies — merge by id (keep local entries not yet in cloud)
+    if(d.supplies&&d.supplies.length){
+      const local=L('wg_supplies',[]);
+      const cloudIds=new Set(d.supplies.map(s=>s.id));
+      const localOnly=local.filter(s=>!cloudIds.has(s.id));
+      supplies=[...d.supplies,...localOnly];
+      S('wg_supplies',supplies);
+    }
+
+    // Today logs — merge per day
+    if(d.todayLogs){
+      Object.entries(d.todayLogs).forEach(([date,log])=>{
+        const localLog=L('wg_log_'+date,[]);
+        // Merge: add cloud entries not in local
+        const localIds=new Set(localLog.map(e=>e.id));
+        const merged=[...localLog,...log.filter(e=>!localIds.has(e.id))];
+        merged.sort((a,b)=>a.id-b.id);
+        S('wg_log_'+date,merged);
+        if(date===dateToIso(TODAY)) todayLog=merged;
+      });
+    }
+
+    // Clone sessions — merge per week
+    if(d.cloneSessions){
+      Object.entries(d.cloneSessions).forEach(([wk,sessions])=>{
+        const localS=L(wk,[]);
+        const localTimes=new Set(localS.map(s=>s.time+'_'+s.strain));
+        const merged=[...localS,...sessions.filter(s=>!localTimes.has(s.time+'_'+s.strain))];
+        S(wk,merged);
+        if(wk===getWeekKey()) cloneSessions=merged;
+      });
+    }
+
+    // Alert log — merge
+    if(d.alertLog&&d.alertLog.length){
+      const local=L('wg_alert_log',[]);
+      const localIds=new Set(local.map(e=>e.id));
+      const merged=[...local,...d.alertLog.filter(e=>!localIds.has(e.id))];
+      merged.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+      S('wg_alert_log',merged);
+    }
+
+    if(!silent) console.log('[Config] Pulled from cloud, synced by',d.syncedBy);
+    return true;
+  }catch(e){
+    if(!silent) console.warn('[Config] Pull failed:',e);
+    return false;
+  }
+}
+
+// Auto-push config whenever lead changes key settings
+function pushConfigDebounced(){
+  if(_configPushTimer) clearTimeout(_configPushTimer);
+  _configPushTimer=setTimeout(()=>pushConfigToCloud(true), 2000);
+}
+let _configPushTimer=null;
 
 // ══════════════════════════════════════════════
 // GUARDRAIL ENGINE
@@ -4252,6 +4412,7 @@ function runGuardrails(){
   const cutoff = now - 7*24*60*60*1000;
   const trimmed = log.filter(l=>new Date(l.timestamp).getTime()>cutoff);
   saveAlertLog(trimmed);
+  setTimeout(()=>pushConfigToCloud(true),1000);
   S(T1_PENDING_KEY, pending);
 
   // Fire Slack for new T1s
