@@ -1163,23 +1163,34 @@ function renderRooms(){
         const vpdOk=gl.vpd&&gl.vpd>=0.8&&gl.vpd<=1.6;
         const soilECOk=gl.soilEC&&gl.soilEC>=1.5&&gl.soilEC<=4.5;
         const soilMoistOk=gl.soilMoisture&&gl.soilMoisture>=50&&gl.soilMoisture<=80;
-        const c=stale?'':'';
+        // Calculate dew point from temp + RH (Magnus formula)
+        const dp=(()=>{
+          if(!gl.temp||!gl.humidity) return null;
+          const tc=(gl.temp-32)*5/9;
+          const a=17.27,b=237.7;
+          const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
+          const dpc=(b*alpha)/(a-alpha);
+          return dpc*9/5+32;
+        })();
+        const dpOk=dp!==null&&dp<60;
         const row1=[
           gl.temp!==undefined?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':(tempOk?'ok':'warn')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
           gl.humidity!==undefined?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
           gl.co2!==undefined?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':(co2Ok?'ok':'warn')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
           gl.vpd!==undefined?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':(vpdOk?'ok':'warn')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
+          dp!==null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div><div class="env-num ${stale?'':(dpOk?'ok':'alert')}">${dp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row2=[
           gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
           gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
           gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
+        const row1Count=row1.split('env-cell').length-1;
         return`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:5px;display:flex;justify-content:space-between">
             <span>Live · Growlink</span><span style="font-family:var(--mono)">${age!==null?age+'m ago':''}</span>
           </div>
-          <div class="env-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:4px">${row1}</div>
+          <div class="env-grid" style="grid-template-columns:repeat(${row1Count},1fr);margin-bottom:4px">${row1}</div>
           ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${row2.split('env-cell').length-1},1fr)">${row2}</div>`:''}
         </div>`;
       })()}
