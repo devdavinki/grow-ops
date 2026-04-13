@@ -2801,37 +2801,6 @@ function markChoreDone(id,freq){
   S(getChoreKey(freq)+'_'+id,{who,time:fmtTime(),date:dateToIso(TODAY)});
   renderChores();
 }
-function renderChores(){
-  const wrap=document.getElementById('chores-section');
-  if(!wrap)return;
-  const daily=CHORES.filter(c=>c.freq==='daily');
-  const weekly=CHORES.filter(c=>c.freq==='weekly');
-  const monthly=CHORES.filter(c=>c.freq==='monthly');
-  function choreRow(ch){
-    const log=getChoreLog(ch.id,ch.freq);
-    const done=!!log;
-    return`<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px">
-      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${done?'var(--green)':'var(--amber)'}"></div>
-      <div style="flex:1">
-        <span style="color:${done?'var(--text3)':'var(--text)'}${done?';text-decoration:line-through':''}">${ch.name}</span>
-        <span style="font-size:10px;color:var(--text3);margin-left:8px">${ch.cat}</span>
-        ${done?`<span style="font-size:10px;color:var(--text3);margin-left:6px">✓ ${log.who} ${log.time}</span>`:''}
-      </div>
-      ${!done?`<button onclick="markChoreDone('${ch.id}','${ch.freq}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Done</button>`:''}
-    </div>`;
-  }
-  function section(title,items){
-    const doneCount=items.filter(ch=>!!getChoreLog(ch.id,ch.freq)).length;
-    return`<div style="margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 12px;background:var(--bg3);border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;border:1px solid var(--border)">
-        <span>${title}</span><span style="color:${doneCount===items.length?'var(--green)':'var(--text3)'}">${doneCount}/${items.length}</span>
-      </div>
-      <div class="card" style="padding:0;border-radius:0 0 var(--r) var(--r)">${items.map(choreRow).join('')}</div>
-    </div>`;
-  }
-  wrap.innerHTML=section('Daily',daily)+section('Weekly',weekly)+section('Monthly',monthly);
-}
-
 // ══════════════════════════════════════════════
 // MAXX OS v1.3 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
@@ -3285,9 +3254,9 @@ function onMotherTagInput(val) {
   if (!val || val.length < 4) { hint.textContent = ''; return; }
   const match = metrcData.mother.find(r => (r['Tag']||'').endsWith(val));
   if (match) {
-    const loc = (r['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
+    // loc unused - fixed
     hint.style.color = 'var(--green)';
-    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'');
+    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
     // Auto-fill strain if empty
     const strainInput = document.getElementById('ce-strain');
     if (strainInput && !strainInput.value) strainInput.value = match['Strain']||'';
