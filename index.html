@@ -2283,7 +2283,17 @@ if(!rolePerms || !rolePerms.lead ||
 
 function applyRolePerms(){
   if(!rolePerms) return;
-  // merge rolePerms back into ROLE_PERMISSIONS.pages
+  // Always ensure new pages are present even on old cached rolePerms
+  const ensurePages = {
+    lead: ['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies'],
+    fertigator: ['supplies','additive','checks','slack','clonetracker'],
+    ipm: ['additive'],
+  };
+  Object.entries(ensurePages).forEach(([role, pages]) => {
+    if(!rolePerms[role]) rolePerms[role] = [];
+    pages.forEach(p => { if(!rolePerms[role].includes(p)) rolePerms[role].push(p); });
+  });
+  S('wg_role_perms', rolePerms);
   Object.keys(rolePerms).forEach(role=>{
     if(ROLE_PERMISSIONS[role]) ROLE_PERMISSIONS[role].pages=rolePerms[role].slice();
   });
