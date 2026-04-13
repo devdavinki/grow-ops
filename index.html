@@ -2862,7 +2862,7 @@ function showPage(page){
   if(page==='supplies'){renderSupplies();}
   if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
-  if(page==='postprod'){pullMetrcFromCloud(true);renderTrimQueue();}
+  if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});}
 }
 
 
@@ -2976,6 +2976,41 @@ async function pullMetrcFromCloud(silent=false){
 // ══════════════════════════════════════════════
 // WEIGHT VERIFICATION FLOW
 // ══════════════════════════════════════════════
+async function pushWeightsToCloud(){
+  if(!gsUrl) return;
+  try{
+    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'setMetrc',data:{
+        trimWeights:trimWeights,
+        syncedBy:loggedInMember?loggedInMember.name:'Unknown',
+        syncedAt:new Date().toISOString()
+      }})
+    });
+    console.log('Weights pushed to cloud');
+  }catch(e){console.warn('Weight push failed:',e);}
+}
+
+async function pullWeightsFromCloud(){
+  if(!gsUrl) return;
+  try{
+    const res=await fetch(gsUrl+'?action=getMetrc&t='+Date.now());
+    const json=await res.json();
+    if(json.ok&&json.data&&json.data.trimWeights){
+      // Merge cloud weights with local — cloud wins for pending/approved states
+      const cloudW=json.data.trimWeights;
+      Object.entries(cloudW).forEach(([id,w])=>{
+        const local=trimWeights[id]||{};
+        // Use cloud version if it has a more advanced status
+        const statusOrder={entry:0,pending:1,approved:2};
+        const cloudStatus=statusOrder[w.status||'entry']||0;
+        const localStatus=statusOrder[local.status||'entry']||0;
+        if(cloudStatus>=localStatus) trimWeights[id]=w;
+      });
+      S('wg_trim_weights',trimWeights);
+    }
+  }catch(e){console.warn('Weight pull failed:',e);}
+}
+
 function submitWeightForVerification(itemId){
   if(!loggedInMember){alert('Sign in first to submit weights.');return;}
   if(!trimWeights[itemId]){alert('Enter weights before submitting.');return;}
@@ -2985,7 +3020,15 @@ function submitWeightForVerification(itemId){
   trimWeights[itemId].enteredBy=loggedInMember.name;
   trimWeights[itemId].approvedBy='';
   S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
   renderWeightCards();
+  // Notify #postprod Slack
+  const wh=webhooks['postprod'];
+  const item=trimQueue.find(i=>i.id===itemId);
+  if(wh&&wh.startsWith('https://hooks.slack.com/')&&item){
+    const msg=`*Weight submission pending verification* — ${item.strain}\nEntered by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g\n_Open Post Production → Log Weights to approve_`;
+    fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
+  }
 }
 function approveWeight(itemId){
   if(!loggedInMember){alert('Sign in first to approve.');return;}
@@ -2994,6 +3037,7 @@ function approveWeight(itemId){
   trimWeights[itemId].status='approved';
   trimWeights[itemId].approvedBy=loggedInMember.name;
   S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
   const item=trimQueue.find(i=>i.id===itemId);
   if(item){
     postToSheet('Weight_Log',[item.strain,item.harvestDate||'',w.bigBuds||'',w.smallsAndTrim||'',
@@ -3001,7 +3045,7 @@ function approveWeight(itemId){
   }
   const wh=webhooks['postprod'];
   if(wh&&wh.startsWith('https://hooks.slack.com/')){
-    const msg=`*Weight log approved* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
+    const msg=`*Weight log approved ✓* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
     fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
   }
   renderWeightCards();
@@ -3011,6 +3055,7 @@ function rejectWeight(itemId){
   trimWeights[itemId].enteredBy='';
   trimWeights[itemId].approvedBy='';
   S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
   renderWeightCards();
 }
 
