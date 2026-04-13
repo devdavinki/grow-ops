@@ -688,6 +688,7 @@ button { cursor: pointer; }
       <button class="nav-tab active" onclick="showPostTab('queue',this)" style="font-size:12px">Trim queue</button>
       <button class="nav-tab" onclick="showPostTab('weights',this)" style="font-size:12px">Log weights</button>
       <button class="nav-tab" onclick="showPostTab('preroll',this)" style="font-size:12px">Pre-roll priority</button>
+      <button class="nav-tab" id="packages-tab-btn" onclick="showPostTab('packages',this)" style="font-size:12px;display:none">Packages</button>
     </div>
 
     <!-- TRIM QUEUE -->
@@ -712,8 +713,23 @@ button { cursor: pointer; }
 
     <!-- PRE-ROLL PRIORITY -->
     <div id="postsub-preroll" style="display:none">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Sorted by Purpl Pro THC % — highest first. Shows available small bud weight per strain.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Sorted by Purpl Pro THC % — highest first. Shows available small bud weight per strain.</div>
+      <div id="preroll-notes-section" style="margin-bottom:14px"></div>
       <div id="preroll-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
+    </div>
+
+    <!-- PACKAGES (lead only) -->
+    <div id="postsub-packages" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;color:var(--text2)">Completed and archived weight entries. Upload METRC packages export to enrich with package numbers.</div>
+        <div style="display:flex;gap:8px">
+          <label style="display:inline-block;padding:6px 12px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
+            📦 Upload METRC Packages
+            <input type="file" accept=".xlsx,.csv" style="display:none" onchange="handlePackagesUpload(this)"/>
+          </label>
+        </div>
+      </div>
+      <div id="packages-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
     </div>
   </div>
 
@@ -1016,7 +1032,7 @@ function getStage(room){
   if(fd===null)return'veg';
   if(fd<1)return'veg';
   if(fd>=1&&fd<=FLOWER_DAYS)return fd>=50?'late':'flower';
-  if(fd>FLOWER_DAYS&&fd<CYCLE)return'dark';
+  if(fd>FLOWER_DAYS&&fd<CYCLE)return'late';
   return'harvest';
 }
 
@@ -1131,7 +1147,7 @@ function renderRooms(){
 
     let stageClass='stage-'+stage;
     let badgeClass='badge-'+stage;
-    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='dark'?'Dark period':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
+    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
 
     const card=document.createElement('div');
     card.className=`room-card ${stageClass}`;
@@ -1212,7 +1228,7 @@ function renderRooms(){
       const dotCls=additive.tier2?'dot-amber':'dot-gray';
       taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${additive.name}<span class="sub">${additive.dose}${additive.tier2?' · Tier 2':''}</span></div></div>`);
     }
-    if(stage==='dark') taskList.push(`<div class="task-item-sm"><span class="task-dot dot-gray"></span><div class="task-text" style="color:var(--text3)">Dark period — no entry</div></div>`);
+
     if(stage==='harvest'&&(roomView==='full')) taskList.push(`<div class="task-item-sm"><span class="task-dot dot-red"></span><div class="task-text"><span class="alert-txt">Harvest day — authorize entry in #harvest</span></div></div>`);
     if(taskList.length) taskHTML=`<div class="task-strip"><div class="task-strip-head">Today</div>${taskList.join('')}</div>`;
 
@@ -1857,7 +1873,7 @@ function clearTodayLog(){todayLog=[];S('wg_log_'+dateToIso(TODAY),todayLog);rend
 function renderAdditiveTable(){
   const tbody=document.getElementById('additive-tbody');
   tbody.innerHTML='';
-  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Dark period'};
+  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Flush end'};
   for(let d=1;d<=CYCLE;d++){
     const ad=ADDITIVES[d]||null;
     const fd=rooms.map(r=>flowerDay(r)).find(fd=>fd===d);
@@ -2447,8 +2463,7 @@ function finishLogin(member){
   setRole(member.role);
   const roleSelect=document.getElementById('role-select');
   roleSelect.innerHTML=`
-    <span style="font-size:12px;font-weight:600;color:var(--text);margin-right:4px">${member.name}</span>
-    <span style="font-size:11px;color:var(--text3);margin-right:10px">${ROLE_LABELS[member.role]||member.role}</span>
+    <span style="font-size:12px;font-weight:600;color:var(--text);margin-right:10px">${member.name}</span>
     <button onclick="switchUser()" class="role-btn" style="border-color:var(--teal);color:var(--teal)">Switch user</button>
   `;
   document.getElementById('topbar-date').textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
@@ -2762,7 +2777,9 @@ function renderWeightCards(){
     card.className='card';
     card.style.borderLeft=`3px solid ${status==='approved'?'var(--green)':status==='pending'?'var(--amber)':'var(--purple)'}`;
     const statusBadge=status==='approved'?`<span class="tag tag-green">Approved ✓</span>`:status==='pending'?`<span class="tag tag-amber">Pending verification</span>`:`<span class="tag tag-gray">Entry</span>`;
-    const dis=status!=='entry'?'disabled':'';
+    const canEdit=status==='entry'||(currentRole==='lead');
+    // Leads can always edit — others can only edit entry status
+    const dis=(status!=='entry'&&currentRole!=='lead')?'disabled':'';
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div>
@@ -2781,6 +2798,7 @@ function renderWeightCards(){
       ${enteredBy?`<div style="font-size:11px;color:var(--text3);margin-top:6px">Entered by: ${enteredBy}</div>`:''}
       ${approvedBy?`<div style="font-size:11px;color:var(--green);margin-top:2px">Approved by: ${approvedBy}</div>`:''}
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${(status==='entry'||(currentRole==='lead'&&status==='approved'))?`<button onclick="resetWeightForEdit('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">${currentRole==='lead'&&status==='approved'?'Edit (Lead)':'Edit'}</button>`:''}
         ${status==='entry'?`<button onclick="submitWeightForVerification('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--amber);background:none;color:var(--amber);cursor:pointer">Submit for verification</button>`:''}
         ${status==='pending'&&loggedInMember&&loggedInMember.name!==enteredBy?`<button onclick="approveWeight('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green);background:none;color:var(--green);cursor:pointer">Approve ✓</button>`:''}
         ${status==='pending'&&loggedInMember&&loggedInMember.name===enteredBy?`<span style="font-size:11px;color:var(--text3);padding:5px 0">Waiting for different employee to approve</span>`:''}
@@ -2802,6 +2820,29 @@ function renderPrerollPriority(){
   const list=document.getElementById('preroll-list');
   if(!list)return;
   trimWeights=L('wg_trim_weights',{});
+  const isLead=currentRole==='lead';
+
+  // Notes section
+  const notesEl=document.getElementById('preroll-notes-section');
+  if(notesEl){
+    const savedNotes=L('wg_preroll_notes','');
+    const savedBlends=L('wg_preroll_blends','');
+    notesEl.innerHTML=`<div class="card" style="border-left:3px solid var(--purple);margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Pre-roll notes & blend suggestions</div>
+      <div style="display:grid;gap:8px">
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Upcoming blend suggestions</label>
+          <textarea id="preroll-blends-input" placeholder="e.g. Space Runtz + KM3 blend looking strong — target 28%+ mix for next batch..." style="width:100%;min-height:60px;font-family:var(--mono);font-size:12px;resize:vertical;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);padding:8px" ${isLead?'':'readonly'}>${savedBlends}</textarea>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">General notes</label>
+          <textarea id="preroll-notes-input" placeholder="e.g. Hold Soap smalls for upcoming infused pre-roll run..." style="width:100%;min-height:48px;font-family:var(--mono);font-size:12px;resize:vertical;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);padding:8px" ${isLead?'':'readonly'}>${savedNotes}</textarea>
+        </div>
+        ${isLead?`<div style="text-align:right"><button onclick="savePrerollNotes()" style="font-size:12px;padding:6px 14px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">Save notes</button></div>`:''}
+      </div>
+    </div>`;
+  }
+
   const strains=trimQueue
     .map(item=>({...item,w:trimWeights[item.id]||{}}))
     .filter(item=>item.w.purplTHC)
@@ -2817,11 +2858,16 @@ function renderPrerollPriority(){
     const smallBuds=w.smallBuds?parseFloat(w.smallBuds):null;
     const rank=i+1;
     const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
+    const pkgNum=w.packageNum||'';
     return`<div class="card" style="border-left:3px solid ${rankColor}">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div style="font-size:28px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:36px">${rank}</div>
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+            ${pkgNum?`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text3)">…${pkgNum}</span>`:''}
+            ${isLead?`<input placeholder="pkg last 4" maxlength="4" value="${pkgNum}" style="font-family:var(--mono);font-size:11px;width:70px;padding:2px 6px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)" onchange="savePackageNum('${item.id}',this.value)"/>`:'' }
+          </div>
           <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''}</div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -2843,22 +2889,155 @@ function renderPrerollPriority(){
   }).join('');
 }
 
+function savePrerollNotes(){
+  S('wg_preroll_notes', document.getElementById('preroll-notes-input')?.value||'');
+  S('wg_preroll_blends', document.getElementById('preroll-blends-input')?.value||'');
+  pushConfigDebounced();
+}
+
+function savePackageNum(itemId, val){
+  trimWeights=L('wg_trim_weights',{});
+  if(!trimWeights[itemId]) trimWeights[itemId]={};
+  trimWeights[itemId].packageNum=val.trim();
+  S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
+}
+
+
+// ══════════════════════════════════════════════
+// PACKAGES & WEIGHT ARCHIVING
+// ══════════════════════════════════════════════
+
+// Archive approved weights older than 12 hours — move to packages
+function archiveOldWeights(){
+  trimWeights = L('wg_trim_weights', {});
+  const now = Date.now();
+  const ARCHIVE_MS = 12 * 60 * 60 * 1000;
+  let archived = L('wg_packages', []);
+  let changed = false;
+
+  Object.entries(trimWeights).forEach(([id, w]) => {
+    if(w.status === 'approved' && w.approvedAt){
+      const age = now - new Date(w.approvedAt).getTime();
+      if(age >= ARCHIVE_MS){
+        // Move to packages
+        const item = trimQueue.find(i => i.id === id);
+        if(item && !archived.find(p => p.weightId === id)){
+          archived.unshift({
+            weightId: id,
+            strain: item.strain,
+            harvestBatch: item.harvestBatch || item.strain,
+            harvestDate: item.harvestDate || '',
+            bigBuds: w.bigBuds,
+            smallsAndTrim: w.smallsAndTrim,
+            smallBuds: w.smallBuds,
+            moisture: w.moisture,
+            purplTHC: w.purplTHC,
+            purplTotal: w.purplTotal,
+            packageNum: w.packageNum || '',
+            enteredBy: w.enteredBy,
+            approvedBy: w.approvedBy,
+            approvedAt: w.approvedAt,
+            archivedAt: new Date().toISOString(),
+            notes: w.notes || '',
+            metrcPackages: [],
+          });
+          delete trimWeights[id];
+          changed = true;
+        }
+      }
+    }
+  });
+
+  if(changed){
+    S('wg_trim_weights', trimWeights);
+    S('wg_packages', archived);
+    pushWeightsToCloud();
+  }
+}
+
+function renderPackages(){
+  const list = document.getElementById('packages-list');
+  if(!list) return;
+  const packages = L('wg_packages', []);
+
+  if(!packages.length){
+    list.innerHTML = `<div class="empty-state">No archived packages yet. Approved weights move here automatically after 12 hours.</div>`;
+    return;
+  }
+
+  list.innerHTML = packages.map(pkg => {
+    const dateStr = pkg.approvedAt
+      ? new Date(pkg.approvedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : '';
+    const metrcPkgs = pkg.metrcPackages || [];
+    return `<div class="card" style="border-left:3px solid var(--green)">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${pkg.strain}</div>
+            ${pkg.packageNum?`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text3)">pkg …${pkg.packageNum}</span>`:''}
+            <span class="tag tag-green" style="font-size:10px">Archived ✓</span>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+            ${pkg.bigBuds?`<span style="font-size:12px;color:var(--text2)">Bigs: <strong>${pkg.bigBuds}g</strong></span>`:''}
+            ${pkg.smallsAndTrim?`<span style="font-size:12px;color:var(--text2)">Smalls+trim: <strong>${pkg.smallsAndTrim}g</strong></span>`:''}
+            ${pkg.smallBuds?`<span style="font-size:12px;color:var(--blue)">Smalls: <strong>${pkg.smallBuds}g</strong></span>`:''}
+            ${pkg.purplTHC?`<span style="font-size:12px;color:var(--purple)">THC: <strong>${pkg.purplTHC}%</strong></span>`:''}
+          </div>
+          <div style="font-size:11px;color:var(--text3)">Approved by ${pkg.approvedBy} · ${dateStr}</div>
+          ${metrcPkgs.length?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${metrcPkgs.map(p=>`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);color:var(--blue)">${p}</span>`).join('')}</div>`:''}
+          ${pkg.notes?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">${pkg.notes}</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          <input placeholder="pkg last 4" maxlength="4" value="${pkg.packageNum||''}"
+            style="font-family:var(--mono);font-size:11px;width:80px;padding:4px 6px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)"
+            onchange="updateArchivedPackageNum('${pkg.weightId}',this.value)"/>
+          <textarea placeholder="Notes..." rows="2" style="width:120px;font-size:11px;font-family:var(--mono);resize:none;padding:4px 6px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)"
+            onchange="updateArchivedNote('${pkg.weightId}',this.value)">${pkg.notes||''}</textarea>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateArchivedPackageNum(weightId, val){
+  const packages = L('wg_packages', []);
+  const pkg = packages.find(p => p.weightId === weightId);
+  if(pkg){ pkg.packageNum = val.trim(); S('wg_packages', packages); }
+}
+
+function updateArchivedNote(weightId, val){
+  const packages = L('wg_packages', []);
+  const pkg = packages.find(p => p.weightId === weightId);
+  if(pkg){ pkg.notes = val; S('wg_packages', packages); }
+}
+
+function handlePackagesUpload(input){
+  // Future: parse METRC packages xlsx/csv and match to archived packages by strain/batch
+  const file = input.files[0];
+  if(!file) return;
+  alert('METRC packages upload coming soon — will match package numbers to archived weight entries automatically.');
+}
+
 function showPostTab(tab,el){
   document.querySelectorAll('#page-postprod .nav-tab').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('postsub-queue').style.display=tab==='queue'?'block':'none';
   document.getElementById('postsub-weights').style.display=tab==='weights'?'block':'none';
   document.getElementById('postsub-preroll').style.display=tab==='preroll'?'block':'none';
+  const pkgEl=document.getElementById('postsub-packages');
+  if(pkgEl) pkgEl.style.display=tab==='packages'?'block':'none';
   if(tab==='queue'){
-    // Show add button only for leads
     const addBtn=document.getElementById('add-trim-btn');
     if(addBtn) addBtn.style.display=currentRole==='lead'?'inline-flex':'none';
     renderTrimQueue();
     const lbl=document.getElementById('queue-last-refresh');
     if(lbl) lbl.textContent='Last refreshed: '+fmtTime();
   }
-  if(tab==='weights') renderWeightCards();
+  if(tab==='weights'){ archiveOldWeights(); renderWeightCards(); }
   if(tab==='preroll') renderPrerollPriority();
+  if(tab==='packages') renderPackages();
 }
 
 
@@ -2881,7 +3060,7 @@ function showPage(page){
   if(page==='supplies'){renderSupplies();}
   if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
-  if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});}
+  if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();archiveOldWeights();const pkgBtn=document.getElementById('packages-tab-btn');if(pkgBtn)pkgBtn.style.display=currentRole==='lead'?'':'none';});}
 }
 
 
@@ -3055,6 +3234,7 @@ function approveWeight(itemId){
   if(loggedInMember.name===w.enteredBy){alert('A different employee must approve these weights.');return;}
   trimWeights[itemId].status='approved';
   trimWeights[itemId].approvedBy=loggedInMember.name;
+  trimWeights[itemId].approvedAt=new Date().toISOString();
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
   const item=trimQueue.find(i=>i.id===itemId);
@@ -3073,6 +3253,17 @@ function rejectWeight(itemId){
   trimWeights[itemId].status='entry';
   trimWeights[itemId].enteredBy='';
   trimWeights[itemId].approvedBy='';
+  S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
+  renderWeightCards();
+}
+function resetWeightForEdit(itemId){
+  // Lead-only: unlock any weight entry for editing regardless of status
+  trimWeights=L('wg_trim_weights',{});
+  if(!trimWeights[itemId]) trimWeights[itemId]={};
+  trimWeights[itemId].status='entry';
+  trimWeights[itemId].approvedBy='';
+  trimWeights[itemId].approvedAt='';
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
   renderWeightCards();
