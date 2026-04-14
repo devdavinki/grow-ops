@@ -1082,7 +1082,7 @@ function getStage(room){
   if(fd===null)return'veg';
   if(fd<1)return'veg';
   if(fd>=1&&fd<=FLOWER_DAYS)return fd>=50?'late':'flower';
-  if(fd>FLOWER_DAYS&&fd<CYCLE)return'dark';
+  if(fd>FLOWER_DAYS&&fd<=67)return'harvest';
   return'harvest';
 }
 
@@ -1241,13 +1241,13 @@ function renderRooms(){
 
     // Maxx OS phase strip
     let phaseHTML='';
-    if(fd!==null&&fd>=1&&fd<=65){
+    if(fd!==null&&fd>=1&&fd<=67){
       const phase=getPhaseForDay(fd);
       const ecr=getECRainbow(fd);
       if(phase){
         phaseHTML=`<div style="display:flex;align-items:center;gap:10px;margin:6px 0;padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:10px;flex-wrap:wrap">
           <span style="font-family:var(--mono);font-weight:700;color:var(--text2)">${phase.name}</span>
-          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%</span>
+          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%/${phase.nightRH||phase.rh}%</span>
           ${ecr?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color}"></span><span style="color:var(--text3)">${ecr.name} EC ${ecr.ecMin}–${ecr.ecMax}</span></span>`:''}
         </div>`;
       }
@@ -1926,7 +1926,7 @@ function renderAdditiveTable(){
   const tbody=document.getElementById('additive-tbody');
   tbody.innerHTML='';
   const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Harvest prep'};
-  for(let d=1;d<=CYCLE;d++){
+  for(let d=1;d<=67;d++){
     const ad=ADDITIVES[d]||null;
     const fd=rooms.map(r=>flowerDay(r)).find(fd=>fd===d);
     const isToday=rooms.some(r=>flowerDay(r)===d);
@@ -3205,22 +3205,22 @@ function markChoreDone(id,freq){
 // MAXX OS v1.3 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
 const MAXX_PHASES=[
-  // vpd = target kPa | vwcMin/vwcMax = % substrate water content | subECMin/subECMax = substrate EC mS/cm
-  // drybackTarget = % drop from field capacity overnight | shotSize = ml/shot guidance
-  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0, vpdMin:0.8,vpdMax:1.1, vwcMin:65,vwcMax:80, subECMin:2.5,subECMax:3.5, dryback:5,  shotNote:'Small frequent shots. Build root zone. P1 20-30ml, P2 as needed.'},
-  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:82,nightTemp:76,rh:75,ecMin:2.0,ecMax:2.1, vpdMin:0.9,vpdMax:1.2, vwcMin:65,vwcMax:78, subECMin:2.5,subECMax:3.5, dryback:6,  shotNote:'Maintain moisture. 4-6 shots/day. Watch for stem stretch.'},
-  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:82,nightTemp:76,rh:73,ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.3, vwcMin:63,vwcMax:75, subECMin:2.8,subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
-  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:82,nightTemp:75,rh:70,ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.4, vwcMin:62,vwcMax:75, subECMin:3.0,subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Match irrigation to transpiration. 6-8 shots/day.'},
-  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:82,nightTemp:75,rh:68,ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.0,subECMax:4.2, dryback:9,  shotNote:'High transpiration phase. Runoff EC 3.0-4.5 target. VPD softness (0.80) acceptable.'},
-  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:82,nightTemp:75,rh:66,ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.2,subECMax:4.5, dryback:9,  shotNote:'Approach peak vegetative mass. Maintain runoff 15-20%.'},
-  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:82,nightTemp:75,rh:64,ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:58,vwcMax:72, subECMin:3.2,subECMax:4.5, dryback:10, shotNote:'Begin tightening dryback. Hard cutoff defol today at Day 28.'},
-  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:58,ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:55,vwcMax:70, subECMin:3.5,subECMax:4.8, dryback:10, shotNote:'Stacking begins. Push EC steadily. Supa Stiky starts Day 29.'},
-  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:56,ecMin:2.8,ecMax:2.9, vpdMin:1.2,vpdMax:1.6, vwcMin:53,vwcMax:68, subECMin:3.8,subECMax:5.2, dryback:11, shotNote:'Peak EC phase. Spray window closes Day 42. Monitor runoff EC closely.'},
-  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:81,nightTemp:73,rh:55,ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:52,vwcMax:67, subECMin:3.5,subECMax:5.0, dryback:11, shotNote:'Hold peak. Begin dialing back EC slightly. Round 2 defol window opens Day 42.'},
-  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:50,vwcMax:65, subECMin:3.0,subECMax:4.5, dryback:12, shotNote:'Begin EC fade. NO H2O2. Reduce shot frequency. Supa Stiky X1.'},
-  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1, vpdMin:1.0,vpdMax:1.4, vwcMin:48,vwcMax:62, subECMin:2.0,subECMax:3.5, dryback:13, shotNote:'Aggressive fade. Push dryback. Reduce shots to 3-4/day.'},
-  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1, vpdMin:0.9,vpdMax:1.3, vwcMin:45,vwcMax:60, subECMin:1.5,subECMax:2.5, dryback:15, shotNote:'Final fade. Pre-harvest defol Day 60-63. Minimal water — push dry.'},
-  {id:'DK', name:'Dark / Flush End',start:64, end:65, light:0,  co2:400,  dayTemp:69,nightTemp:69,rh:50,ecMin:null,ecMax:null, vpdMin:null,vpdMax:null, vwcMin:40,vwcMax:55, subECMin:null,subECMax:null, dryback:null, shotNote:'Harvest prep. No irrigation.'},
+  // Maxx OS v1.4 — dayTemp/nightTemp/rh=day RH/nightRH all from updated chart
+  // vpd=kPa range | vwcMin/vwcMax=% | subECMin/subECMax=mS/cm | dryback=% overnight
+  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:78, nightTemp:76, rh:78, nightRH:77, ecMin:1.9,ecMax:2.0, vpdMin:0.8,vpdMax:1.1, vwcMin:65,vwcMax:80, subECMin:2.5,subECMax:3.5, dryback:5,  shotNote:'Small frequent shots. Build root zone. P1 20-30ml, P2 as needed.'},
+  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:80, nightTemp:74, rh:75, nightRH:74, ecMin:2.0,ecMax:2.1, vpdMin:0.9,vpdMax:1.2, vwcMin:65,vwcMax:78, subECMin:2.5,subECMax:3.5, dryback:6,  shotNote:'Maintain moisture. 4-6 shots/day. Watch for stem stretch.'},
+  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:80, nightTemp:74, rh:73, nightRH:73, ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.3, vwcMin:63,vwcMax:75, subECMin:2.8,subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
+  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:80, nightTemp:73, rh:70, nightRH:70, ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.4, vwcMin:62,vwcMax:75, subECMin:3.0,subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Match irrigation to transpiration. 6-8 shots/day.'},
+  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:80, nightTemp:73, rh:68, nightRH:68, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.0,subECMax:4.2, dryback:9,  shotNote:'High transpiration phase. Runoff EC 3.0-4.5 target. VPD softness (0.80) acceptable.'},
+  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:80, nightTemp:73, rh:66, nightRH:66, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.2,subECMax:4.5, dryback:9,  shotNote:'Approach peak vegetative mass. Maintain runoff 15-20%.'},
+  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:80, nightTemp:73, rh:64, nightRH:64, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:58,vwcMax:72, subECMin:3.2,subECMax:4.5, dryback:10, shotNote:'Begin tightening dryback. Hard cutoff defol today at Day 28.'},
+  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:58, nightRH:58, ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:55,vwcMax:70, subECMin:3.5,subECMax:4.8, dryback:10, shotNote:'Stacking begins. Push EC steadily. Supa Stiky starts Day 29.'},
+  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:56, nightRH:56, ecMin:2.8,ecMax:2.9, vpdMin:1.2,vpdMax:1.6, vwcMin:53,vwcMax:68, subECMin:3.8,subECMax:5.2, dryback:11, shotNote:'Peak EC phase. Spray window closes Day 42. Monitor runoff EC closely.'},
+  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:52,vwcMax:67, subECMin:3.5,subECMax:5.0, dryback:11, shotNote:'Hold peak. Begin dialing back EC slightly. Round 2 defol window opens Day 42.'},
+  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78, nightTemp:70, rh:52, nightRH:51, ecMin:2.2,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:50,vwcMax:65, subECMin:3.0,subECMax:4.5, dryback:12, shotNote:'Begin EC fade. NO H2O2. Reduce shot frequency. Supa Stiky X1.'},
+  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:76.5,nightTemp:68, rh:51, nightRH:50, ecMin:1.5,ecMax:2.1, vpdMin:1.0,vpdMax:1.4, vwcMin:48,vwcMax:62, subECMin:2.0,subECMax:3.5, dryback:13, shotNote:'Aggressive fade. Push dryback. Reduce shots to 3-4/day.'},
+  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,  nightTemp:66.5,rh:50, nightRH:48, ecMin:1.5,ecMax:2.1, vpdMin:0.9,vpdMax:1.3, vwcMin:45,vwcMax:60, subECMin:1.5,subECMax:2.5, dryback:15, shotNote:'Final fade. Pre-harvest defol Day 60-63. Minimal water — push dry.'},
+  {id:'X3', name:'X3 Harvest Prep',start:64, end:67, light:45, co2:550,  dayTemp:69,  nightTemp:65,  rh:45, nightRH:44, ecMin:null,ecMax:null, vpdMin:null,vpdMax:null, vwcMin:35,vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Harvest prep. Minimal to no irrigation. Push final dry.'},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
@@ -4229,7 +4229,8 @@ function openRoomModal(roomId){
     envEl.innerHTML = [
       targetCell('Temp day', phase.dayTemp, '°F'),
       targetCell('Temp night', phase.nightTemp, '°F'),
-      targetCell('RH target', phase.rh, '%'),
+      targetCell('Day RH', phase.rh, '%'),
+      targetCell('Night RH', phase.nightRH||phase.rh, '%'),
       targetCell('CO₂ target', phase.co2, ' ppm'),
       targetCell('VPD range', phase.vpdMin && phase.vpdMax ? phase.vpdMin+'–'+phase.vpdMax : '—', ' kPa'),
       targetCell('Light', phase.light, '%'),
