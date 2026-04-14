@@ -769,6 +769,48 @@ button { cursor: pointer; }
   </div>
 
 
+
+<!-- ROOM DETAIL MODAL -->
+<div class="modal-bg" id="room-detail-modal-bg" onclick="if(event.target===this)closeRoomModal()">
+  <div class="modal" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:0">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
+      <div>
+        <div id="rdm-room-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+        <div id="rdm-phase-label" style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)"></div>
+      </div>
+      <button onclick="closeRoomModal()" style="font-size:18px;background:none;border:none;color:var(--text3);padding:4px 8px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+
+      <!-- Live readings vs targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Live readings vs targets</div>
+      <div id="rdm-live-targets" style="display:grid;gap:6px;margin-bottom:16px"></div>
+
+      <!-- Environment targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Environment targets — <span id="rdm-phase-name" style="color:var(--green)"></span></div>
+      <div id="rdm-env-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"></div>
+
+      <!-- Irrigation / substrate targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Irrigation & substrate targets</div>
+      <div id="rdm-irrigation-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px"></div>
+      <div id="rdm-shot-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);margin-bottom:16px"></div>
+
+      <!-- EC Rainbow -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">EC Rainbow — feed EC</div>
+      <div id="rdm-ec-rainbow" style="margin-bottom:16px"></div>
+
+      <!-- Runoff targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Runoff targets</div>
+      <div id="rdm-runoff-targets" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px"></div>
+
+      <!-- Phase notes -->
+      <div id="rdm-additive-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r);display:none;margin-bottom:8px"></div>
+
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <h3 id="modal-title">Mark task complete</h3>
@@ -1159,6 +1201,8 @@ function renderRooms(){
 
     const card=document.createElement('div');
     card.className=`room-card ${stageClass}`;
+    card.style.cursor='pointer';
+    card.onclick=(e)=>{ if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')) openRoomModal(room.id); };
 
     // timeline
     let tlHTML='';
@@ -1282,8 +1326,8 @@ function renderRooms(){
           dp!==null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div><div class="env-num ${stale?'':(dpOk?'ok':'alert')}">${dp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row2=[
-          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
-          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
+          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
           gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row1Count=row1.split('env-cell').length-1;
@@ -3157,55 +3201,26 @@ function markChoreDone(id,freq){
   S(getChoreKey(freq)+'_'+id,{who,time:fmtTime(),date:dateToIso(TODAY)});
   renderChores();
 }
-function renderChores(){
-  const wrap=document.getElementById('chores-section');
-  if(!wrap)return;
-  const daily=CHORES.filter(c=>c.freq==='daily');
-  const weekly=CHORES.filter(c=>c.freq==='weekly');
-  const monthly=CHORES.filter(c=>c.freq==='monthly');
-  function choreRow(ch){
-    const log=getChoreLog(ch.id,ch.freq);
-    const done=!!log;
-    return`<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px">
-      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${done?'var(--green)':'var(--amber)'}"></div>
-      <div style="flex:1">
-        <span style="color:${done?'var(--text3)':'var(--text)'}${done?';text-decoration:line-through':''}">${ch.name}</span>
-        <span style="font-size:10px;color:var(--text3);margin-left:8px">${ch.cat}</span>
-        ${done?`<span style="font-size:10px;color:var(--text3);margin-left:6px">✓ ${log.who} ${log.time}</span>`:''}
-      </div>
-      ${!done?`<button onclick="markChoreDone('${ch.id}','${ch.freq}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Done</button>`:''}
-    </div>`;
-  }
-  function section(title,items){
-    const doneCount=items.filter(ch=>!!getChoreLog(ch.id,ch.freq)).length;
-    return`<div style="margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 12px;background:var(--bg3);border-radius:var(--r) var(--r) 0 0;display:flex;justify-content:space-between;border:1px solid var(--border)">
-        <span>${title}</span><span style="color:${doneCount===items.length?'var(--green)':'var(--text3)'}">${doneCount}/${items.length}</span>
-      </div>
-      <div class="card" style="padding:0;border-radius:0 0 var(--r) var(--r)">${items.map(choreRow).join('')}</div>
-    </div>`;
-  }
-  wrap.innerHTML=section('Daily',daily)+section('Weekly',weekly)+section('Monthly',monthly);
-}
-
 // ══════════════════════════════════════════════
 // MAXX OS v1.3 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
 const MAXX_PHASES=[
-  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0},
-  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:82,nightTemp:76,rh:75,ecMin:2.0,ecMax:2.1},
-  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:82,nightTemp:76,rh:73,ecMin:2.1,ecMax:2.3},
-  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:82,nightTemp:75,rh:70,ecMin:2.1,ecMax:2.3},
-  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:82,nightTemp:75,rh:68,ecMin:2.3,ecMax:2.5},
-  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:82,nightTemp:75,rh:66,ecMin:2.3,ecMax:2.5},
-  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:82,nightTemp:75,rh:64,ecMin:2.3,ecMax:2.5},
-  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:58,ecMin:2.6,ecMax:2.7},
-  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:56,ecMin:2.8,ecMax:2.9},
-  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:81,nightTemp:73,rh:55,ecMin:2.6,ecMax:2.7},
-  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5},
-  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1},
-  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1},
-  {id:'DK', name:'Dark / Flush End',start:64, end:65, light:0,  co2:400,  dayTemp:69,nightTemp:69,rh:50,ecMin:null,ecMax:null},
+  // vpd = target kPa | vwcMin/vwcMax = % substrate water content | subECMin/subECMax = substrate EC mS/cm
+  // drybackTarget = % drop from field capacity overnight | shotSize = ml/shot guidance
+  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0, vpdMin:0.8,vpdMax:1.1, vwcMin:65,vwcMax:80, subECMin:2.5,subECMax:3.5, dryback:5,  shotNote:'Small frequent shots. Build root zone. P1 20-30ml, P2 as needed.'},
+  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:82,nightTemp:76,rh:75,ecMin:2.0,ecMax:2.1, vpdMin:0.9,vpdMax:1.2, vwcMin:65,vwcMax:78, subECMin:2.5,subECMax:3.5, dryback:6,  shotNote:'Maintain moisture. 4-6 shots/day. Watch for stem stretch.'},
+  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:82,nightTemp:76,rh:73,ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.3, vwcMin:63,vwcMax:75, subECMin:2.8,subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
+  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:82,nightTemp:75,rh:70,ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.4, vwcMin:62,vwcMax:75, subECMin:3.0,subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Match irrigation to transpiration. 6-8 shots/day.'},
+  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:82,nightTemp:75,rh:68,ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.0,subECMax:4.2, dryback:9,  shotNote:'High transpiration phase. Runoff EC 3.0-4.5 target. VPD softness (0.80) acceptable.'},
+  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:82,nightTemp:75,rh:66,ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.2,subECMax:4.5, dryback:9,  shotNote:'Approach peak vegetative mass. Maintain runoff 15-20%.'},
+  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:82,nightTemp:75,rh:64,ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:58,vwcMax:72, subECMin:3.2,subECMax:4.5, dryback:10, shotNote:'Begin tightening dryback. Hard cutoff defol today at Day 28.'},
+  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:58,ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:55,vwcMax:70, subECMin:3.5,subECMax:4.8, dryback:10, shotNote:'Stacking begins. Push EC steadily. Supa Stiky starts Day 29.'},
+  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:56,ecMin:2.8,ecMax:2.9, vpdMin:1.2,vpdMax:1.6, vwcMin:53,vwcMax:68, subECMin:3.8,subECMax:5.2, dryback:11, shotNote:'Peak EC phase. Spray window closes Day 42. Monitor runoff EC closely.'},
+  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:81,nightTemp:73,rh:55,ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:52,vwcMax:67, subECMin:3.5,subECMax:5.0, dryback:11, shotNote:'Hold peak. Begin dialing back EC slightly. Round 2 defol window opens Day 42.'},
+  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:50,vwcMax:65, subECMin:3.0,subECMax:4.5, dryback:12, shotNote:'Begin EC fade. NO H2O2. Reduce shot frequency. Supa Stiky X1.'},
+  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1, vpdMin:1.0,vpdMax:1.4, vwcMin:48,vwcMax:62, subECMin:2.0,subECMax:3.5, dryback:13, shotNote:'Aggressive fade. Push dryback. Reduce shots to 3-4/day.'},
+  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1, vpdMin:0.9,vpdMax:1.3, vwcMin:45,vwcMax:60, subECMin:1.5,subECMax:2.5, dryback:15, shotNote:'Final fade. Pre-harvest defol Day 60-63. Minimal water — push dry.'},
+  {id:'DK', name:'Dark / Flush End',start:64, end:65, light:0,  co2:400,  dayTemp:69,nightTemp:69,rh:50,ecMin:null,ecMax:null, vpdMin:null,vpdMax:null, vwcMin:40,vwcMax:55, subECMin:null,subECMax:null, dryback:null, shotNote:'Harvest prep. No irrigation.'},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
@@ -4129,6 +4144,157 @@ async function handlePackagesUpload(input){
   }
 }
 
+
+// ══════════════════════════════════════════════
+// ROOM DETAIL MODAL
+// Click any room card to see full phase targets vs live data
+// ══════════════════════════════════════════════
+function openRoomModal(roomId){
+  const room = rooms.find(r => r.id === roomId);
+  if(!room) return;
+  const fd = flowerDay(room);
+  const phase = fd ? getPhaseForDay(fd) : null;
+  const ecr = fd ? getECRainbow(fd) : null;
+  const gl = getGrowlinkForRoom(room.name);
+  const additive = fd ? (ADDITIVES[fd] || null) : null;
+
+  // Header
+  document.getElementById('rdm-room-name').textContent = room.name + (fd ? ' — Day ' + fd + ' / ' + CYCLE : ' — Veg');
+  document.getElementById('rdm-phase-label').textContent = phase ? phase.name + ' · Day ' + fd : (fd ? 'Day ' + fd : 'Vegetative');
+  document.getElementById('rdm-phase-name').textContent = phase ? phase.name : '—';
+
+  // ── Live readings vs targets ──────────────────────
+  const liveEl = document.getElementById('rdm-live-targets');
+  if(gl && phase) {
+    const dp = (gl.temp && gl.humidity) ? (() => {
+      const tc=(gl.temp-32)*5/9, a=17.27, b=237.7;
+      const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
+      return ((b*alpha)/(a-alpha))*9/5+32;
+    })() : null;
+    const lst = gl.leafTemp || gl.temp;
+    const spread = (dp && lst) ? lst - dp : null;
+
+    function liveRow(label, live, targetLow, targetHigh, unit, decimals=1){
+      if(live === null || live === undefined) return '';
+      const v = parseFloat(live);
+      const inRange = (targetLow === null || v >= targetLow) && (targetHigh === null || v <= targetHigh);
+      const color = inRange ? 'var(--green)' : 'var(--red)';
+      const targetStr = targetLow !== null && targetHigh !== null ? targetLow+'–'+targetHigh+unit
+        : targetHigh !== null ? '≤'+targetHigh+unit
+        : targetLow !== null ? '≥'+targetLow+unit : '—';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${color}">
+        <span style="font-size:12px;color:var(--text2)">${label}</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color}">${v.toFixed(decimals)}${unit}</span>
+          <span style="font-size:10px;color:var(--text3)">target ${targetStr}</span>
+        </div>
+      </div>`;
+    }
+
+    const spreadRow = spread !== null ? (() => {
+      const color = spread <= 2 ? 'var(--red)' : spread <= 3 ? 'var(--amber)' : 'var(--green)';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${color}">
+        <span style="font-size:12px;color:var(--text2)">Dew pt spread (LST−Dew)</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color}">${spread.toFixed(1)}°F</span>
+          <span style="font-size:10px;color:var(--text3)">target ≥4°F · alert ≤2°F</span>
+        </div>
+      </div>`;
+    })() : '';
+
+    liveEl.innerHTML = [
+      liveRow('Temp', gl.temp, phase.dayTemp-4, phase.dayTemp+3, '°F'),
+      liveRow('RH', gl.humidity, phase.rh-7, phase.rh+7, '%'),
+      liveRow('CO₂', gl.co2, phase.co2-150, phase.co2+150, 'ppm', 0),
+      liveRow('VPD', gl.vpd, phase.vpdMin, phase.vpdMax, ' kPa', 2),
+      liveRow('VWC', gl.soilMoisture, phase.vwcMin, phase.vwcMax, '%'),
+      liveRow('EC (substrate)', gl.soilEC, phase.subECMin, phase.subECMax, ' mS', 2),
+      spreadRow,
+    ].filter(Boolean).join('');
+  } else if(!gl) {
+    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No Growlink data available for this room.</div>';
+  } else {
+    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No phase data — room may be in veg.</div>';
+  }
+
+  // ── Environment targets ───────────────────────
+  const envEl = document.getElementById('rdm-env-targets');
+  function targetCell(label, val, unit=''){
+    return `<div style="background:var(--bg3);border-radius:var(--r);padding:8px 10px">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
+      <div style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text)">${val !== null && val !== undefined ? val+unit : '—'}</div>
+    </div>`;
+  }
+  if(phase){
+    envEl.innerHTML = [
+      targetCell('Temp day', phase.dayTemp, '°F'),
+      targetCell('Temp night', phase.nightTemp, '°F'),
+      targetCell('RH target', phase.rh, '%'),
+      targetCell('CO₂ target', phase.co2, ' ppm'),
+      targetCell('VPD range', phase.vpdMin && phase.vpdMax ? phase.vpdMin+'–'+phase.vpdMax : '—', ' kPa'),
+      targetCell('Light', phase.light, '%'),
+    ].join('');
+  } else {
+    envEl.innerHTML = '<div style="font-size:12px;color:var(--text3);grid-column:1/-1">Vegetative — targets set in veg room config.</div>';
+  }
+
+  // ── Irrigation & substrate targets ───────────────
+  const irrEl = document.getElementById('rdm-irrigation-targets');
+  const shotEl = document.getElementById('rdm-shot-note');
+  if(phase){
+    irrEl.innerHTML = [
+      targetCell('VWC range', phase.vwcMin && phase.vwcMax ? phase.vwcMin+'–'+phase.vwcMax : '—', '%'),
+      targetCell('Substrate EC', phase.subECMin && phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '—', ' mS'),
+      targetCell('Overnight dryback', phase.dryback ? '~'+phase.dryback : '—', '%'),
+      targetCell('Runoff target', '15–20', '%'),
+    ].join('');
+    shotEl.textContent = phase.shotNote || '';
+    shotEl.style.display = phase.shotNote ? 'block' : 'none';
+  } else {
+    irrEl.innerHTML = '';
+    shotEl.style.display = 'none';
+  }
+
+  // ── EC Rainbow ────────────────────────────────
+  const ecrEl = document.getElementById('rdm-ec-rainbow');
+  if(ecr){
+    const pct = fd ? Math.min(100, Math.round(((fd - ecr.start + 1)/(ecr.end - ecr.start + 1))*100)) : 0;
+    ecrEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${ecr.color}">
+      <div style="width:12px;height:12px;border-radius:50%;background:${ecr.color};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${ecr.name} — EC ${ecr.ecMin}–${ecr.ecMax} mS/cm</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Days ${ecr.start}–${ecr.end} · ${pct}% through this band</div>
+        <div class="prog-track" style="margin-top:5px"><div class="prog-fill" style="width:${pct}%;background:${ecr.color}"></div></div>
+      </div>
+    </div>`;
+  } else {
+    ecrEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">—</div>';
+  }
+
+  // ── Runoff targets ────────────────────────────
+  document.getElementById('rdm-runoff-targets').innerHTML = [
+    targetCell('pH', '5.6–6.2', ''),
+    targetCell('EC runoff', phase ? phase.subECMin && phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '3.0–5.0' : '—', ' mS'),
+    targetCell('Volume', '15–20', '% of input'),
+  ].join('');
+
+  // ── Additive note ─────────────────────────────
+  const addEl = document.getElementById('rdm-additive-note');
+  if(additive && additive.name !== 'Base feed only'){
+    addEl.innerHTML = '🧪 <strong>Today&#39;s additive:</strong> ' + additive.name + ' · ' + additive.dose + (additive.tier2 ? ' · <span style="color:var(--amber)">Tier 2 only</span>' : '');
+    addEl.style.display = 'block';
+  } else {
+    addEl.style.display = 'none';
+  }
+
+  // Open modal
+  document.getElementById('room-detail-modal-bg').classList.add('open');
+}
+
+function closeRoomModal(){
+  document.getElementById('room-detail-modal-bg').classList.remove('open');
+}
+
 // INIT
 // ══════════════════════════════════════════════
 try { applyRolePerms(); } catch(e){ console.error('applyRolePerms:',e); }
@@ -4567,8 +4733,8 @@ function evaluateRoom(roomName, sensors, phaseId){
   check('temp',        sensors.temp,         g.temp,         'Temp',     '°F');
   check('rh',          sensors.humidity,      g.rh,           'RH',       '%');
   check('co2',         sensors.co2,           g.co2,          'CO₂',      'ppm');
-  check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
-  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
+  check('soilEC',      sensors.soilEC,        g.soilEC,       'EC',  'mS');
+  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'VWC', '%');
 
   // Dew point — spread-based model (boss's rules):
   // Only alert if dewpoint is within 2°F of leaf temp (LST)
