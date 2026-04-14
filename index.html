@@ -688,6 +688,7 @@ button { cursor: pointer; }
       <button class="nav-tab active" onclick="showPostTab('queue',this)" style="font-size:12px">Trim queue</button>
       <button class="nav-tab" onclick="showPostTab('weights',this)" style="font-size:12px">Log weights</button>
       <button class="nav-tab" onclick="showPostTab('preroll',this)" style="font-size:12px">Pre-roll priority</button>
+      <button class="nav-tab" id="postprod-packages-tab" onclick="showPostTab('packages',this)" style="font-size:12px">Packages</button>
     </div>
 
     <!-- TRIM QUEUE -->
@@ -712,109 +713,35 @@ button { cursor: pointer; }
 
     <!-- PRE-ROLL PRIORITY -->
     <div id="postsub-preroll" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:13px;color:var(--text2)">Sorted by THC % — highest first. Pull weights, build blends, finish when used.</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span id="preroll-sync-status" style="font-size:11px;color:var(--text3)"></span>
-          <button onclick="pullWeightLog()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Sync Weight Log</button>
-          <button onclick="openBlendModal()" class="btn-primary" style="font-size:12px;padding:6px 14px">+ New blend</button>
-        </div>
-      </div>
-      <!-- Blend notes -->
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Sorted by Purpl Pro THC % — highest first. Shows available small bud weight per strain.</div>
       <div style="background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r2);padding:12px;margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);margin-bottom:6px">Blend notes / upcoming combos</div>
-        <textarea id="preroll-notes" placeholder="e.g. KM3 + Apple Fritter blend coming — hold back 200g each. Next preroll run: Friday." style="width:100%;min-height:60px;font-size:12px;background:var(--amber-bg);border:1px solid var(--amber-dim);color:var(--text);border-radius:var(--r);padding:8px 10px;resize:vertical" oninput="S('wg_preroll_notes',this.value)"></textarea>
+        <textarea id="preroll-notes" placeholder="e.g. KM3 + Apple Fritter blend coming — hold back 200g each. Next preroll run: Friday. Prioritize anything >28% THC..." style="width:100%;min-height:70px;font-size:12px;background:var(--amber-bg);border:1px solid var(--amber-dim);color:var(--text);border-radius:var(--r);padding:8px 10px;resize:vertical" oninput="S('wg_preroll_notes',this.value)"></textarea>
       </div>
       <div id="preroll-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
     </div>
-  </div>
 
-  
-<!-- BLEND BUILDER MODAL -->
-<div class="modal-bg" id="blend-modal-bg" onclick="if(event.target===this)closeBlendModal()">
-  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-    <h3>Build a blend</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Select strains/batches to combine, enter how much from each. All weights must be entered and verified.</div>
-    <label>Blend name</label>
-    <input id="bm-name" placeholder="e.g. KM3 x Apple Fritter blend"/>
-    <div id="bm-components" style="display:grid;gap:8px;margin-top:12px"></div>
-    <button onclick="addBlendComponent()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;margin-top:8px">+ Add strain</button>
-    <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:var(--r)">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Combined total</div>
-      <div id="bm-total" style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text)">0g</div>
-    </div>
-    <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeBlendModal()">Cancel</button>
-      <button class="btn-primary" onclick="confirmBlend()">Save blend</button>
-    </div>
-  </div>
-</div>
-
-<!-- FINAL WEIGHT MODAL (dual verification) -->
-<div class="modal-bg" id="final-weight-modal-bg" onclick="if(event.target===this)closeFinalWeightModal()">
-  <div class="modal" style="max-width:400px">
-    <h3 id="fwm-title">Enter final remaining weight</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px" id="fwm-desc"></div>
-    <label>Final weight remaining after pulls (g)</label>
-    <input id="fwm-weight" type="number" min="0" step="0.1" placeholder="0.0"/>
-    <div id="fwm-pending" style="display:none;margin-top:10px;padding:10px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r)">
-      <div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:4px">Pending verification</div>
-      <div style="font-size:12px;color:var(--text2)" id="fwm-pending-info"></div>
-      <button onclick="approveFinalWeight()" style="margin-top:8px;font-size:12px;padding:5px 14px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">Approve ✓</button>
-    </div>
-    <div class="modal-btns" id="fwm-btns">
-      <button class="btn-cancel" onclick="closeFinalWeightModal()">Cancel</button>
-      <button class="btn-primary" onclick="submitFinalWeight()">Submit for verification</button>
-    </div>
-  </div>
-</div>
-
-<!-- FINISH MODAL (dual verification) -->
-<div class="modal-bg" id="finish-modal-bg" onclick="if(event.target===this)closeFinishModal()">
-  <div class="modal" style="max-width:400px">
-    <h3 id="finish-modal-title">Mark as finished</h3>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px" id="finish-modal-desc"></div>
-    <div id="finish-pending-section" style="display:none;padding:10px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r)">
-      <div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:4px">Pending verification</div>
-      <div style="font-size:12px;color:var(--text2)" id="finish-pending-info"></div>
-      <button onclick="approveFinish()" style="margin-top:8px;font-size:12px;padding:5px 14px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">Approve — all weight used</button>
-    </div>
-    <div class="modal-btns" id="finish-modal-btns">
-      <button class="btn-cancel" onclick="closeFinishModal()">Cancel</button>
-      <button class="btn-primary" onclick="submitFinish()">Mark as finished</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ROOM DETAIL MODAL -->
-<div class="modal-bg" id="room-detail-modal-bg" onclick="if(event.target===this)closeRoomModal()">
-  <div class="modal" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:0">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
-      <div>
-        <div id="rdm-room-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
-        <div id="rdm-phase-label" style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)"></div>
+    <!-- PACKAGES TAB — lead only -->
+    <div id="postsub-packages" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;color:var(--text2)">Approved weight logs archived here after 12 hours. Upload METRC package exports to link package numbers.</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">Leads can edit any entry — changes reflect in Pre-roll priority ranking.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label style="display:inline-block;padding:6px 14px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
+            📁 Upload METRC packages
+            <input type="file" accept=".xlsx,.csv" style="display:none" onchange="handlePackagesUpload(this)"/>
+          </label>
+          <span id="packages-upload-status" style="font-size:11px;color:var(--text3)"></span>
+        </div>
       </div>
-      <button onclick="closeRoomModal()" style="font-size:18px;background:none;border:none;color:var(--text3);padding:4px 8px;cursor:pointer">✕</button>
-    </div>
-    <div style="padding:16px 20px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Live readings vs targets</div>
-      <div id="rdm-live-targets" style="display:grid;gap:6px;margin-bottom:16px"></div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Environment targets — <span id="rdm-phase-name" style="color:var(--green)"></span></div>
-      <div id="rdm-env-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"></div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Irrigation & substrate targets</div>
-      <div id="rdm-irrigation-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px"></div>
-      <div id="rdm-shot-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);margin-bottom:16px"></div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">EC Rainbow — feed EC</div>
-      <div id="rdm-ec-rainbow" style="margin-bottom:16px"></div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Runoff targets</div>
-      <div id="rdm-runoff-targets" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px"></div>
-      <div id="rdm-additive-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r);display:none;margin-bottom:8px"></div>
+      <div id="packages-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px"></div>
+      <div id="packages-list" style="display:grid;gap:8px"></div>
     </div>
   </div>
-</div>
 
-<!-- ADD TO TRIM QUEUE MODAL -->
+  <!-- ADD TO TRIM QUEUE MODAL -->
   <div class="modal-bg" id="trim-modal-bg">
     <div class="modal">
       <h3 id="trim-modal-title">Add to trim queue</h3>
@@ -841,6 +768,48 @@ button { cursor: pointer; }
     </div>
   </div>
 
+
+
+<!-- ROOM DETAIL MODAL -->
+<div class="modal-bg" id="room-detail-modal-bg" onclick="if(event.target===this)closeRoomModal()">
+  <div class="modal" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:0">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
+      <div>
+        <div id="rdm-room-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+        <div id="rdm-phase-label" style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)"></div>
+      </div>
+      <button onclick="closeRoomModal()" style="font-size:18px;background:none;border:none;color:var(--text3);padding:4px 8px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+
+      <!-- Live readings vs targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Live readings vs targets</div>
+      <div id="rdm-live-targets" style="display:grid;gap:6px;margin-bottom:16px"></div>
+
+      <!-- Environment targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Environment targets — <span id="rdm-phase-name" style="color:var(--green)"></span></div>
+      <div id="rdm-env-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"></div>
+
+      <!-- Irrigation / substrate targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Irrigation & substrate targets</div>
+      <div id="rdm-irrigation-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px"></div>
+      <div id="rdm-shot-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);margin-bottom:16px"></div>
+
+      <!-- EC Rainbow -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">EC Rainbow — feed EC</div>
+      <div id="rdm-ec-rainbow" style="margin-bottom:16px"></div>
+
+      <!-- Runoff targets -->
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Runoff targets</div>
+      <div id="rdm-runoff-targets" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px"></div>
+
+      <!-- Phase notes -->
+      <div id="rdm-additive-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r);display:none;margin-bottom:8px"></div>
+
+    </div>
+  </div>
+</div>
 
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
@@ -871,18 +840,24 @@ button { cursor: pointer; }
     <div id="metrc-tab-nav" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)"></div>
     <!-- SUBTAB CONTENT -->
     <div id="metrc-sub-mothers" style="display:none">
-      <div class="row mb12" style="margin-bottom:12px">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="metrc-mother-search" type="text" placeholder="Search strain…" style="flex:1;max-width:280px;font-size:13px" oninput="renderMetrcMothers()"/>
         <span id="metrc-mother-count" style="font-size:12px;color:var(--text3)"></span>
       </div>
       <div id="metrc-mothers-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-clones" style="display:none">
-      <div class="row mb12" style="margin-bottom:12px">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="metrc-clone-search" type="text" placeholder="Search strain…" style="flex:1;max-width:280px;font-size:13px" oninput="renderMetrcClones()"/>
         <span id="metrc-clone-count" style="font-size:12px;color:var(--text3)"></span>
       </div>
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-strains" style="display:none">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="metrc-strain-search" type="text" placeholder="Search strain…" style="flex:1;max-width:280px;font-size:13px" oninput="renderMetrcStrains()"/>
+        <span id="metrc-strain-count" style="font-size:12px;color:var(--text3)"></span>
+      </div>
       <div id="metrc-strains-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-harvests" style="display:none">
@@ -1010,7 +985,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.5'; // weight log pull, blend builder, finish verification, room modal, v1.4 phases
+const APP_VERSION = '3.4'; // preroll from archive, smalls/trim split, dedupe fix
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -1113,7 +1088,7 @@ function getStage(room){
   if(fd===null)return'veg';
   if(fd<1)return'veg';
   if(fd>=1&&fd<=FLOWER_DAYS)return fd>=50?'late':'flower';
-  if(fd>FLOWER_DAYS&&fd<CYCLE)return'dark';
+  if(fd>FLOWER_DAYS&&fd<=67)return'harvest';
   return'harvest';
 }
 
@@ -1228,7 +1203,7 @@ function renderRooms(){
 
     let stageClass='stage-'+stage;
     let badgeClass='badge-'+stage;
-    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='dark'?'Dark period':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
+    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='dark'?'Harvest prep':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
 
     const card=document.createElement('div');
     card.className=`room-card ${stageClass}`;
@@ -1272,13 +1247,13 @@ function renderRooms(){
 
     // Maxx OS phase strip
     let phaseHTML='';
-    if(fd!==null&&fd>=1&&fd<=65){
+    if(fd!==null&&fd>=1&&fd<=67){
       const phase=getPhaseForDay(fd);
       const ecr=getECRainbow(fd);
       if(phase){
         phaseHTML=`<div style="display:flex;align-items:center;gap:10px;margin:6px 0;padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:10px;flex-wrap:wrap">
           <span style="font-family:var(--mono);font-weight:700;color:var(--text2)">${phase.name}</span>
-          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%</span>
+          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%/${phase.nightRH||phase.rh}%</span>
           ${ecr?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color}"></span><span style="color:var(--text3)">${ecr.name} EC ${ecr.ecMin}–${ecr.ecMax}</span></span>`:''}
         </div>`;
       }
@@ -1311,7 +1286,7 @@ function renderRooms(){
       const dotCls=additive.tier2?'dot-amber':'dot-gray';
       taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${additive.name}<span class="sub">${additive.dose}${additive.tier2?' · Tier 2':''}</span></div></div>`);
     }
-    if(stage==='dark') taskList.push(`<div class="task-item-sm"><span class="task-dot dot-gray"></span><div class="task-text" style="color:var(--text3)">Dark period — no entry</div></div>`);
+    // No dark period display — removed per facility update
     if(stage==='harvest'&&(roomView==='full')) taskList.push(`<div class="task-item-sm"><span class="task-dot dot-red"></span><div class="task-text"><span class="alert-txt">Harvest day — authorize entry in #harvest</span></div></div>`);
     if(taskList.length) taskHTML=`<div class="task-strip"><div class="task-strip-head">Today</div>${taskList.join('')}</div>`;
 
@@ -1351,6 +1326,7 @@ function renderRooms(){
         // Spread = LST - dew point. Use leaf temp if available, else room temp.
         const lst = gl.leafTemp || gl.temp;
         const spread = (dp !== null && lst) ? lst - dp : null;
+        // Color: ≤2°F = red (danger), ≤3°F = amber (warning), >3°F = green (safe)
         const spreadColor = stale ? '' : spread === null ? '' : spread <= 2 ? 'alert' : spread <= 3 ? 'warn' : 'ok';
         const row1=[
           gl.temp!==undefined?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':(tempOk?'ok':'warn')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
@@ -1364,8 +1340,8 @@ function renderRooms(){
           </div>`:'',
         ].filter(Boolean).join('');
         const row2=[
-          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
-          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
+          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
           gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row1Count=row1.split('env-cell').length-1;
@@ -1602,8 +1578,14 @@ function logCloneCut(clearStrain=false){
       // Verify strain matches
       if(match['Strain']&&match['Strain'].toLowerCase()!==strain.toLowerCase()){
         const hint=document.getElementById('ce-mother-hint');
-        if(hint) hint.style.color='var(--amber)';
-        if(hint) hint.textContent='⚠ Tag is '+match['Strain']+' not '+strain;
+        if(hint){
+          hint.style.color='var(--red)';
+          hint.style.fontWeight='700';
+          hint.style.background='var(--red-bg)';
+          hint.style.padding='3px 6px';
+          hint.style.borderRadius='var(--r)';
+          hint.textContent='⚠ Saved with mismatch — tag …'+motherTag+' is '+match['Strain']+', logged as '+strain;
+        }
       }
     } else {
       const hint=document.getElementById('ce-mother-hint');
@@ -1963,8 +1945,8 @@ function clearTodayLog(){todayLog=[];S('wg_log_'+dateToIso(TODAY),todayLog);rend
 function renderAdditiveTable(){
   const tbody=document.getElementById('additive-tbody');
   tbody.innerHTML='';
-  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Dark period'};
-  for(let d=1;d<=CYCLE;d++){
+  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Harvest prep'};
+  for(let d=1;d<=67;d++){
     const ad=ADDITIVES[d]||null;
     const fd=rooms.map(r=>flowerDay(r)).find(fd=>fd===d);
     const isToday=rooms.some(r=>flowerDay(r)===d);
@@ -2349,7 +2331,7 @@ const DEFAULT_TEAM=[
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
   // Preserve room config and settings, wipe everything else
-  const _keepKeys = ['wg_rooms_v2','wg_webhooks'];
+  const _keepKeys = ['wg_rooms_v2','wg_webhooks','wg_packages','wg_metrc_packages','wg_preroll_notes','wg_supplies','wg_session','wg_gs_url'];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
   localStorage.clear();
@@ -2553,8 +2535,7 @@ function finishLogin(member){
   setRole(member.role);
   const roleSelect=document.getElementById('role-select');
   roleSelect.innerHTML=`
-    <span style="font-size:12px;font-weight:600;color:var(--text);margin-right:4px">${member.name}</span>
-    <span style="font-size:11px;color:var(--text3);margin-right:10px">${ROLE_LABELS[member.role]||member.role}</span>
+    <span style="font-size:12px;font-weight:600;color:var(--text);margin-right:10px">${member.name}</span>
     <button onclick="switchUser()" class="role-btn" style="border-color:var(--teal);color:var(--teal)">Switch user</button>
   `;
   document.getElementById('topbar-date').textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
@@ -2867,8 +2848,9 @@ function renderWeightCards(){
     const card=document.createElement('div');
     card.className='card';
     card.style.borderLeft=`3px solid ${status==='approved'?'var(--green)':status==='pending'?'var(--amber)':'var(--purple)'}`;
-    const statusBadge=status==='approved'?`<span class="tag tag-green">Approved ✓</span>`:status==='pending'?`<span class="tag tag-amber">Pending verification</span>`:`<span class="tag tag-gray">Entry</span>`;
-    const dis=status!=='entry'?'disabled':'';
+    const statusBadge=status==='approved'?`<span class="tag tag-green">Approved ✓</span>${currentRole==='lead'?'<span style="font-size:10px;color:var(--text3);margin-left:6px">· Lead can edit</span>':''}`:status==='pending'?`<span class="tag tag-amber">Pending verification</span>`:`<span class="tag tag-gray">Entry</span>`;
+    // Leads can always re-edit, others locked after submit
+    const dis=(status!=='entry'&&currentRole!=='lead')?'disabled':'';
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div>
@@ -2878,12 +2860,16 @@ function renderWeightCards(){
       </div>
       <div style="display:grid;gap:8px">
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Bigs total (g)</label><input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls + trim total (g)</label><input type="number" min="0" step="0.1" value="${w.smallsAndTrim||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','smallsAndTrim',this.value)"/></div>
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls only (g) — pre-roll stock</label><input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls (g) — pre-roll stock</label><input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeightAndCalc('${item.id}','smallBuds',this.value)"/></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Trim (g)</label><input type="number" min="0" step="0.1" value="${w.trimOnly||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeightAndCalc('${item.id}','trimOnly',this.value)"/></div>
+        <div style="background:var(--bg3);border-radius:var(--r);padding:6px 10px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Smalls + trim combined (auto)</div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)" id="combined-${item.id}">${((parseFloat(w.smallBuds)||0)+(parseFloat(w.trimOnly)||0)||w.smallsAndTrim||0)}g</div>
+        </div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Moisture %</label><input type="number" min="0" max="100" step="0.1" value="${w.moisture||''}" placeholder="e.g. 11.2" style="width:100%" ${dis} onchange="saveWeight('${item.id}','moisture',this.value)"/></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label><input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" ${dis} onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
       </div>
-      ${(w.bigBuds||w.smallBuds)?`<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px">Bigs: <strong>${w.bigBuds||0}g</strong> · Smalls+trim: <strong>${w.smallsAndTrim||0}g</strong>${w.purplTHC?` · THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong>`:''}</div>`:''}
+      ${(w.bigBuds||w.smallBuds||w.trimOnly)?`<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px">Bigs: <strong>${w.bigBuds||0}g</strong> · Smalls: <strong>${w.smallBuds||0}g</strong> · Trim: <strong>${w.trimOnly||0}g</strong> · Combined: <strong>${w.smallsAndTrim||(parseFloat(w.smallBuds||0)+parseFloat(w.trimOnly||0))||0}g</strong>${w.purplTHC?` · THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong>`:''}</div>`:''}
       ${enteredBy?`<div style="font-size:11px;color:var(--text3);margin-top:6px">Entered by: ${enteredBy}</div>`:''}
       ${approvedBy?`<div style="font-size:11px;color:var(--green);margin-top:2px">Approved by: ${approvedBy}</div>`:''}
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
@@ -2904,6 +2890,86 @@ function saveWeight(itemId,field,value){
   renderTrimQueue();
 }
 
+function saveWeightAndCalc(itemId,field,value){
+  if(!trimWeights[itemId]) trimWeights[itemId]={};
+  trimWeights[itemId][field]=value?parseFloat(value):null;
+  // Auto-calculate smallsAndTrim = smallBuds + trimOnly
+  const smalls=parseFloat(trimWeights[itemId].smallBuds)||0;
+  const trim=parseFloat(trimWeights[itemId].trimOnly)||0;
+  if(smalls||trim) trimWeights[itemId].smallsAndTrim=smalls+trim;
+  S('wg_trim_weights',trimWeights);
+  // Update combined display without full re-render
+  const el=document.getElementById('combined-'+itemId);
+  if(el) el.textContent=(smalls+trim).toFixed(1)+'g';
+  renderTrimQueue();
+}
+
+function renderPrerollPriority(){
+  const list=document.getElementById('preroll-list');
+  if(!list)return;
+  trimWeights=L('wg_trim_weights',{});
+  const archived=L('wg_packages',[]);
+
+  // Build combined weight lookup: live trimWeights + archived packages
+  // trimWeights wins if both exist (more current)
+  const allWeights={};
+  archived.forEach(p=>{ allWeights[p.id]=p; });
+  Object.entries(trimWeights).forEach(([id,w])=>{ allWeights[id]=w; });
+
+  // Build combined item list: trimQueue + archived packages not already in trimQueue
+  const queueIds=new Set(trimQueue.map(q=>q.id));
+  const archivedItems=archived
+    .filter(p=>!queueIds.has(p.id))
+    .map(p=>({id:p.id,strain:p.strain,harvestBatch:p.harvestBatch,harvestDate:p.harvestDate,roomId:p.roomId||'',w:p}));
+  const allItems=[...trimQueue.map(item=>({...item,w:allWeights[item.id]||{}})),...archivedItems];
+
+  const strains=allItems
+    .filter(item=>item.w.purplTHC)
+    .sort((a,b)=>parseFloat(b.w.purplTHC)-parseFloat(a.w.purplTHC));
+
+  if(!strains.length){
+    list.innerHTML=`<div class="empty-state">No Purpl Pro results entered yet. Add test results in the Log Weights tab.</div>`;
+    return;
+  }
+
+  list.innerHTML=strains.map((item,i)=>{
+    const w=item.w;
+    const smallBuds=w.smallBuds?parseFloat(w.smallBuds):null;
+    const rank=i+1;
+    const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
+    return`<div class="card" style="border-left:3px solid ${rankColor}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:28px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:36px">${rank}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
+            ${w.packageTag?`<span style="font-family:var(--mono);font-size:11px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text3)">Pkg …${String(w.packageTag).slice(-4)}</span>`:''}
+            ${currentRole==='lead'?`<input type="text" placeholder="Pkg #" maxlength="30" value="${w.packageTag||''}" style="font-size:11px;padding:2px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:110px;font-family:var(--mono)" onchange="saveWeight('${item.id}','packageTag',this.value);renderPrerollPriority()" onclick="event.stopPropagation()"/>`:``}
+          </div>
+          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${parseFloat(w.purplTHC).toFixed(1)}%</div>
+            <div style="font-size:10px;color:var(--text3)">THC</div>
+          </div>
+          ${w.purplTotal?`<div style="text-align:center">
+            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${parseFloat(w.purplTotal).toFixed(1)}%</div>
+            <div style="font-size:10px;color:var(--text3)">Total cannabinoids</div>
+          </div>`:''}
+          <div style="text-align:center">
+            <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${smallBuds!==null?smallBuds.toFixed(1)+'g':'—'}</div>
+            <div style="font-size:10px;color:var(--text3)">Smalls (pre-roll)</div>
+          </div>
+          ${w.trimOnly?`<div style="text-align:center">
+            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${parseFloat(w.trimOnly).toFixed(1)}g</div>
+            <div style="font-size:10px;color:var(--text3)">Trim</div>
+          </div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 function showPostTab(tab,el){
   document.querySelectorAll('#page-postprod .nav-tab').forEach(b=>b.classList.remove('active'));
@@ -2911,16 +2977,22 @@ function showPostTab(tab,el){
   document.getElementById('postsub-queue').style.display=tab==='queue'?'block':'none';
   document.getElementById('postsub-weights').style.display=tab==='weights'?'block':'none';
   document.getElementById('postsub-preroll').style.display=tab==='preroll'?'block':'none';
+  const pkgEl=document.getElementById('postsub-packages');
+  if(pkgEl) pkgEl.style.display=tab==='packages'?'block':'none';
   if(tab==='queue'){
-    // Show add button only for leads
     const addBtn=document.getElementById('add-trim-btn');
     if(addBtn) addBtn.style.display=currentRole==='lead'?'inline-flex':'none';
     renderTrimQueue();
     const lbl=document.getElementById('queue-last-refresh');
     if(lbl) lbl.textContent='Last refreshed: '+fmtTime();
   }
-  if(tab==='weights') renderWeightCards();
-  if(tab==='preroll') renderPrerollPriority();
+  if(tab==='weights'){archiveApprovedWeights();renderWeightCards();}
+  if(tab==='preroll'){
+    renderPrerollPriority();
+    const notesEl=document.getElementById('preroll-notes');
+    if(notesEl) notesEl.value=L('wg_preroll_notes','')||'';
+  }
+  if(tab==='packages') renderPackages();
 }
 
 
@@ -2943,7 +3015,13 @@ function showPage(page){
   if(page==='supplies'){renderSupplies();}
   if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
-  if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});}
+  if(page==='postprod'){
+    const pkgTab=document.getElementById('postprod-packages-tab');
+    if(pkgTab) pkgTab.style.display=currentRole==='lead'?'':'none';
+    archiveApprovedWeights();
+    pullMetrcFromCloud(true);
+    pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});
+  }
 }
 
 
@@ -3117,6 +3195,7 @@ function approveWeight(itemId){
   if(loggedInMember.name===w.enteredBy){alert('A different employee must approve these weights.');return;}
   trimWeights[itemId].status='approved';
   trimWeights[itemId].approvedBy=loggedInMember.name;
+  trimWeights[itemId].approvedAt=new Date().toISOString(); // start 12h archive clock
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
   const item=trimQueue.find(i=>i.id===itemId);
@@ -3178,12 +3257,12 @@ function markChoreDone(id,freq){
   S(getChoreKey(freq)+'_'+id,{who,time:fmtTime(),date:dateToIso(TODAY)});
   renderChores();
 }
-
 // ══════════════════════════════════════════════
 // MAXX OS v1.3 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
 const MAXX_PHASES=[
-  // Maxx OS v1.4 | nightRH added | X3 replaces DK | vpdMin/vpdMax | vwcMin/vwcMax | subECMin/subECMax | dryback | shotNote
+  // Maxx OS v1.4 — dayTemp/nightTemp/rh=day RH/nightRH all from updated chart
+  // vpd=kPa range | vwcMin/vwcMax=% | subECMin/subECMax=mS/cm | dryback=% overnight
   {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:78, nightTemp:76, rh:78, nightRH:77, ecMin:1.9,ecMax:2.0, vpdMin:0.8,vpdMax:1.1, vwcMin:65,vwcMax:80, subECMin:2.5,subECMax:3.5, dryback:5,  shotNote:'Small frequent shots. Build root zone. P1 20-30ml, P2 as needed.'},
   {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:80, nightTemp:74, rh:75, nightRH:74, ecMin:2.0,ecMax:2.1, vpdMin:0.9,vpdMax:1.2, vwcMin:65,vwcMax:78, subECMin:2.5,subECMax:3.5, dryback:6,  shotNote:'Maintain moisture. 4-6 shots/day. Watch for stem stretch.'},
   {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:80, nightTemp:74, rh:73, nightRH:73, ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.3, vwcMin:63,vwcMax:75, subECMin:2.8,subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
@@ -3409,7 +3488,9 @@ function syncHarvestsToTrimQueue(rows){
     const dateFromBatch = batchDate ? dateToIso(batchDate) : '';
     const date = rawDate || dateFromBatch;
     if(!batch) return;
+    // Dedupe by batch name OR by strain name (prevents manual+METRC doubles)
     if(trimQueue.find(q=>q.harvestBatch===batch)) return;
+    if(trimQueue.find(q=>q.strain&&batch&&q.strain.toLowerCase()===batch.toLowerCase()&&q.fromMetrc)) return;
     const item = {
       id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
       strain: batch,
@@ -3492,7 +3573,22 @@ function showMetrcTab(tab,el){
 }
 
 function renderCurrentMetrcTab(){
-  buildMetrcTabNav();
+  // Re-render active tab content without resetting tab selection
+  const activeBtn = document.querySelector('#metrc-tab-nav .nav-tab.active');
+  if(activeBtn){
+    // Find which tab is active and re-render it
+    const activeTab = ['mothers','clones','strains','harvests'].find(t=>{
+      const el=document.getElementById('metrc-sub-'+t);
+      return el&&el.style.display!=='none';
+    });
+    if(activeTab==='mothers') renderMetrcMothers();
+    else if(activeTab==='clones') renderMetrcClones();
+    else if(activeTab==='strains') renderMetrcStrains();
+    else if(activeTab==='harvests') renderMetrcHarvests();
+    else buildMetrcTabNav(); // fallback first load only
+  } else {
+    buildMetrcTabNav(); // first time — no tab selected yet
+  }
 }
 
 function renderMetrcMothers(){
@@ -3500,9 +3596,11 @@ function renderMetrcMothers(){
   const countEl=document.getElementById('metrc-mother-count');
   const rows=metrcData.mother;
   if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Mother Plants export to see data here.</div>';if(countEl)countEl.textContent='';return;}
+  const search=(document.getElementById('metrc-mother-search')?.value||'').toLowerCase().trim();
   const byStrain={};
   rows.forEach(r=>{
     const strain=r['Strain']||r['StrainName']||r['Strain Name']||'—';
+    if(search&&!strain.toLowerCase().includes(search))return;
     if(!byStrain[strain])byStrain[strain]={count:0,locations:{},cloned:0};
     byStrain[strain].count++;
     const loc=r['Location']||r['LocationName']||'Unknown';
@@ -3511,8 +3609,8 @@ function renderMetrcMothers(){
   });
   const clonesByStrain={};
   metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
-  const strains=Object.keys(byStrain).sort();
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers';
+  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers'+(search?' (filtered)':'');
   if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains found.</div>';return;}
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
@@ -3534,18 +3632,20 @@ function renderMetrcClones(){
   const countEl=document.getElementById('metrc-clone-count');
   const rows=metrcData.immature;
   if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Immature/Clones export.</div>';if(countEl)countEl.textContent='';return;}
+  const search=(document.getElementById('metrc-clone-search')?.value||'').toLowerCase().trim();
   const byStrain={};
   rows.forEach(r=>{
     const strain=r['Strain']||r['StrainName']||r['Strain Name']||'—';
+    if(search&&!strain.toLowerCase().includes(search))return;
     if(!byStrain[strain])byStrain[strain]={batches:[],totalPlants:0};
     byStrain[strain].batches.push(r);
     byStrain[strain].totalPlants+=parseInt(r['Plants']||0)||0;
   });
   const mothersByStrain={};
   metrcData.mother.forEach(r=>{const s=r['Strain']||r['StrainName']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
-  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].totalPlants-byStrain[a].totalPlants);
+  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
   const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones';
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones'+(search?' (filtered)':'');
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
     const mc=mothersByStrain[strain]||0;
@@ -3569,9 +3669,11 @@ function renderMetrcStrains(){
     grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative and Flowering exports to see strain data.</div>';
     return;
   }
+  const search=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase().trim();
   const byStrain={};
   vegRows.forEach(r=>{
     const s=r['Strain']||r['StrainName']||r['Strain Name']||'Unknown';
+    if(search&&!s.toLowerCase().includes(search))return;
     const loc=r['Location']||r['LocationName']||r['Location Name']||'Unknown';
     if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
     byStrain[s].veg++;
@@ -3579,6 +3681,7 @@ function renderMetrcStrains(){
   });
   flowerRows.forEach(r=>{
     const s=r['Strain']||r['StrainName']||r['Strain Name']||'Unknown';
+    if(search&&!s.toLowerCase().includes(search))return;
     const loc=r['Location']||r['LocationName']||r['Location Name']||'Unknown';
     if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
     byStrain[s].flower++;
@@ -3586,7 +3689,9 @@ function renderMetrcStrains(){
   });
   const totalVeg=vegRows.length;
   const totalFlower=flowerRows.length;
-  const strains=Object.keys(byStrain).sort((a,b)=>(byStrain[b].veg+byStrain[b].flower)-(byStrain[a].veg+byStrain[a].flower)||a.localeCompare(b));
+  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
+  const countEl2=document.getElementById('metrc-strain-count');
+  if(countEl2) countEl2.textContent=strains.length+' strains'+(search?' (filtered)':'');
   const summary='<div style="grid-column:1/-1;display:flex;gap:24px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);margin-bottom:8px;flex-wrap:wrap">'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+totalVeg+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Veg plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].veg>0).length+' strains</div></div></div>'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">'+totalFlower+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Flowering plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].flower>0).length+' strains</div></div></div>'
@@ -3742,18 +3847,46 @@ function getMetrcStrainSuggestions(query){
 function onMotherTagInput(val) {
   const hint = document.getElementById('ce-mother-hint');
   if (!hint) return;
-  if (!val || val.length < 4) { hint.textContent = ''; return; }
+  if (!val || val.length < 4) { hint.textContent = ''; hint.style.cssText=''; return; }
+
   const match = metrcData.mother.find(r => (r['Tag']||'').endsWith(val));
+  const strainInput = document.getElementById('ce-strain');
+  const enteredStrain = (strainInput?.value||'').trim().toLowerCase();
+
   if (match) {
-    const loc = (r['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
-    hint.style.color = 'var(--green)';
-    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'');
-    // Auto-fill strain if empty
-    const strainInput = document.getElementById('ce-strain');
-    if (strainInput && !strainInput.value) strainInput.value = match['Strain']||'';
+    const matchStrain = match['Strain']||'';
+    const matchLoc = (match['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
+    const strainMatch = !enteredStrain || matchStrain.toLowerCase() === enteredStrain;
+
+    if (strainMatch) {
+      // Tag found and strain matches (or no strain entered yet)
+      hint.style.color = 'var(--green)';
+      hint.style.fontWeight = '600';
+      hint.style.background = '';
+      hint.textContent = '✓ ' + matchStrain + ' · ' + matchLoc;
+      // Auto-fill strain if empty
+      if (strainInput && !strainInput.value) strainInput.value = matchStrain;
+    } else {
+      // Tag found BUT strain is WRONG — flag it clearly
+      hint.style.color = 'var(--red)';
+      hint.style.fontWeight = '700';
+      hint.style.background = 'var(--red-bg)';
+      hint.style.padding = '3px 6px';
+      hint.style.borderRadius = 'var(--r)';
+      hint.textContent = '⚠ Tag …' + val + ' is ' + matchStrain + ' — not ' + (strainInput?.value||'entered strain');
+    }
+  } else if (metrcData.mother.length) {
+    // No tag match at all in mother data
+    hint.style.color = 'var(--amber)';
+    hint.style.fontWeight = '600';
+    hint.style.background = '';
+    hint.textContent = '⚠ Tag …' + val + ' not found in mother plants';
   } else {
+    // No mother data loaded
     hint.style.color = 'var(--text3)';
-    hint.textContent = val.length === 4 ? 'Tag not found' : '';
+    hint.style.fontWeight = '';
+    hint.style.background = '';
+    hint.textContent = 'No mother data loaded — upload in Settings → METRC';
   }
 }
 function showStrainAutocomplete(val){
@@ -3935,428 +4068,196 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 
 // ══════════════════════════════════════════════
-// WEIGHT LOG PULL + PRE-ROLL PRIORITY ENGINE
+// PACKAGES — weight archive + METRC package data
 // ══════════════════════════════════════════════
-let weightLogData = L('wg_weight_log', []);    // rows from Weight_Log sheet
-let prerollBlends = L('wg_preroll_blends', []); // saved blends
-let prerollFinished = L('wg_preroll_finished', {}); // {id: {finishedAt, approvedBy, finalWeight}}
-let prerollFinalWeights = L('wg_preroll_final_weights', {}); // {id: {weight, enteredBy, approvedBy, approvedAt}}
-let _blendModalComponents = []; // temp state for blend builder
+let packagesData = L('wg_packages', []);
+let metrcPackages = L('wg_metrc_packages', []);
 
-// Pull Weight_Log sheet data back into the dashboard
-async function pullWeightLog(silent=false){
-  if(!gsUrl) return;
-  const statusEl = document.getElementById('preroll-sync-status');
-  if(statusEl) statusEl.textContent = 'Syncing…';
-  try{
-    const res = await fetch(gsUrl + '?action=getSheet&sheet=Weight_Log&t=' + Date.now());
-    const json = await res.json();
-    if(!json.ok || !json.rows) throw new Error(json.error||'No data');
-    // Columns: [0]=Timestamp [1]=Strain/Batch [2]=HarvestDate [3]=Bigs [4]=Smalls+Trim [5]=Smalls [6]=Trim [7]=THC% [8]=EnteredBy [9]=ApprovedBy [10]=ApprovedAt
-    weightLogData = json.rows
-      .filter(row => row[1] && row[9]) // must have strain + approved by
-      .map(row => ({
-        id: 'wl_' + (row[1]||'').replace(/[^a-z0-9]/gi,'_') + '_' + (row[2]||'').replace(/[^0-9]/g,''),
-        strain: row[1]||'',
-        harvestDate: row[2]||'',
-        bigBuds: parseFloat(row[3])||0,
-        smallsAndTrim: parseFloat(row[4])||0,
-        smallBuds: parseFloat(row[5])||0,
-        trimOnly: parseFloat(row[6])||0,
-        purplTHC: parseFloat(row[7])||null,
-        enteredBy: row[8]||'',
-        approvedBy: row[9]||'',
-        approvedAt: row[10]||row[0]||'',
-        fromSheet: true,
-      }))
-      // Dedupe by strain+harvestDate — keep most recent
-      .reduce((acc, row) => {
-        const key = row.strain + '_' + row.harvestDate;
-        if(!acc[key] || new Date(row.approvedAt) > new Date(acc[key].approvedAt)) acc[key] = row;
-        return acc;
-      }, {});
-    weightLogData = Object.values(weightLogData);
-    S('wg_weight_log', weightLogData);
-    if(statusEl){ statusEl.textContent = '✓ ' + weightLogData.length + ' entries synced'; statusEl.style.color='var(--green)'; }
-    renderPrerollPriority();
-  } catch(e) {
-    if(!silent && statusEl){ statusEl.textContent = 'Could not sync — check Apps Script'; statusEl.style.color='var(--amber)'; }
+// Archive approved weights that are >12 hours old — move to packages store
+function archiveApprovedWeights(){
+  trimWeights = L('wg_trim_weights', {});
+  trimQueue = L('wg_trim_queue', []);
+  const cutoff = Date.now() - (12 * 60 * 60 * 1000); // 12 hours
+  let changed = false;
+
+  Object.entries(trimWeights).forEach(([itemId, w]) => {
+    if(w.status !== 'approved') return;
+    const approvedAt = w.approvedAt ? new Date(w.approvedAt).getTime() : 0;
+    // If no approvedAt timestamp, add it now so 12h clock starts
+    if(!w.approvedAt){
+      trimWeights[itemId].approvedAt = new Date().toISOString();
+      changed = true;
+      return;
+    }
+    if(approvedAt > cutoff) return; // not old enough yet
+
+    // Move to packages archive
+    const queueItem = trimQueue.find(q => q.id === itemId);
+    const archived = {
+      id: itemId,
+      strain: queueItem?.strain || w.strain || itemId,
+      harvestBatch: queueItem?.harvestBatch || '',
+      harvestDate: queueItem?.harvestDate || '',
+      bigBuds: w.bigBuds,
+      smallsAndTrim: w.smallsAndTrim,
+      smallBuds: w.smallBuds,
+      moisture: w.moisture,
+      purplTHC: w.purplTHC,
+      purplTotal: w.purplTotal,
+      packageTag: w.packageTag || '',
+      enteredBy: w.enteredBy,
+      approvedBy: w.approvedBy,
+      approvedAt: w.approvedAt,
+      archivedAt: new Date().toISOString(),
+    };
+    // Only archive if not already there
+    if(!packagesData.find(p => p.id === itemId)){
+      packagesData.unshift(archived);
+      changed = true;
+    }
+    // Remove from trimWeights so it disappears from Log Weights tab
+    delete trimWeights[itemId];
+    changed = true;
+  });
+
+  if(changed){
+    S('wg_trim_weights', trimWeights);
+    S('wg_packages', packagesData);
+    pushConfigDebounced();
   }
 }
 
-// Build the unified pre-roll item list from all sources
-function getPrerollItems(){
-  // Combine: weightLogData (from sheet) + local trimWeights (dashboard entries)
-  const all = {};
-
-  // 1. Sheet data as base
-  weightLogData.forEach(row => { all[row.id] = {...row}; });
-
-  // 2. Local trimWeights override/supplement (more detailed fields)
-  const tq = L('wg_trim_queue', []);
-  const tw = L('wg_trim_weights', {});
-  tq.forEach(item => {
-    const w = tw[item.id]||{};
-    if(!w.purplTHC) return;
-    const key = item.id;
-    all[key] = {
-      id: key,
-      strain: item.strain,
-      harvestDate: item.harvestDate||'',
-      harvestBatch: item.harvestBatch||'',
-      bigBuds: parseFloat(w.bigBuds)||0,
-      smallsAndTrim: parseFloat(w.smallsAndTrim)||(parseFloat(w.smallBuds||0)+parseFloat(w.trimOnly||0)),
-      smallBuds: parseFloat(w.smallBuds)||0,
-      trimOnly: parseFloat(w.trimOnly)||0,
-      purplTHC: parseFloat(w.purplTHC)||null,
-      packageTag: w.packageTag||'',
-      enteredBy: w.enteredBy||'',
-      approvedBy: w.approvedBy||'',
-      fromLocal: true,
-    };
-  });
-
-  // 3. Archived packages
-  const archived = L('wg_packages', []);
-  archived.forEach(p => {
-    if(!p.purplTHC) return;
-    if(all[p.id]) return; // already have from local
-    all[p.id] = {
-      id: p.id,
-      strain: p.strain,
-      harvestDate: p.harvestDate||'',
-      harvestBatch: p.harvestBatch||'',
-      bigBuds: parseFloat(p.bigBuds)||0,
-      smallsAndTrim: parseFloat(p.smallsAndTrim)||0,
-      smallBuds: parseFloat(p.smallBuds)||0,
-      trimOnly: parseFloat(p.trimOnly)||0,
-      purplTHC: parseFloat(p.purplTHC)||null,
-      packageTag: p.packageTag||'',
-      approvedBy: p.approvedBy||'',
-      fromArchive: true,
-    };
-  });
-
-  // 4. Add blends
-  prerollBlends.forEach(b => { if(b.purplTHC||b.components) all['blend_'+b.id] = {...b, isBlend:true}; });
-
-  // Filter out finished entries (disappeared after 12h post-approval)
-  prerollFinalWeights = L('wg_preroll_final_weights', {});
-  const now = Date.now();
-  const cutoff12h = 12 * 60 * 60 * 1000;
-  const finished = L('wg_preroll_finished', {});
-
-  return Object.values(all).filter(item => {
-    // Remove if marked finished AND 12h have passed since approval
-    const fin = finished[item.id];
-    if(fin && fin.approvedBy && fin.approvedAt){
-      if(now - new Date(fin.approvedAt).getTime() > cutoff12h) return false;
-    }
-    return true;
-  }).sort((a,b) => (parseFloat(b.purplTHC)||0) - (parseFloat(a.purplTHC)||0));
-}
-
-function renderPrerollPriority(){
-  const list = document.getElementById('preroll-list');
+// Render the packages tab
+function renderPackages(){
+  packagesData = L('wg_packages', []);
+  metrcPackages = L('wg_metrc_packages', []);
+  const list = document.getElementById('packages-list');
+  const summary = document.getElementById('packages-summary');
   if(!list) return;
 
-  // Restore notes
-  const notesEl = document.getElementById('preroll-notes');
-  if(notesEl && !notesEl.value) notesEl.value = L('wg_preroll_notes','')||'';
+  // Summary stats
+  if(summary){
+    const totalWeight = packagesData.reduce((a,p) => a+(parseFloat(p.bigBuds)||0)+(parseFloat(p.smallsAndTrim)||0), 0);
+    const totalSmalls = packagesData.reduce((a,p) => a+(parseFloat(p.smallBuds)||0), 0);
+    const avgTHC = packagesData.filter(p=>p.purplTHC).length
+      ? (packagesData.filter(p=>p.purplTHC).reduce((a,p)=>a+parseFloat(p.purplTHC),0)/packagesData.filter(p=>p.purplTHC).length).toFixed(1)
+      : '—';
+    summary.innerHTML = [
+      {label:'Archived lots', val:packagesData.length, color:'var(--text)'},
+      {label:'Total weight', val:totalWeight.toFixed(0)+'g', color:'var(--green)'},
+      {label:'Small buds', val:totalSmalls.toFixed(0)+'g', color:'var(--blue)'},
+      {label:'Avg THC', val:avgTHC+'%', color:'var(--purple)'},
+    ].map(s=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
+      <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div>
+    </div>`).join('');
+  }
 
-  prerollBlends = L('wg_preroll_blends', []);
-  prerollFinished = L('wg_preroll_finished', {});
-  prerollFinalWeights = L('wg_preroll_final_weights', {});
-
-  const items = getPrerollItems();
-
-  if(!items.length){
-    list.innerHTML = '<div class="empty-state">No weight entries with THC% yet. Click ↻ Sync Weight Log or approve weights in Log Weights tab.</div>';
+  if(!packagesData.length){
+    list.innerHTML = '<div class="empty-state">No archived lots yet. Approved weights appear here automatically 12 hours after approval.</div>';
     return;
   }
 
-  list.innerHTML = items.map((item, i) => {
-    const rank = i + 1;
-    const rankColor = rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
-    const smalls = parseFloat(item.smallBuds)||0;
-    const trim = parseFloat(item.trimOnly)||0;
-    const combined = parseFloat(item.smallsAndTrim)||(smalls+trim);
-    const pkgLast4 = item.packageTag ? '…'+String(item.packageTag).slice(-4) : '';
+  list.innerHTML = packagesData.map(p => {
+    // Look up METRC package if available
+    const metrcPkg = metrcPackages.find(m =>
+      (m['Label']||m['Package Label']||'').slice(-4) === (p.packageTag||'').slice(-4) && p.packageTag
+    );
+    const pkgLabel = metrcPkg ? (metrcPkg['Label']||metrcPkg['Package Label']||'') : '';
+    const approvedDate = p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
 
-    // Final weight state
-    const fw = prerollFinalWeights[item.id]||{};
-    const fin = prerollFinished[item.id]||{};
-    const hasFinalEntry = !!fw.weight;
-    const finalApproved = !!fw.approvedBy;
-    const isFinished = !!fin.approvedBy;
-
-    // Remaining = final weight if entered & approved, otherwise combined
-    const remaining = finalApproved ? parseFloat(fw.weight)||0 : combined;
-    const remainingColor = remaining <= 0 ? 'var(--text3)' : remaining < combined * 0.25 ? 'var(--amber)' : 'var(--green)';
-
-    if(item.isBlend){
-      // Blend card
-      const compLines = (item.components||[]).map(comp =>
-        `<div style="font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border)">
-          <span style="font-weight:600">${comp.strain}</span>
-          <span style="font-family:var(--mono);color:var(--text3);margin-left:8px">${comp.weight}g</span>
-          ${comp.harvestDate?`<span style="font-size:10px;color:var(--text3);margin-left:6px">${comp.harvestDate}</span>`:''}
-        </div>`
-      ).join('');
-      return `<div class="card" style="border-left:3px solid var(--teal);${isFinished?'opacity:0.5':''}">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="font-size:24px;font-weight:700;color:var(--teal);font-family:var(--mono);min-width:32px">${rank}</div>
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-              <span style="font-size:13px;font-weight:700;color:var(--text)">${item.strain||item.name||'Blend'}</span>
-              <span style="font-size:10px;padding:2px 7px;border-radius:var(--r);background:var(--teal-dim);color:var(--teal)">Blend</span>
-            </div>
-            <div style="margin-bottom:8px">${compLines}</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap">
-              <div style="text-align:center;min-width:60px"><div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--purple)">${item.purplTHC?parseFloat(item.purplTHC).toFixed(1)+'%':'—'}</div><div style="font-size:10px;color:var(--text3)">Avg THC</div></div>
-              <div style="text-align:center;min-width:60px"><div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--green)">${item.totalWeight||0}g</div><div style="font-size:10px;color:var(--text3)">Total</div></div>
-            </div>
-          </div>
+    return `<div class="card" style="border-left:3px solid var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${p.strain}</div>
+          <div style="font-size:11px;color:var(--text3)">${p.harvestBatch||p.harvestDate||''} · Approved ${approvedDate}</div>
         </div>
-        ${!isFinished ? renderFinishSection(item.id, item.strain||'Blend', combined) : '<div style="font-size:11px;color:var(--text3);margin-top:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--r)">✓ Finished · Disappears in 12h</div>'}
-      </div>`;
-    }
-
-    return `<div class="card" style="border-left:3px solid ${rankColor};${isFinished?'opacity:0.5':''}">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:24px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:32px">${rank}</div>
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
-            <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-            ${pkgLast4?`<span style="font-family:var(--mono);font-size:11px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text3)">Pkg ${pkgLast4}</span>`:''}
-            ${currentRole==='lead'?`<input type="text" placeholder="Pkg #" maxlength="30" value="${item.packageTag||''}" style="font-size:11px;padding:2px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:110px;font-family:var(--mono)" onchange="updatePrerollPackageTag('${item.id}',this.value)" onclick="event.stopPropagation()"/>`:``}
-          </div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${item.harvestBatch||item.harvestDate||''} ${item.approvedBy?'· Approved: '+item.approvedBy:''}</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div style="text-align:center">
-              <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${item.purplTHC?parseFloat(item.purplTHC).toFixed(1)+'%':'—'}</div>
-              <div style="font-size:10px;color:var(--text3)">THC</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${smalls?smalls.toFixed(1)+'g':'—'}</div>
-              <div style="font-size:10px;color:var(--text3)">Smalls</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${trim?trim.toFixed(1)+'g':'—'}</div>
-              <div style="font-size:10px;color:var(--text3)">Trim</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${remainingColor}">${finalApproved?remaining.toFixed(1):combined.toFixed(1)}g</div>
-              <div style="font-size:10px;color:var(--text3)">${finalApproved?'Remaining (verified)':'Combined total'}</div>
-            </div>
-          </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" placeholder="Package # (last 4 or full)" value="${p.packageTag||''}"
+            style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:160px;font-family:var(--mono)"
+            onchange="updatePackageTag('${p.id}',this.value)"/>
+          ${pkgLabel?`<span style="font-size:10px;font-family:var(--mono);padding:2px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);color:var(--green)">${pkgLabel}</span>`:''}
         </div>
       </div>
-      ${!isFinished ? renderFinishSection(item.id, item.strain, combined, fw, fin) : '<div style="font-size:11px;color:var(--text3);margin-top:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--r)">✓ Finished · Disappears in 12h</div>'}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:10px">
+        <div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--green)">${p.bigBuds||'—'}g</div>
+          <div style="font-size:10px;color:var(--text3)">Bigs</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--blue)">${p.smallBuds||'—'}g</div>
+          <div style="font-size:10px;color:var(--text3)">Smalls</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text)">${p.smallsAndTrim||'—'}g</div>
+          <div style="font-size:10px;color:var(--text3)">Smalls+Trim</div>
+        </div>
+        ${p.moisture?`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text2)">${p.moisture}%</div>
+          <div style="font-size:10px;color:var(--text3)">Moisture</div>
+        </div>`:''}
+        ${p.purplTHC?`<div style="background:var(--purple-dim);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--purple)">${p.purplTHC}%</div>
+          <div style="font-size:10px;color:var(--text3)">THC</div>
+        </div>`:''}
+      </div>
+      <!-- Lead-editable fields -->
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Edit weights (lead)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px">
+          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Bigs (g)</label><input type="number" value="${p.bigBuds||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','bigBuds',this.value)"/></div>
+          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Smalls only (g)</label><input type="number" value="${p.smallBuds||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','smallBuds',this.value)"/></div>
+          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Smalls+Trim (g)</label><input type="number" value="${p.smallsAndTrim||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','smallsAndTrim',this.value)"/></div>
+          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Purpl THC %</label><input type="number" step="0.1" value="${p.purplTHC||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','purplTHC',this.value)"/></div>
+          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Moisture %</label><input type="number" step="0.1" value="${p.moisture||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','moisture',this.value)"/></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Entered by: ${p.enteredBy||'—'} · Approved by: ${p.approvedBy||'—'}</div>
     </div>`;
   }).join('');
 }
 
-function renderFinishSection(id, strainName, combined, fw, fin){
-  fw = fw||{};
-  fin = fin||{};
-  const hasFinalEntry = !!fw.weight;
-  const finalApproved = !!fw.approvedBy;
-  const remaining = finalApproved ? parseFloat(fw.weight)||0 : null;
-  const isLead = currentRole === 'lead';
-  const isPostProd = currentRole === 'postprod' || isLead;
+function updatePackageTag(id, val){
+  packagesData = L('wg_packages', []);
+  const p = packagesData.find(p => p.id === id);
+  if(p){ p.packageTag = val.trim(); S('wg_packages', packagesData); pushConfigDebounced(); }
+  // Also update trimWeights for preroll priority display
+  if(!trimWeights[id]) trimWeights[id] = {};
+  trimWeights[id].packageTag = val.trim();
+  S('wg_trim_weights', trimWeights);
+}
 
-  if(!isPostProd) return '';
+function editPackageWeight(id, field, val){
+  packagesData = L('wg_packages', []);
+  const p = packagesData.find(p => p.id === id);
+  if(!p) return;
+  p[field] = val ? parseFloat(val) : null;
+  S('wg_packages', packagesData);
+  pushConfigDebounced();
+  renderPackages();
+}
 
-  if(fin.pendingBy && !fin.approvedBy){
-    // Pending finish approval
-    const canApprove = loggedInMember && loggedInMember.name !== fin.pendingBy;
-    return `<div style="margin-top:10px;padding:8px 10px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r)">
-      <div style="font-size:11px;font-weight:600;color:var(--amber)">Finish pending verification — submitted by ${fin.pendingBy}</div>
-      ${canApprove?`<button onclick="approveFinishInline('${id}')" style="margin-top:6px;font-size:11px;padding:4px 12px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">Approve — mark finished ✓</button>`:`<div style="font-size:11px;color:var(--text3);margin-top:4px">Waiting for a different team member to approve</div>`}
-    </div>`;
+async function handlePackagesUpload(input){
+  const file = input.files[0]; if(!file) return;
+  const statusEl = document.getElementById('packages-upload-status');
+  if(statusEl) statusEl.textContent = 'Reading…';
+  try{
+    let rows;
+    if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')) rows = await parseMetrcXLSX(file);
+    else { const text = await file.text(); rows = parseMetrcCSV(text); }
+    metrcPackages = rows;
+    S('wg_metrc_packages', rows);
+    if(statusEl){ statusEl.textContent = '✓ '+rows.length+' packages loaded'; statusEl.style.color='var(--green)'; }
+    renderPackages();
+  }catch(e){
+    if(statusEl){ statusEl.textContent = '✗ '+e.message; statusEl.style.color='var(--red)'; }
   }
-
-  // Final weight section
-  let finalWeightSection = '';
-  if(hasFinalEntry && !finalApproved){
-    const canApprove = loggedInMember && loggedInMember.name !== fw.enteredBy;
-    finalWeightSection = `<div style="margin-top:8px;padding:8px 10px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r)">
-      <div style="font-size:11px;font-weight:600;color:var(--amber)">Final weight pending: ${parseFloat(fw.weight).toFixed(1)}g — entered by ${fw.enteredBy}</div>
-      ${canApprove?`<button onclick="approveFinalWeightInline('${id}')" style="margin-top:6px;font-size:11px;padding:4px 12px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">Approve final weight ✓</button>`:`<div style="font-size:11px;color:var(--text3);margin-top:4px">Waiting for different team member to approve</div>`}
-    </div>`;
-  } else if(finalApproved){
-    finalWeightSection = `<div style="font-size:11px;color:var(--green);margin-top:6px">✓ Final weight verified: ${parseFloat(fw.weight).toFixed(1)}g remaining</div>`;
-  }
-
-  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    ${!hasFinalEntry?`<button onclick="openFinalWeightModal('${id}','${strainName.replace(/'/g,"\'")}',${combined})" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--blue-dim);background:var(--blue-bg);color:var(--blue);cursor:pointer">📝 Enter final weight</button>`:''}
-    ${finalApproved && remaining <= 0 ? `<button onclick="submitFinishInline('${id}','${strainName.replace(/'/g,"\'")}') " style="font-size:12px;font-weight:600;padding:5px 14px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">✓ Finish — all used</button>` :
-      finalApproved ? `<button onclick="submitFinishInline('${id}','${strainName.replace(/'/g,"\'")}') " style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Mark finished</button>` : ''}
-    ${finalWeightSection}
-  </div>`;
-}
-
-// ── Final weight inline ───────────────────────────────────────────────────
-let _fwModalId = null;
-function openFinalWeightModal(id, strainName, combined){
-  _fwModalId = id;
-  document.getElementById('fwm-title').textContent = 'Final weight — ' + strainName;
-  document.getElementById('fwm-desc').textContent = 'Enter the actual remaining weight after all pulls. Combined total on record: ' + parseFloat(combined).toFixed(1) + 'g. Requires a second team member to verify.';
-  document.getElementById('fwm-weight').value = '';
-  document.getElementById('fwm-pending').style.display = 'none';
-  document.getElementById('fwm-btns').style.display = 'flex';
-  document.getElementById('final-weight-modal-bg').classList.add('open');
-}
-function closeFinalWeightModal(){ document.getElementById('final-weight-modal-bg').classList.remove('open'); _fwModalId=null; }
-
-function submitFinalWeight(){
-  if(!loggedInMember){ alert('Sign in first'); return; }
-  const weight = parseFloat(document.getElementById('fwm-weight').value);
-  if(isNaN(weight)||weight<0){ alert('Enter a valid weight'); return; }
-  prerollFinalWeights = L('wg_preroll_final_weights', {});
-  prerollFinalWeights[_fwModalId] = { weight, enteredBy: loggedInMember.name, approvedBy: null, approvedAt: null };
-  S('wg_preroll_final_weights', prerollFinalWeights);
-  closeFinalWeightModal();
-  renderPrerollPriority();
-  pushConfigDebounced();
-}
-
-function approveFinalWeightInline(id){
-  if(!loggedInMember){ alert('Sign in first'); return; }
-  prerollFinalWeights = L('wg_preroll_final_weights', {});
-  const fw = prerollFinalWeights[id];
-  if(!fw){ return; }
-  if(loggedInMember.name === fw.enteredBy){ alert('A different team member must approve.'); return; }
-  fw.approvedBy = loggedInMember.name;
-  fw.approvedAt = new Date().toISOString();
-  S('wg_preroll_final_weights', prerollFinalWeights);
-  renderPrerollPriority();
-  pushConfigDebounced();
-}
-
-// ── Finish inline ─────────────────────────────────────────────────────────
-function submitFinishInline(id, strainName){
-  if(!loggedInMember){ alert('Sign in first'); return; }
-  prerollFinished = L('wg_preroll_finished', {});
-  prerollFinished[id] = { pendingBy: loggedInMember.name, approvedBy: null, approvedAt: null, strain: strainName };
-  S('wg_preroll_finished', prerollFinished);
-  renderPrerollPriority();
-  pushConfigDebounced();
-}
-
-function approveFinishInline(id){
-  if(!loggedInMember){ alert('Sign in first'); return; }
-  prerollFinished = L('wg_preroll_finished', {});
-  const fin = prerollFinished[id];
-  if(!fin){ return; }
-  if(loggedInMember.name === fin.pendingBy){ alert('A different team member must approve.'); return; }
-  fin.approvedBy = loggedInMember.name;
-  fin.approvedAt = new Date().toISOString();
-  S('wg_preroll_finished', prerollFinished);
-  renderPrerollPriority();
-  pushConfigDebounced();
-  // Post to sheet
-  postToSheet('Preroll_Finished', [fin.strain||id, fin.pendingBy, fin.approvedBy, fin.approvedAt]);
-}
-
-// ── Blend builder ─────────────────────────────────────────────────────────
-function openBlendModal(){
-  _blendModalComponents = [];
-  document.getElementById('bm-name').value = '';
-  document.getElementById('bm-components').innerHTML = '';
-  document.getElementById('bm-total').textContent = '0g';
-  addBlendComponent();
-  document.getElementById('blend-modal-bg').classList.add('open');
-}
-function closeBlendModal(){ document.getElementById('blend-modal-bg').classList.remove('open'); }
-
-function addBlendComponent(){
-  const items = getPrerollItems().filter(i=>!i.isBlend);
-  const idx = _blendModalComponents.length;
-  _blendModalComponents.push({strain:'', harvestDate:'', weight:0});
-  const container = document.getElementById('bm-components');
-  const div = document.createElement('div');
-  div.id = 'bm-comp-'+idx;
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 100px auto;gap:6px;align-items:end';
-  div.innerHTML = `
-    <div>
-      <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Strain / batch</label>
-      <select style="width:100%;font-size:12px;padding:5px 8px" onchange="updateBlendComp(${idx},'strain',this.value);updateBlendComp(${idx},'harvestDate',this.options[this.selectedIndex].dataset.date||'')">
-        <option value="">— select —</option>
-        ${items.map(it=>`<option value="${it.strain}" data-date="${it.harvestDate||''}">${it.strain}${it.harvestDate?' ('+it.harvestDate+')':''}${it.purplTHC?' — '+parseFloat(it.purplTHC).toFixed(1)+'%':''}</option>`).join('')}
-      </select>
-    </div>
-    <div>
-      <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Weight (g)</label>
-      <input type="number" min="0" step="0.1" placeholder="0" style="width:100%;font-size:12px;padding:5px 8px" oninput="updateBlendComp(${idx},'weight',parseFloat(this.value)||0);updateBlendTotal()"/>
-    </div>
-    <button onclick="removeBlendComp(${idx})" style="font-size:16px;background:none;border:none;color:var(--text3);cursor:pointer;padding:0 4px;align-self:flex-end;margin-bottom:2px">✕</button>
-  `;
-  container.appendChild(div);
-}
-
-function updateBlendComp(idx, field, val){ if(_blendModalComponents[idx]) _blendModalComponents[idx][field]=val; }
-function removeBlendComp(idx){
-  const el = document.getElementById('bm-comp-'+idx);
-  if(el) el.remove();
-  if(_blendModalComponents[idx]) _blendModalComponents[idx].removed=true;
-  updateBlendTotal();
-}
-function updateBlendTotal(){
-  const total = _blendModalComponents.filter(c=>!c.removed).reduce((a,c)=>a+(parseFloat(c.weight)||0),0);
-  const el = document.getElementById('bm-total');
-  if(el) el.textContent = total.toFixed(1) + 'g';
-}
-
-function confirmBlend(){
-  const name = document.getElementById('bm-name').value.trim();
-  const components = _blendModalComponents.filter(c=>!c.removed&&c.strain&&c.weight>0);
-  if(!name){ alert('Enter a blend name'); return; }
-  if(components.length < 2){ alert('Add at least 2 strains to build a blend'); return; }
-  // Calculate weighted avg THC
-  const items = getPrerollItems();
-  let totalWeight = 0, weightedTHC = 0;
-  components.forEach(comp => {
-    const source = items.find(i=>i.strain===comp.strain);
-    const thc = source ? parseFloat(source.purplTHC)||0 : 0;
-    totalWeight += parseFloat(comp.weight)||0;
-    weightedTHC += thc * (parseFloat(comp.weight)||0);
-  });
-  const avgTHC = totalWeight > 0 ? weightedTHC/totalWeight : null;
-  prerollBlends = L('wg_preroll_blends', []);
-  prerollBlends.push({
-    id: 'blend_'+Date.now(),
-    name,
-    strain: name,
-    components,
-    totalWeight: totalWeight.toFixed(1),
-    purplTHC: avgTHC ? avgTHC.toFixed(2) : null,
-    smallsAndTrim: totalWeight,
-    smallBuds: totalWeight,
-    createdBy: loggedInMember?.name||'Unknown',
-    createdAt: new Date().toISOString(),
-    isBlend: true,
-  });
-  S('wg_preroll_blends', prerollBlends);
-  closeBlendModal();
-  renderPrerollPriority();
-  pushConfigDebounced();
-}
-
-function updatePrerollPackageTag(id, val){
-  const tw = L('wg_trim_weights', {});
-  if(!tw[id]) tw[id]={};
-  tw[id].packageTag = val;
-  S('wg_trim_weights', tw);
-  const archived = L('wg_packages', []);
-  const p = archived.find(x=>x.id===id);
-  if(p){ p.packageTag=val; S('wg_packages',archived); }
 }
 
 
 // ══════════════════════════════════════════════
 // ROOM DETAIL MODAL
+// Click any room card to see full phase targets vs live data
 // ══════════════════════════════════════════════
 function openRoomModal(roomId){
   const room = rooms.find(r => r.id === roomId);
@@ -4367,41 +4268,45 @@ function openRoomModal(roomId){
   const gl = getGrowlinkForRoom(room.name);
   const additive = fd ? (ADDITIVES[fd] || null) : null;
 
-  document.getElementById('rdm-room-name').textContent = room.name + (fd ? ' — Day ' + fd : ' — Veg');
+  // Header
+  document.getElementById('rdm-room-name').textContent = room.name + (fd ? ' — Day ' + fd + ' / ' + CYCLE : ' — Veg');
   document.getElementById('rdm-phase-label').textContent = phase ? phase.name + ' · Day ' + fd : (fd ? 'Day ' + fd : 'Vegetative');
   document.getElementById('rdm-phase-name').textContent = phase ? phase.name : '—';
 
-  // Live vs targets
+  // ── Live readings vs targets ──────────────────────
   const liveEl = document.getElementById('rdm-live-targets');
-  if(gl && phase){
-    const tc=(gl.temp-32)*5/9, a=17.27, b=237.7;
-    const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
-    const dp = gl.temp&&gl.humidity ? ((b*alpha)/(a-alpha))*9/5+32 : null;
+  if(gl && phase) {
+    const dp = (gl.temp && gl.humidity) ? (() => {
+      const tc=(gl.temp-32)*5/9, a=17.27, b=237.7;
+      const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
+      return ((b*alpha)/(a-alpha))*9/5+32;
+    })() : null;
     const lst = gl.leafTemp || gl.temp;
     const spread = (dp && lst) ? lst - dp : null;
 
-    function liveRow(label, live, lo, hi, unit, dec){
-      dec = dec===undefined ? 1 : dec;
-      if(live===null||live===undefined) return '';
+    function liveRow(label, live, targetLow, targetHigh, unit, decimals=1){
+      if(live === null || live === undefined) return '';
       const v = parseFloat(live);
-      const ok = (lo===null||v>=lo) && (hi===null||v<=hi);
-      const col = ok ? 'var(--green)' : 'var(--red)';
-      const tgt = lo!==null&&hi!==null ? lo+'–'+hi+unit : hi!==null ? '≤'+hi+unit : lo!==null ? '≥'+lo+unit : '—';
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${col}">
+      const inRange = (targetLow === null || v >= targetLow) && (targetHigh === null || v <= targetHigh);
+      const color = inRange ? 'var(--green)' : 'var(--red)';
+      const targetStr = targetLow !== null && targetHigh !== null ? targetLow+'–'+targetHigh+unit
+        : targetHigh !== null ? '≤'+targetHigh+unit
+        : targetLow !== null ? '≥'+targetLow+unit : '—';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${color}">
         <span style="font-size:12px;color:var(--text2)">${label}</span>
         <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${col}">${v.toFixed(dec)}${unit}</span>
-          <span style="font-size:10px;color:var(--text3)">target ${tgt}</span>
+          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color}">${v.toFixed(decimals)}${unit}</span>
+          <span style="font-size:10px;color:var(--text3)">target ${targetStr}</span>
         </div>
       </div>`;
     }
 
     const spreadRow = spread !== null ? (() => {
-      const col = spread<=2?'var(--red)':spread<=3?'var(--amber)':'var(--green)';
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${col}">
+      const color = spread <= 2 ? 'var(--red)' : spread <= 3 ? 'var(--amber)' : 'var(--green)';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${color}">
         <span style="font-size:12px;color:var(--text2)">Dew pt spread (LST−Dew)</span>
         <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${col}">${spread.toFixed(1)}°F</span>
+          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color}">${spread.toFixed(1)}°F</span>
           <span style="font-size:10px;color:var(--text3)">target ≥4°F · alert ≤2°F</span>
         </div>
       </div>`;
@@ -4416,53 +4321,55 @@ function openRoomModal(roomId){
       liveRow('EC (substrate)', gl.soilEC, phase.subECMin, phase.subECMax, ' mS', 2),
       spreadRow,
     ].filter(Boolean).join('');
+  } else if(!gl) {
+    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No Growlink data available for this room.</div>';
   } else {
-    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">' + (!gl ? 'No Growlink data for this room.' : 'No phase data — room may be in veg.') + '</div>';
+    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No phase data — room may be in veg.</div>';
   }
 
-  // Env targets
-  function targetCell(label, val, unit){
-    unit = unit||'';
+  // ── Environment targets ───────────────────────
+  const envEl = document.getElementById('rdm-env-targets');
+  function targetCell(label, val, unit=''){
     return `<div style="background:var(--bg3);border-radius:var(--r);padding:8px 10px">
       <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
-      <div style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text)">${val!==null&&val!==undefined?val+unit:'—'}</div>
+      <div style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text)">${val !== null && val !== undefined ? val+unit : '—'}</div>
     </div>`;
   }
-  const envEl = document.getElementById('rdm-env-targets');
   if(phase){
     envEl.innerHTML = [
       targetCell('Temp day', phase.dayTemp, '°F'),
       targetCell('Temp night', phase.nightTemp, '°F'),
       targetCell('Day RH', phase.rh, '%'),
       targetCell('Night RH', phase.nightRH||phase.rh, '%'),
-      targetCell('CO₂', phase.co2, ' ppm'),
-      targetCell('VPD range', phase.vpdMin&&phase.vpdMax ? phase.vpdMin+'–'+phase.vpdMax : '—', ' kPa'),
+      targetCell('CO₂ target', phase.co2, ' ppm'),
+      targetCell('VPD range', phase.vpdMin && phase.vpdMax ? phase.vpdMin+'–'+phase.vpdMax : '—', ' kPa'),
       targetCell('Light', phase.light, '%'),
     ].join('');
   } else {
-    envEl.innerHTML = '<div style="font-size:12px;color:var(--text3);grid-column:1/-1">Vegetative — targets in veg config.</div>';
+    envEl.innerHTML = '<div style="font-size:12px;color:var(--text3);grid-column:1/-1">Vegetative — targets set in veg room config.</div>';
   }
 
-  // Irrigation targets
+  // ── Irrigation & substrate targets ───────────────
   const irrEl = document.getElementById('rdm-irrigation-targets');
   const shotEl = document.getElementById('rdm-shot-note');
   if(phase){
     irrEl.innerHTML = [
-      targetCell('VWC range', phase.vwcMin&&phase.vwcMax ? phase.vwcMin+'–'+phase.vwcMax : '—', '%'),
-      targetCell('Substrate EC', phase.subECMin&&phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '—', ' mS'),
+      targetCell('VWC range', phase.vwcMin && phase.vwcMax ? phase.vwcMin+'–'+phase.vwcMax : '—', '%'),
+      targetCell('Substrate EC', phase.subECMin && phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '—', ' mS'),
       targetCell('Overnight dryback', phase.dryback ? '~'+phase.dryback : '—', '%'),
       targetCell('Runoff target', '15–20', '%'),
     ].join('');
     shotEl.textContent = phase.shotNote || '';
     shotEl.style.display = phase.shotNote ? 'block' : 'none';
   } else {
-    irrEl.innerHTML = ''; shotEl.style.display='none';
+    irrEl.innerHTML = '';
+    shotEl.style.display = 'none';
   }
 
-  // EC Rainbow
+  // ── EC Rainbow ────────────────────────────────
   const ecrEl = document.getElementById('rdm-ec-rainbow');
   if(ecr){
-    const pct = fd ? Math.min(100,Math.round(((fd-ecr.start+1)/(ecr.end-ecr.start+1))*100)) : 0;
+    const pct = fd ? Math.min(100, Math.round(((fd - ecr.start + 1)/(ecr.end - ecr.start + 1))*100)) : 0;
     ecrEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${ecr.color}">
       <div style="width:12px;height:12px;border-radius:50%;background:${ecr.color};flex-shrink:0"></div>
       <div style="flex:1">
@@ -4471,22 +4378,27 @@ function openRoomModal(roomId){
         <div class="prog-track" style="margin-top:5px"><div class="prog-fill" style="width:${pct}%;background:${ecr.color}"></div></div>
       </div>
     </div>`;
-  } else { ecrEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">—</div>'; }
+  } else {
+    ecrEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">—</div>';
+  }
 
-  // Runoff targets
+  // ── Runoff targets ────────────────────────────
   document.getElementById('rdm-runoff-targets').innerHTML = [
-    targetCell('pH', '5.6–6.2'),
-    targetCell('EC runoff', phase&&phase.subECMin&&phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '3.0–5.0', ' mS'),
+    targetCell('pH', '5.6–6.2', ''),
+    targetCell('EC runoff', phase ? phase.subECMin && phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '3.0–5.0' : '—', ' mS'),
     targetCell('Volume', '15–20', '% of input'),
   ].join('');
 
-  // Additive note
+  // ── Additive note ─────────────────────────────
   const addEl = document.getElementById('rdm-additive-note');
   if(additive && additive.name !== 'Base feed only'){
     addEl.innerHTML = '🧪 <strong>Today&#39;s additive:</strong> ' + additive.name + ' · ' + additive.dose + (additive.tier2 ? ' · <span style="color:var(--amber)">Tier 2 only</span>' : '');
     addEl.style.display = 'block';
-  } else { addEl.style.display = 'none'; }
+  } else {
+    addEl.style.display = 'none';
+  }
 
+  // Open modal
   document.getElementById('room-detail-modal-bg').classList.add('open');
 }
 
@@ -4519,7 +4431,7 @@ try { renderChores(); } catch(e){ console.error('renderChores:',e); }
 try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
 // auto-refresh checks silently on load
 setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
-// Pull Growlink first — fast, works on all devices including mobile
+// Pull Growlink first (5min push interval from TamperMonkey)
 setTimeout(async ()=>{
   try{ await pullGrowlinkFromCloud(true); }catch(e){}
 },800);
@@ -4755,10 +4667,6 @@ async function pushConfigToCloud(silent=false){
       customTasks:L('wg_custom_tasks',[]),
       supplies:L('wg_supplies',[]),
       alertLog:L('wg_alert_log',[]),
-      weightLog:L('wg_weight_log',[]),
-      prerollBlends:L('wg_preroll_blends',[]),
-      prerollFinalWeights:L('wg_preroll_final_weights',{}),
-      prerollFinished:L('wg_preroll_finished',{}),
       todayLogs,
       cloneSessions,
       syncedBy:loggedInMember?loggedInMember.name:'Unknown',
@@ -4838,11 +4746,6 @@ async function pullConfigFromCloud(silent=false){
       });
     }
 
-    // Preroll data sync
-    if(d.weightLog&&d.weightLog.length){ weightLogData=d.weightLog; S('wg_weight_log',d.weightLog); }
-    if(d.prerollBlends&&d.prerollBlends.length){ prerollBlends=d.prerollBlends; S('wg_preroll_blends',d.prerollBlends); }
-    if(d.prerollFinalWeights){ prerollFinalWeights=d.prerollFinalWeights; S('wg_preroll_final_weights',d.prerollFinalWeights); }
-    if(d.prerollFinished){ prerollFinished=d.prerollFinished; S('wg_preroll_finished',d.prerollFinished); }
     // Alert log — merge
     if(d.alertLog&&d.alertLog.length){
       const local=L('wg_alert_log',[]);
@@ -4890,7 +4793,7 @@ function getGuardrailsForPhase(phaseId){
     co2:   { setpoint:p.co2,     t2Low:p.co2-150,    t2High:p.co2+150,    t1Low:p.co2-300,    t1High:p.co2+300 },
     soilEC:     { t1High:10 },
     soilMoisture: { t1Low:10 },
-    dewPoint:   { t1High:60 }, // hard ceiling, always T1
+    // dewPoint handled separately via spread logic in evaluateRoom — not a flat ceiling
   };
 }
 
@@ -4941,12 +4844,31 @@ function evaluateRoom(roomName, sensors, phaseId){
   check('temp',        sensors.temp,         g.temp,         'Temp',     '°F');
   check('rh',          sensors.humidity,      g.rh,           'RH',       '%');
   check('co2',         sensors.co2,           g.co2,          'CO₂',      'ppm');
-  check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
-  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
+  check('soilEC',      sensors.soilEC,        g.soilEC,       'EC',  'mS');
+  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'VWC', '%');
 
-  // Dew point hard ceiling
+  // Dew point — spread-based model (boss's rules):
+  // Only alert if dewpoint is within 2°F of leaf temp (LST)
+  // Awareness band: 65-70°F = info only, 70-75°F = soft advisory
+  // No flat ceiling alerts — spread is what matters
   const dp = calcDewPoint(sensors.temp, sensors.humidity);
-  if(dp!==null) check('dewPoint', dp, g.dewPoint, 'Dew point', '°F');
+  if(dp !== null) {
+    const lst = sensors.leafTemp || sensors.temp; // use leaf temp if available, else room temp
+    const spread = lst - dp;
+    if(spread <= 2) {
+      issues.push({param:'dewPoint', value:dp, setpoint:lst, tier:1,
+        message:`${roomName} — Dew point within ${spread.toFixed(1)}°F of leaf temp (${dp.toFixed(1)}°F dew / ${lst.toFixed(1)}°F LST) — condensation risk`});
+    } else if(spread <= 3) {
+      issues.push({param:'dewPoint', value:dp, setpoint:lst, tier:2,
+        message:`${roomName} — Spread narrowing: ${spread.toFixed(1)}°F (dew ${dp.toFixed(1)}°F / LST ${lst.toFixed(1)}°F) — watch airflow`});
+    }
+    // Awareness band — T2 log only, no Slack
+    else if(dp >= 70 && dp < 75) {
+      issues.push({param:'dewPoint', value:dp, setpoint:lst, tier:2,
+        message:`${roomName} — High humidity zone: dew ${dp.toFixed(1)}°F, spread ${spread.toFixed(1)}°F — monitor airflow/VPD`});
+    }
+    // 65-70 = normal for early flower, no log needed
+  }
 
   return issues;
 }
@@ -4966,7 +4888,7 @@ function runGuardrails(){
 
     // Don't evaluate stale data (>20 min old)
     const age = now - new Date(gl.fetchedAt).getTime();
-    if(age > 20*60*1000) return;
+    if(age > 12*60*1000) return; // 12min — matched to 5min push interval
 
     const fd = flowerDay(room);
     const phase = fd ? getPhaseForDay(fd) : null;
