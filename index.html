@@ -985,7 +985,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.2'; // METRC search, alpha sort, flash fix
+const APP_VERSION = '3.3'; // mother tag strain mismatch flag
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -1578,8 +1578,14 @@ function logCloneCut(clearStrain=false){
       // Verify strain matches
       if(match['Strain']&&match['Strain'].toLowerCase()!==strain.toLowerCase()){
         const hint=document.getElementById('ce-mother-hint');
-        if(hint) hint.style.color='var(--amber)';
-        if(hint) hint.textContent='⚠ Tag is '+match['Strain']+' not '+strain;
+        if(hint){
+          hint.style.color='var(--red)';
+          hint.style.fontWeight='700';
+          hint.style.background='var(--red-bg)';
+          hint.style.padding='3px 6px';
+          hint.style.borderRadius='var(--r)';
+          hint.textContent='⚠ Saved with mismatch — tag …'+motherTag+' is '+match['Strain']+', logged as '+strain;
+        }
       }
     } else {
       const hint=document.getElementById('ce-mother-hint');
@@ -3803,18 +3809,46 @@ function getMetrcStrainSuggestions(query){
 function onMotherTagInput(val) {
   const hint = document.getElementById('ce-mother-hint');
   if (!hint) return;
-  if (!val || val.length < 4) { hint.textContent = ''; return; }
+  if (!val || val.length < 4) { hint.textContent = ''; hint.style.cssText=''; return; }
+
   const match = metrcData.mother.find(r => (r['Tag']||'').endsWith(val));
+  const strainInput = document.getElementById('ce-strain');
+  const enteredStrain = (strainInput?.value||'').trim().toLowerCase();
+
   if (match) {
-    const loc = (r['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
-    hint.style.color = 'var(--green)';
-    hint.textContent = '✓ ' + (match['Strain']||'') + ' · ' + (match['Location']||'');
-    // Auto-fill strain if empty
-    const strainInput = document.getElementById('ce-strain');
-    if (strainInput && !strainInput.value) strainInput.value = match['Strain']||'';
+    const matchStrain = match['Strain']||'';
+    const matchLoc = (match['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
+    const strainMatch = !enteredStrain || matchStrain.toLowerCase() === enteredStrain;
+
+    if (strainMatch) {
+      // Tag found and strain matches (or no strain entered yet)
+      hint.style.color = 'var(--green)';
+      hint.style.fontWeight = '600';
+      hint.style.background = '';
+      hint.textContent = '✓ ' + matchStrain + ' · ' + matchLoc;
+      // Auto-fill strain if empty
+      if (strainInput && !strainInput.value) strainInput.value = matchStrain;
+    } else {
+      // Tag found BUT strain is WRONG — flag it clearly
+      hint.style.color = 'var(--red)';
+      hint.style.fontWeight = '700';
+      hint.style.background = 'var(--red-bg)';
+      hint.style.padding = '3px 6px';
+      hint.style.borderRadius = 'var(--r)';
+      hint.textContent = '⚠ Tag …' + val + ' is ' + matchStrain + ' — not ' + (strainInput?.value||'entered strain');
+    }
+  } else if (metrcData.mother.length) {
+    // No tag match at all in mother data
+    hint.style.color = 'var(--amber)';
+    hint.style.fontWeight = '600';
+    hint.style.background = '';
+    hint.textContent = '⚠ Tag …' + val + ' not found in mother plants';
   } else {
+    // No mother data loaded
     hint.style.color = 'var(--text3)';
-    hint.textContent = val.length === 4 ? 'Tag not found' : '';
+    hint.style.fontWeight = '';
+    hint.style.background = '';
+    hint.textContent = 'No mother data loaded — upload in Settings → METRC';
   }
 }
 function showStrainAutocomplete(val){
