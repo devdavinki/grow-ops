@@ -713,35 +713,80 @@ button { cursor: pointer; }
 
     <!-- PRE-ROLL PRIORITY -->
     <div id="postsub-preroll" style="display:none">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Sorted by Purpl Pro THC % — highest first. Shows available small bud weight per strain.</div>
-      <div style="background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r2);padding:12px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);margin-bottom:6px">Blend notes / upcoming combos</div>
-        <textarea id="preroll-notes" placeholder="e.g. KM3 + Apple Fritter blend coming — hold back 200g each. Next preroll run: Friday. Prioritize anything >28% THC..." style="width:100%;min-height:70px;font-size:12px;background:var(--amber-bg);border:1px solid var(--amber-dim);color:var(--text);border-radius:var(--r);padding:8px 10px;resize:vertical" oninput="S('wg_preroll_notes',this.value)"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;color:var(--text2)">Sorted by THC % — highest first.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span id="preroll-sync-status" style="font-size:11px;color:var(--text3)"></span>
+          <button onclick="pullWeightLog()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Sync Weight Log</button>
+          <button onclick="openBlendModal()" class="btn-primary" style="font-size:12px;padding:6px 14px">+ New blend</button>
+        </div>
+      </div>
+      <div style="background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r2);padding:10px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);margin-bottom:5px">Blend notes</div>
+        <textarea id="preroll-notes" placeholder="e.g. KM3 + Apple Fritter blend — hold back 200g each..." style="width:100%;min-height:55px;font-size:12px;background:var(--amber-bg);border:1px solid var(--amber-dim);color:var(--text);border-radius:var(--r);padding:7px 9px;resize:vertical" oninput="S('wg_preroll_notes',this.value)"></textarea>
       </div>
       <div id="preroll-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
     </div>
-
-    <!-- PACKAGES TAB — lead only -->
+    <!-- PACKAGES TAB -->
     <div id="postsub-packages" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:13px;color:var(--text2)">Approved weight logs archived here after 12 hours. Upload METRC package exports to link package numbers.</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:3px">Leads can edit any entry — changes reflect in Pre-roll priority ranking.</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <label style="display:inline-block;padding:6px 14px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
-            📁 Upload METRC packages
-            <input type="file" accept=".xlsx,.csv" style="display:none" onchange="handlePackagesUpload(this)"/>
-          </label>
-          <span id="packages-upload-status" style="font-size:11px;color:var(--text3)"></span>
-        </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;color:var(--text2)">Approved weight logs archived here after 12 hours. Leads can re-edit any entry.</div>
+        <label style="display:inline-block;padding:6px 14px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--r);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer">
+          📁 Upload METRC packages
+          <input type="file" accept=".xlsx,.csv" style="display:none" onchange="handlePackagesUpload(this)"/>
+        </label>
       </div>
-      <div id="packages-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px"></div>
+      <div id="packages-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px"></div>
       <div id="packages-list" style="display:grid;gap:8px"></div>
     </div>
   </div>
 
-  <!-- ADD TO TRIM QUEUE MODAL -->
+  
+<!-- ROOM DETAIL MODAL -->
+<div class="modal-bg" id="room-detail-modal-bg" onclick="if(event.target===this)closeRoomModal()">
+  <div class="modal" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
+      <div><div id="rdm-room-name" style="font-size:16px;font-weight:700"></div><div id="rdm-phase-label" style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)"></div></div>
+      <button onclick="closeRoomModal()" style="font-size:18px;background:none;border:none;color:var(--text3);padding:4px 8px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Live vs targets</div>
+      <div id="rdm-live-targets" style="display:grid;gap:6px;margin-bottom:16px"></div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Environment — <span id="rdm-phase-name" style="color:var(--green)"></span></div>
+      <div id="rdm-env-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"></div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Irrigation & substrate</div>
+      <div id="rdm-irrigation-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px"></div>
+      <div id="rdm-shot-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);margin-bottom:16px"></div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">EC Rainbow</div>
+      <div id="rdm-ec-rainbow" style="margin-bottom:16px"></div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Runoff targets</div>
+      <div id="rdm-runoff-targets" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px"></div>
+      <div id="rdm-additive-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r);display:none"></div>
+    </div>
+  </div>
+</div>
+<!-- BLEND BUILDER MODAL -->
+<div class="modal-bg" id="blend-modal-bg" onclick="if(event.target===this)closeBlendModal()">
+  <div class="modal" style="max-width:500px;max-height:90vh;overflow-y:auto">
+    <h3>Build a blend</h3>
+    <label>Blend name</label><input id="bm-name" placeholder="e.g. KM3 x Apple Fritter"/>
+    <div id="bm-components" style="margin-top:10px"></div>
+    <button onclick="addBlendComponent()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;margin-top:6px">+ Add strain</button>
+    <div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:var(--r)"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Combined total</div><div id="bm-total" style="font-family:var(--mono);font-size:16px;font-weight:700">0g</div></div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeBlendModal()">Cancel</button><button class="btn-primary" onclick="confirmBlend()">Save blend</button></div>
+  </div>
+</div>
+<!-- FINAL WEIGHT MODAL -->
+<div class="modal-bg" id="final-weight-modal-bg" onclick="if(event.target===this)closeFinalWeightModal()">
+  <div class="modal" style="max-width:380px">
+    <h3 id="fwm-title">Enter final remaining weight</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Enter actual weight remaining after all pulls. Requires a different team member to verify.</div>
+    <label>Final weight remaining (g)</label><input id="fwm-weight" type="number" min="0" step="0.1" placeholder="0.0"/>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeFinalWeightModal()">Cancel</button><button class="btn-primary" onclick="submitFinalWeight()">Submit for verification</button></div>
+  </div>
+</div>
+
+<!-- ADD TO TRIM QUEUE MODAL -->
   <div class="modal-bg" id="trim-modal-bg">
     <div class="modal">
       <h3 id="trim-modal-title">Add to trim queue</h3>
@@ -768,48 +813,6 @@ button { cursor: pointer; }
     </div>
   </div>
 
-
-
-<!-- ROOM DETAIL MODAL -->
-<div class="modal-bg" id="room-detail-modal-bg" onclick="if(event.target===this)closeRoomModal()">
-  <div class="modal" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:0">
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1">
-      <div>
-        <div id="rdm-room-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
-        <div id="rdm-phase-label" style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)"></div>
-      </div>
-      <button onclick="closeRoomModal()" style="font-size:18px;background:none;border:none;color:var(--text3);padding:4px 8px;cursor:pointer">✕</button>
-    </div>
-    <div style="padding:16px 20px">
-
-      <!-- Live readings vs targets -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Live readings vs targets</div>
-      <div id="rdm-live-targets" style="display:grid;gap:6px;margin-bottom:16px"></div>
-
-      <!-- Environment targets -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Environment targets — <span id="rdm-phase-name" style="color:var(--green)"></span></div>
-      <div id="rdm-env-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"></div>
-
-      <!-- Irrigation / substrate targets -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Irrigation & substrate targets</div>
-      <div id="rdm-irrigation-targets" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px"></div>
-      <div id="rdm-shot-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--blue-bg);border:1px solid var(--blue-dim);border-radius:var(--r);margin-bottom:16px"></div>
-
-      <!-- EC Rainbow -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">EC Rainbow — feed EC</div>
-      <div id="rdm-ec-rainbow" style="margin-bottom:16px"></div>
-
-      <!-- Runoff targets -->
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Runoff targets</div>
-      <div id="rdm-runoff-targets" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px"></div>
-
-      <!-- Phase notes -->
-      <div id="rdm-additive-note" style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r);display:none;margin-bottom:8px"></div>
-
-    </div>
-  </div>
-</div>
 
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
@@ -985,7 +988,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.4'; // preroll from archive, smalls/trim split, dedupe fix
+const APP_VERSION = '3.5'; // full feature build
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -1088,7 +1091,7 @@ function getStage(room){
   if(fd===null)return'veg';
   if(fd<1)return'veg';
   if(fd>=1&&fd<=FLOWER_DAYS)return fd>=50?'late':'flower';
-  if(fd>FLOWER_DAYS&&fd<=67)return'harvest';
+  if(fd>FLOWER_DAYS&&fd<CYCLE)return'dark';
   return'harvest';
 }
 
@@ -1203,7 +1206,7 @@ function renderRooms(){
 
     let stageClass='stage-'+stage;
     let badgeClass='badge-'+stage;
-    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='dark'?'Harvest prep':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
+    let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='dark'?'Dark period':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
 
     const card=document.createElement('div');
     card.className=`room-card ${stageClass}`;
@@ -1247,13 +1250,13 @@ function renderRooms(){
 
     // Maxx OS phase strip
     let phaseHTML='';
-    if(fd!==null&&fd>=1&&fd<=67){
+    if(fd!==null&&fd>=1&&fd<=65){
       const phase=getPhaseForDay(fd);
       const ecr=getECRainbow(fd);
       if(phase){
         phaseHTML=`<div style="display:flex;align-items:center;gap:10px;margin:6px 0;padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:10px;flex-wrap:wrap">
           <span style="font-family:var(--mono);font-weight:700;color:var(--text2)">${phase.name}</span>
-          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%/${phase.nightRH||phase.rh}%</span>
+          <span style="color:var(--text3)">💡 ${phase.light}% · CO₂ ${phase.co2} · ${phase.dayTemp}°/${phase.nightTemp}° · RH ${phase.rh}%</span>
           ${ecr?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color}"></span><span style="color:var(--text3)">${ecr.name} EC ${ecr.ecMin}–${ecr.ecMax}</span></span>`:''}
         </div>`;
       }
@@ -1286,7 +1289,7 @@ function renderRooms(){
       const dotCls=additive.tier2?'dot-amber':'dot-gray';
       taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${additive.name}<span class="sub">${additive.dose}${additive.tier2?' · Tier 2':''}</span></div></div>`);
     }
-    // No dark period display — removed per facility update
+    if(stage==='dark') taskList.push(`<div class="task-item-sm"><span class="task-dot dot-gray"></span><div class="task-text" style="color:var(--text3)">Dark period — no entry</div></div>`);
     if(stage==='harvest'&&(roomView==='full')) taskList.push(`<div class="task-item-sm"><span class="task-dot dot-red"></span><div class="task-text"><span class="alert-txt">Harvest day — authorize entry in #harvest</span></div></div>`);
     if(taskList.length) taskHTML=`<div class="task-strip"><div class="task-strip-head">Today</div>${taskList.join('')}</div>`;
 
@@ -1323,11 +1326,9 @@ function renderRooms(){
           const dpc=(b*alpha)/(a-alpha);
           return dpc*9/5+32;
         })();
-        // Spread = LST - dew point. Use leaf temp if available, else room temp.
         const lst = gl.leafTemp || gl.temp;
         const spread = (dp !== null && lst) ? lst - dp : null;
-        // Color: ≤2°F = red (danger), ≤3°F = amber (warning), >3°F = green (safe)
-        const spreadColor = stale ? '' : spread === null ? '' : spread <= 2 ? 'alert' : spread <= 3 ? 'warn' : 'ok';
+        const spreadColor = stale ? '' : spread===null ? '' : spread<=2 ? 'alert' : spread<=3 ? 'warn' : 'ok';
         const row1=[
           gl.temp!==undefined?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':(tempOk?'ok':'warn')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
           gl.humidity!==undefined?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
@@ -1340,8 +1341,8 @@ function renderRooms(){
           </div>`:'',
         ].filter(Boolean).join('');
         const row2=[
-          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
-          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
+          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
           gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row1Count=row1.split('env-cell').length-1;
@@ -1578,14 +1579,8 @@ function logCloneCut(clearStrain=false){
       // Verify strain matches
       if(match['Strain']&&match['Strain'].toLowerCase()!==strain.toLowerCase()){
         const hint=document.getElementById('ce-mother-hint');
-        if(hint){
-          hint.style.color='var(--red)';
-          hint.style.fontWeight='700';
-          hint.style.background='var(--red-bg)';
-          hint.style.padding='3px 6px';
-          hint.style.borderRadius='var(--r)';
-          hint.textContent='⚠ Saved with mismatch — tag …'+motherTag+' is '+match['Strain']+', logged as '+strain;
-        }
+        if(hint) hint.style.color='var(--amber)';
+        if(hint) hint.textContent='⚠ Tag is '+match['Strain']+' not '+strain;
       }
     } else {
       const hint=document.getElementById('ce-mother-hint');
@@ -1945,8 +1940,8 @@ function clearTodayLog(){todayLog=[];S('wg_log_'+dateToIso(TODAY),todayLog);rend
 function renderAdditiveTable(){
   const tbody=document.getElementById('additive-tbody');
   tbody.innerHTML='';
-  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Harvest prep'};
-  for(let d=1;d<=67;d++){
+  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower',64:'Dark period'};
+  for(let d=1;d<=CYCLE;d++){
     const ad=ADDITIVES[d]||null;
     const fd=rooms.map(r=>flowerDay(r)).find(fd=>fd===d);
     const isToday=rooms.some(r=>flowerDay(r)===d);
@@ -2331,7 +2326,7 @@ const DEFAULT_TEAM=[
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
   // Preserve room config and settings, wipe everything else
-  const _keepKeys = ['wg_rooms_v2','wg_webhooks','wg_packages','wg_metrc_packages','wg_preroll_notes','wg_supplies','wg_session','wg_gs_url'];
+  const _keepKeys = ['wg_rooms_v2','wg_webhooks','wg_packages','wg_metrc_packages','wg_preroll_notes','wg_supplies','wg_session','wg_gs_url','wg_weight_log','wg_preroll_blends','wg_preroll_finished','wg_preroll_final_weights'];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
   localStorage.clear();
@@ -2848,9 +2843,8 @@ function renderWeightCards(){
     const card=document.createElement('div');
     card.className='card';
     card.style.borderLeft=`3px solid ${status==='approved'?'var(--green)':status==='pending'?'var(--amber)':'var(--purple)'}`;
-    const statusBadge=status==='approved'?`<span class="tag tag-green">Approved ✓</span>${currentRole==='lead'?'<span style="font-size:10px;color:var(--text3);margin-left:6px">· Lead can edit</span>':''}`:status==='pending'?`<span class="tag tag-amber">Pending verification</span>`:`<span class="tag tag-gray">Entry</span>`;
-    // Leads can always re-edit, others locked after submit
-    const dis=(status!=='entry'&&currentRole!=='lead')?'disabled':'';
+    const statusBadge=status==='approved'?`<span class="tag tag-green">Approved ✓</span>`:status==='pending'?`<span class="tag tag-amber">Pending verification</span>`:`<span class="tag tag-gray">Entry</span>`;
+    const dis=status!=='entry'?'disabled':'';
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div>
@@ -2862,14 +2856,12 @@ function renderWeightCards(){
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Bigs total (g)</label><input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','bigBuds',this.value)"/></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls (g) — pre-roll stock</label><input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeightAndCalc('${item.id}','smallBuds',this.value)"/></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Trim (g)</label><input type="number" min="0" step="0.1" value="${w.trimOnly||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeightAndCalc('${item.id}','trimOnly',this.value)"/></div>
-        <div style="background:var(--bg3);border-radius:var(--r);padding:6px 10px">
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Smalls + trim combined (auto)</div>
-          <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)" id="combined-${item.id}">${((parseFloat(w.smallBuds)||0)+(parseFloat(w.trimOnly)||0)||w.smallsAndTrim||0)}g</div>
-        </div>
+        <div style="background:var(--bg3);border-radius:var(--r);padding:6px 10px"><div style="font-size:10px;color:var(--text3);margin-bottom:2px">Combined (auto)</div><div style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)" id="combined-${item.id}">${((parseFloat(w.smallBuds)||0)+(parseFloat(w.trimOnly)||0)||w.smallsAndTrim||0)}g</div></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Smalls only (g) — pre-roll stock</label><input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" style="width:100%" ${dis} onchange="saveWeight('${item.id}','smallBuds',this.value)"/></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Moisture %</label><input type="number" min="0" max="100" step="0.1" value="${w.moisture||''}" placeholder="e.g. 11.2" style="width:100%" ${dis} onchange="saveWeight('${item.id}','moisture',this.value)"/></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Purpl Pro THC %</label><input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" style="width:100%" ${dis} onchange="saveWeight('${item.id}','purplTHC',this.value)"/></div>
       </div>
-      ${(w.bigBuds||w.smallBuds||w.trimOnly)?`<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px">Bigs: <strong>${w.bigBuds||0}g</strong> · Smalls: <strong>${w.smallBuds||0}g</strong> · Trim: <strong>${w.trimOnly||0}g</strong> · Combined: <strong>${w.smallsAndTrim||(parseFloat(w.smallBuds||0)+parseFloat(w.trimOnly||0))||0}g</strong>${w.purplTHC?` · THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong>`:''}</div>`:''}
+      ${(w.bigBuds||w.smallBuds)?`<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--r);font-size:12px">Bigs: <strong>${w.bigBuds||0}g</strong> · Smalls+trim: <strong>${w.smallsAndTrim||0}g</strong>${w.purplTHC?` · THC: <strong style="color:var(--purple)">${w.purplTHC}%</strong>`:''}</div>`:''}
       ${enteredBy?`<div style="font-size:11px;color:var(--text3);margin-top:6px">Entered by: ${enteredBy}</div>`:''}
       ${approvedBy?`<div style="font-size:11px;color:var(--green);margin-top:2px">Approved by: ${approvedBy}</div>`:''}
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
@@ -2889,87 +2881,18 @@ function saveWeight(itemId,field,value){
   S('wg_trim_weights',trimWeights);
   renderTrimQueue();
 }
-
 function saveWeightAndCalc(itemId,field,value){
   if(!trimWeights[itemId]) trimWeights[itemId]={};
   trimWeights[itemId][field]=value?parseFloat(value):null;
-  // Auto-calculate smallsAndTrim = smallBuds + trimOnly
   const smalls=parseFloat(trimWeights[itemId].smallBuds)||0;
   const trim=parseFloat(trimWeights[itemId].trimOnly)||0;
   if(smalls||trim) trimWeights[itemId].smallsAndTrim=smalls+trim;
   S('wg_trim_weights',trimWeights);
-  // Update combined display without full re-render
   const el=document.getElementById('combined-'+itemId);
   if(el) el.textContent=(smalls+trim).toFixed(1)+'g';
   renderTrimQueue();
 }
 
-function renderPrerollPriority(){
-  const list=document.getElementById('preroll-list');
-  if(!list)return;
-  trimWeights=L('wg_trim_weights',{});
-  const archived=L('wg_packages',[]);
-
-  // Build combined weight lookup: live trimWeights + archived packages
-  // trimWeights wins if both exist (more current)
-  const allWeights={};
-  archived.forEach(p=>{ allWeights[p.id]=p; });
-  Object.entries(trimWeights).forEach(([id,w])=>{ allWeights[id]=w; });
-
-  // Build combined item list: trimQueue + archived packages not already in trimQueue
-  const queueIds=new Set(trimQueue.map(q=>q.id));
-  const archivedItems=archived
-    .filter(p=>!queueIds.has(p.id))
-    .map(p=>({id:p.id,strain:p.strain,harvestBatch:p.harvestBatch,harvestDate:p.harvestDate,roomId:p.roomId||'',w:p}));
-  const allItems=[...trimQueue.map(item=>({...item,w:allWeights[item.id]||{}})),...archivedItems];
-
-  const strains=allItems
-    .filter(item=>item.w.purplTHC)
-    .sort((a,b)=>parseFloat(b.w.purplTHC)-parseFloat(a.w.purplTHC));
-
-  if(!strains.length){
-    list.innerHTML=`<div class="empty-state">No Purpl Pro results entered yet. Add test results in the Log Weights tab.</div>`;
-    return;
-  }
-
-  list.innerHTML=strains.map((item,i)=>{
-    const w=item.w;
-    const smallBuds=w.smallBuds?parseFloat(w.smallBuds):null;
-    const rank=i+1;
-    const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
-    return`<div class="card" style="border-left:3px solid ${rankColor}">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="font-size:28px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:36px">${rank}</div>
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
-            <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-            ${w.packageTag?`<span style="font-family:var(--mono);font-size:11px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text3)">Pkg …${String(w.packageTag).slice(-4)}</span>`:''}
-            ${currentRole==='lead'?`<input type="text" placeholder="Pkg #" maxlength="30" value="${w.packageTag||''}" style="font-size:11px;padding:2px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:110px;font-family:var(--mono)" onchange="saveWeight('${item.id}','packageTag',this.value);renderPrerollPriority()" onclick="event.stopPropagation()"/>`:``}
-          </div>
-          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''}</div>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${parseFloat(w.purplTHC).toFixed(1)}%</div>
-            <div style="font-size:10px;color:var(--text3)">THC</div>
-          </div>
-          ${w.purplTotal?`<div style="text-align:center">
-            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${parseFloat(w.purplTotal).toFixed(1)}%</div>
-            <div style="font-size:10px;color:var(--text3)">Total cannabinoids</div>
-          </div>`:''}
-          <div style="text-align:center">
-            <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${smallBuds!==null?smallBuds.toFixed(1)+'g':'—'}</div>
-            <div style="font-size:10px;color:var(--text3)">Smalls (pre-roll)</div>
-          </div>
-          ${w.trimOnly?`<div style="text-align:center">
-            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${parseFloat(w.trimOnly).toFixed(1)}g</div>
-            <div style="font-size:10px;color:var(--text3)">Trim</div>
-          </div>`:''}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
 
 function showPostTab(tab,el){
   document.querySelectorAll('#page-postprod .nav-tab').forEach(b=>b.classList.remove('active'));
@@ -2989,8 +2912,9 @@ function showPostTab(tab,el){
   if(tab==='weights'){archiveApprovedWeights();renderWeightCards();}
   if(tab==='preroll'){
     renderPrerollPriority();
+    pullWeightLog(true);
     const notesEl=document.getElementById('preroll-notes');
-    if(notesEl) notesEl.value=L('wg_preroll_notes','')||'';
+    if(notesEl&&!notesEl.value) notesEl.value=L('wg_preroll_notes','')||'';
   }
   if(tab==='packages') renderPackages();
 }
@@ -3195,7 +3119,7 @@ function approveWeight(itemId){
   if(loggedInMember.name===w.enteredBy){alert('A different employee must approve these weights.');return;}
   trimWeights[itemId].status='approved';
   trimWeights[itemId].approvedBy=loggedInMember.name;
-  trimWeights[itemId].approvedAt=new Date().toISOString(); // start 12h archive clock
+  trimWeights[itemId].approvedAt=new Date().toISOString();
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
   const item=trimQueue.find(i=>i.id===itemId);
@@ -3257,25 +3181,25 @@ function markChoreDone(id,freq){
   S(getChoreKey(freq)+'_'+id,{who,time:fmtTime(),date:dateToIso(TODAY)});
   renderChores();
 }
+
 // ══════════════════════════════════════════════
 // MAXX OS v1.3 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
 const MAXX_PHASES=[
-  // Maxx OS v1.4 — dayTemp/nightTemp/rh=day RH/nightRH all from updated chart
-  // vpd=kPa range | vwcMin/vwcMax=% | subECMin/subECMax=mS/cm | dryback=% overnight
+  // v1.4 — nightRH, X3 replaces DK, VPD/VWC/subEC/dryback/shotNote added
   {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:78, nightTemp:76, rh:78, nightRH:77, ecMin:1.9,ecMax:2.0, vpdMin:0.8,vpdMax:1.1, vwcMin:65,vwcMax:80, subECMin:2.5,subECMax:3.5, dryback:5,  shotNote:'Small frequent shots. Build root zone. P1 20-30ml, P2 as needed.'},
   {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:80, nightTemp:74, rh:75, nightRH:74, ecMin:2.0,ecMax:2.1, vpdMin:0.9,vpdMax:1.2, vwcMin:65,vwcMax:78, subECMin:2.5,subECMax:3.5, dryback:6,  shotNote:'Maintain moisture. 4-6 shots/day. Watch for stem stretch.'},
   {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:80, nightTemp:74, rh:73, nightRH:73, ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.3, vwcMin:63,vwcMax:75, subECMin:2.8,subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
   {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:80, nightTemp:73, rh:70, nightRH:70, ecMin:2.1,ecMax:2.3, vpdMin:1.0,vpdMax:1.4, vwcMin:62,vwcMax:75, subECMin:3.0,subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Match irrigation to transpiration. 6-8 shots/day.'},
-  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:80, nightTemp:73, rh:68, nightRH:68, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.0,subECMax:4.2, dryback:9,  shotNote:'High transpiration phase. Runoff EC 3.0-4.5 target. VPD softness (0.80) acceptable.'},
+  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:80, nightTemp:73, rh:68, nightRH:68, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.0,subECMax:4.2, dryback:9,  shotNote:'High transpiration phase. Runoff EC 3.0-4.5 target.'},
   {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:80, nightTemp:73, rh:66, nightRH:66, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:60,vwcMax:73, subECMin:3.2,subECMax:4.5, dryback:9,  shotNote:'Approach peak vegetative mass. Maintain runoff 15-20%.'},
   {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:80, nightTemp:73, rh:64, nightRH:64, ecMin:2.3,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:58,vwcMax:72, subECMin:3.2,subECMax:4.5, dryback:10, shotNote:'Begin tightening dryback. Hard cutoff defol today at Day 28.'},
   {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:58, nightRH:58, ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:55,vwcMax:70, subECMin:3.5,subECMax:4.8, dryback:10, shotNote:'Stacking begins. Push EC steadily. Supa Stiky starts Day 29.'},
   {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:56, nightRH:56, ecMin:2.8,ecMax:2.9, vpdMin:1.2,vpdMax:1.6, vwcMin:53,vwcMax:68, subECMin:3.8,subECMax:5.2, dryback:11, shotNote:'Peak EC phase. Spray window closes Day 42. Monitor runoff EC closely.'},
-  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:52,vwcMax:67, subECMin:3.5,subECMax:5.0, dryback:11, shotNote:'Hold peak. Begin dialing back EC slightly. Round 2 defol window opens Day 42.'},
+  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.6,ecMax:2.7, vpdMin:1.2,vpdMax:1.6, vwcMin:52,vwcMax:67, subECMin:3.5,subECMax:5.0, dryback:11, shotNote:'Hold peak. Begin dialing back EC slightly. Round 2 defol opens Day 42.'},
   {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78, nightTemp:70, rh:52, nightRH:51, ecMin:2.2,ecMax:2.5, vpdMin:1.1,vpdMax:1.5, vwcMin:50,vwcMax:65, subECMin:3.0,subECMax:4.5, dryback:12, shotNote:'Begin EC fade. NO H2O2. Reduce shot frequency. Supa Stiky X1.'},
   {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:76.5,nightTemp:68, rh:51, nightRH:50, ecMin:1.5,ecMax:2.1, vpdMin:1.0,vpdMax:1.4, vwcMin:48,vwcMax:62, subECMin:2.0,subECMax:3.5, dryback:13, shotNote:'Aggressive fade. Push dryback. Reduce shots to 3-4/day.'},
-  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,  nightTemp:66.5,rh:50, nightRH:48, ecMin:1.5,ecMax:2.1, vpdMin:0.9,vpdMax:1.3, vwcMin:45,vwcMax:60, subECMin:1.5,subECMax:2.5, dryback:15, shotNote:'Final fade. Pre-harvest defol Day 60-63. Minimal water — push dry.'},
+  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,  nightTemp:66.5,rh:50, nightRH:48, ecMin:1.5,ecMax:2.1, vpdMin:0.9,vpdMax:1.3, vwcMin:45,vwcMax:60, subECMin:1.5,subECMax:2.5, dryback:15, shotNote:'Final fade. Pre-harvest defol Day 60-63. Minimal water.'},
   {id:'X3', name:'X3 Harvest Prep',start:64, end:67, light:45, co2:550,  dayTemp:69,  nightTemp:65,  rh:45, nightRH:44, ecMin:null,ecMax:null, vpdMin:null,vpdMax:null, vwcMin:35,vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Harvest prep. Minimal to no irrigation. Push final dry.'},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
@@ -3488,7 +3412,6 @@ function syncHarvestsToTrimQueue(rows){
     const dateFromBatch = batchDate ? dateToIso(batchDate) : '';
     const date = rawDate || dateFromBatch;
     if(!batch) return;
-    // Dedupe by batch name OR by strain name (prevents manual+METRC doubles)
     if(trimQueue.find(q=>q.harvestBatch===batch)) return;
     if(trimQueue.find(q=>q.strain&&batch&&q.strain.toLowerCase()===batch.toLowerCase()&&q.fromMetrc)) return;
     const item = {
@@ -3573,22 +3496,15 @@ function showMetrcTab(tab,el){
 }
 
 function renderCurrentMetrcTab(){
-  // Re-render active tab content without resetting tab selection
-  const activeBtn = document.querySelector('#metrc-tab-nav .nav-tab.active');
-  if(activeBtn){
-    // Find which tab is active and re-render it
-    const activeTab = ['mothers','clones','strains','harvests'].find(t=>{
-      const el=document.getElementById('metrc-sub-'+t);
-      return el&&el.style.display!=='none';
-    });
-    if(activeTab==='mothers') renderMetrcMothers();
-    else if(activeTab==='clones') renderMetrcClones();
-    else if(activeTab==='strains') renderMetrcStrains();
-    else if(activeTab==='harvests') renderMetrcHarvests();
-    else buildMetrcTabNav(); // fallback first load only
-  } else {
-    buildMetrcTabNav(); // first time — no tab selected yet
-  }
+  const activeTab=['mothers','clones','strains','harvests'].find(t=>{
+    const el=document.getElementById('metrc-sub-'+t);
+    return el&&el.style.display!=='none';
+  });
+  if(activeTab==='mothers') renderMetrcMothers();
+  else if(activeTab==='clones') renderMetrcClones();
+  else if(activeTab==='strains') renderMetrcStrains();
+  else if(activeTab==='harvests') renderMetrcHarvests();
+  else buildMetrcTabNav();
 }
 
 function renderMetrcMothers(){
@@ -3609,8 +3525,8 @@ function renderMetrcMothers(){
   });
   const clonesByStrain={};
   metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
-  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers'+(search?' (filtered)':'');
+  const strains=Object.keys(byStrain).sort();
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers';
   if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains found.</div>';return;}
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
@@ -3645,7 +3561,7 @@ function renderMetrcClones(){
   metrcData.mother.forEach(r=>{const s=r['Strain']||r['StrainName']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
   const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
   const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones'+(search?' (filtered)':'');
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones';
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
     const mc=mothersByStrain[strain]||0;
@@ -3847,46 +3763,29 @@ function getMetrcStrainSuggestions(query){
 function onMotherTagInput(val) {
   const hint = document.getElementById('ce-mother-hint');
   if (!hint) return;
-  if (!val || val.length < 4) { hint.textContent = ''; hint.style.cssText=''; return; }
-
+  if (!val || val.length < 4) { hint.textContent=''; hint.style.cssText=''; return; }
   const match = metrcData.mother.find(r => (r['Tag']||'').endsWith(val));
   const strainInput = document.getElementById('ce-strain');
   const enteredStrain = (strainInput?.value||'').trim().toLowerCase();
-
   if (match) {
     const matchStrain = match['Strain']||'';
-    const matchLoc = (match['Location']||'').replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm');
-    const strainMatch = !enteredStrain || matchStrain.toLowerCase() === enteredStrain;
-
+    const matchLoc = (match['Location']||'').replace('Mothers Room','Mothers Rm');
+    const strainMatch = !enteredStrain || matchStrain.toLowerCase()===enteredStrain;
     if (strainMatch) {
-      // Tag found and strain matches (or no strain entered yet)
-      hint.style.color = 'var(--green)';
-      hint.style.fontWeight = '600';
-      hint.style.background = '';
-      hint.textContent = '✓ ' + matchStrain + ' · ' + matchLoc;
-      // Auto-fill strain if empty
+      hint.style.color='var(--green)'; hint.style.fontWeight='600'; hint.style.background='';
+      hint.textContent = '✓ '+matchStrain+' · '+matchLoc;
       if (strainInput && !strainInput.value) strainInput.value = matchStrain;
     } else {
-      // Tag found BUT strain is WRONG — flag it clearly
-      hint.style.color = 'var(--red)';
-      hint.style.fontWeight = '700';
-      hint.style.background = 'var(--red-bg)';
-      hint.style.padding = '3px 6px';
-      hint.style.borderRadius = 'var(--r)';
-      hint.textContent = '⚠ Tag …' + val + ' is ' + matchStrain + ' — not ' + (strainInput?.value||'entered strain');
+      hint.style.color='var(--red)'; hint.style.fontWeight='700';
+      hint.style.background='var(--red-bg)'; hint.style.padding='3px 6px'; hint.style.borderRadius='var(--r)';
+      hint.textContent = '⚠ Tag …'+val+' is '+matchStrain+' — not '+strainInput.value;
     }
-  } else if (metrcData.mother.length) {
-    // No tag match at all in mother data
-    hint.style.color = 'var(--amber)';
-    hint.style.fontWeight = '600';
-    hint.style.background = '';
-    hint.textContent = '⚠ Tag …' + val + ' not found in mother plants';
+  } else if(metrcData.mother.length){
+    hint.style.color='var(--amber)'; hint.style.fontWeight='600'; hint.style.background='';
+    hint.textContent = '⚠ Tag …'+val+' not found in mother plants';
   } else {
-    // No mother data loaded
-    hint.style.color = 'var(--text3)';
-    hint.style.fontWeight = '';
-    hint.style.background = '';
-    hint.textContent = 'No mother data loaded — upload in Settings → METRC';
+    hint.style.color='var(--text3)'; hint.style.fontWeight=''; hint.style.background='';
+    hint.textContent = 'No mother data loaded';
   }
 }
 function showStrainAutocomplete(val){
@@ -4068,342 +3967,325 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 
 // ══════════════════════════════════════════════
-// PACKAGES — weight archive + METRC package data
+// ROOM DETAIL MODAL
 // ══════════════════════════════════════════════
-let packagesData = L('wg_packages', []);
-let metrcPackages = L('wg_metrc_packages', []);
-
-// Archive approved weights that are >12 hours old — move to packages store
-function archiveApprovedWeights(){
-  trimWeights = L('wg_trim_weights', {});
-  trimQueue = L('wg_trim_queue', []);
-  const cutoff = Date.now() - (12 * 60 * 60 * 1000); // 12 hours
-  let changed = false;
-
-  Object.entries(trimWeights).forEach(([itemId, w]) => {
-    if(w.status !== 'approved') return;
-    const approvedAt = w.approvedAt ? new Date(w.approvedAt).getTime() : 0;
-    // If no approvedAt timestamp, add it now so 12h clock starts
-    if(!w.approvedAt){
-      trimWeights[itemId].approvedAt = new Date().toISOString();
-      changed = true;
-      return;
+function openRoomModal(roomId){
+  const room=rooms.find(r=>r.id===roomId); if(!room)return;
+  const fd=flowerDay(room), phase=fd?getPhaseForDay(fd):null;
+  const ecr=fd?getECRainbow(fd):null, gl=getGrowlinkForRoom(room.name);
+  const additive=fd?(ADDITIVES[fd]||null):null;
+  document.getElementById('rdm-room-name').textContent=room.name+(fd?' — Day '+fd:' — Veg');
+  document.getElementById('rdm-phase-label').textContent=phase?phase.name+' · Day '+fd:(fd?'Day '+fd:'Vegetative');
+  document.getElementById('rdm-phase-name').textContent=phase?phase.name:'—';
+  const liveEl=document.getElementById('rdm-live-targets');
+  if(gl&&phase){
+    const tc=(gl.temp-32)*5/9,a=17.27,b=237.7,alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
+    const dp=gl.temp&&gl.humidity?((b*alpha)/(a-alpha))*9/5+32:null;
+    const lst=gl.leafTemp||gl.temp, spread=(dp&&lst)?lst-dp:null;
+    function liveRow(label,live,lo,hi,unit,dec){
+      dec=dec===undefined?1:dec; if(live===null||live===undefined)return'';
+      const v=parseFloat(live),ok=(lo===null||v>=lo)&&(hi===null||v<=hi),col=ok?'var(--green)':'var(--red)';
+      const tgt=lo!==null&&hi!==null?lo+'–'+hi+unit:hi!==null?'≤'+hi+unit:lo!==null?'≥'+lo+unit:'—';
+      return`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${col}"><span style="font-size:12px;color:var(--text2)">${label}</span><div style="display:flex;align-items:center;gap:12px"><span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${col}">${v.toFixed(dec)}${unit}</span><span style="font-size:10px;color:var(--text3)">target ${tgt}</span></div></div>`;
     }
-    if(approvedAt > cutoff) return; // not old enough yet
-
-    // Move to packages archive
-    const queueItem = trimQueue.find(q => q.id === itemId);
-    const archived = {
-      id: itemId,
-      strain: queueItem?.strain || w.strain || itemId,
-      harvestBatch: queueItem?.harvestBatch || '',
-      harvestDate: queueItem?.harvestDate || '',
-      bigBuds: w.bigBuds,
-      smallsAndTrim: w.smallsAndTrim,
-      smallBuds: w.smallBuds,
-      moisture: w.moisture,
-      purplTHC: w.purplTHC,
-      purplTotal: w.purplTotal,
-      packageTag: w.packageTag || '',
-      enteredBy: w.enteredBy,
-      approvedBy: w.approvedBy,
-      approvedAt: w.approvedAt,
-      archivedAt: new Date().toISOString(),
-    };
-    // Only archive if not already there
-    if(!packagesData.find(p => p.id === itemId)){
-      packagesData.unshift(archived);
-      changed = true;
-    }
-    // Remove from trimWeights so it disappears from Log Weights tab
-    delete trimWeights[itemId];
-    changed = true;
-  });
-
-  if(changed){
-    S('wg_trim_weights', trimWeights);
-    S('wg_packages', packagesData);
-    pushConfigDebounced();
+    const spreadRow=spread!==null?(()=>{const col=spread<=2?'var(--red)':spread<=3?'var(--amber)':'var(--green)';return`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${col}"><span style="font-size:12px;color:var(--text2)">Dew pt spread (LST−Dew)</span><div style="display:flex;align-items:center;gap:12px"><span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${col}">${spread.toFixed(1)}°F</span><span style="font-size:10px;color:var(--text3)">target ≥4°F · alert ≤2°F</span></div></div>`;})():'';
+    liveEl.innerHTML=[liveRow('Temp',gl.temp,phase.dayTemp-4,phase.dayTemp+3,'°F'),liveRow('RH',gl.humidity,phase.rh-7,phase.rh+7,'%'),liveRow('CO₂',gl.co2,phase.co2-150,phase.co2+150,'ppm',0),liveRow('VPD',gl.vpd,phase.vpdMin,phase.vpdMax,' kPa',2),liveRow('VWC',gl.soilMoisture,phase.vwcMin,phase.vwcMax,'%'),liveRow('EC (substrate)',gl.soilEC,phase.subECMin,phase.subECMax,' mS',2),spreadRow].filter(Boolean).join('');
+  } else {
+    liveEl.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px">'+((!gl)?'No Growlink data for this room.':'No phase data — room may be in veg.')+'</div>';
   }
+  function targetCell(label,val,unit){unit=unit||'';return`<div style="background:var(--bg3);border-radius:var(--r);padding:8px 10px"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div><div style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text)">${val!==null&&val!==undefined?val+unit:'—'}</div></div>`;}
+  const envEl=document.getElementById('rdm-env-targets');
+  if(phase){envEl.innerHTML=[targetCell('Temp day',phase.dayTemp,'°F'),targetCell('Temp night',phase.nightTemp,'°F'),targetCell('Day RH',phase.rh,'%'),targetCell('Night RH',phase.nightRH||phase.rh,'%'),targetCell('CO₂',phase.co2,' ppm'),targetCell('VPD range',phase.vpdMin&&phase.vpdMax?phase.vpdMin+'–'+phase.vpdMax:'—',' kPa'),targetCell('Light',phase.light,'%')].join('');}
+  else{envEl.innerHTML='<div style="font-size:12px;color:var(--text3);grid-column:1/-1">Vegetative</div>';}
+  const irrEl=document.getElementById('rdm-irrigation-targets'),shotEl=document.getElementById('rdm-shot-note');
+  if(phase){irrEl.innerHTML=[targetCell('VWC range',phase.vwcMin&&phase.vwcMax?phase.vwcMin+'–'+phase.vwcMax:'—','%'),targetCell('Substrate EC',phase.subECMin&&phase.subECMax?phase.subECMin+'–'+phase.subECMax:'—',' mS'),targetCell('Dryback',phase.dryback?'~'+phase.dryback:'—','%'),targetCell('Runoff','15–20','%')].join('');shotEl.textContent=phase.shotNote||'';shotEl.style.display=phase.shotNote?'block':'none';}
+  else{irrEl.innerHTML='';shotEl.style.display='none';}
+  const ecrEl=document.getElementById('rdm-ec-rainbow');
+  if(ecr){const pct=fd?Math.min(100,Math.round(((fd-ecr.start+1)/(ecr.end-ecr.start+1))*100)):0;ecrEl.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${ecr.color}"><div style="width:12px;height:12px;border-radius:50%;background:${ecr.color};flex-shrink:0"></div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">${ecr.name} — EC ${ecr.ecMin}–${ecr.ecMax} mS/cm</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Days ${ecr.start}–${ecr.end} · ${pct}% through</div><div class="prog-track" style="margin-top:5px"><div class="prog-fill" style="width:${pct}%;background:${ecr.color}"></div></div></div></div>`;}
+  else{ecrEl.innerHTML='<div style="font-size:12px;color:var(--text3)">—</div>';}
+  document.getElementById('rdm-runoff-targets').innerHTML=[targetCell('pH','5.6–6.2'),targetCell('EC runoff',phase&&phase.subECMin&&phase.subECMax?phase.subECMin+'–'+phase.subECMax:'3.0–5.0',' mS'),targetCell('Volume','15–20','% of input')].join('');
+  const addEl=document.getElementById('rdm-additive-note');
+  if(additive&&additive.name!=='Base feed only'){addEl.innerHTML='🧪 <strong>Today&#39;s additive:</strong> '+additive.name+' · '+additive.dose+(additive.tier2?' · <span style="color:var(--amber)">Tier 2 only</span>':'');addEl.style.display='block';}
+  else{addEl.style.display='none';}
+  document.getElementById('room-detail-modal-bg').classList.add('open');
+}
+function closeRoomModal(){ document.getElementById('room-detail-modal-bg').classList.remove('open'); }
+
+// ══════════════════════════════════════════════
+// PACKAGES ARCHIVE
+// ══════════════════════════════════════════════
+function archiveApprovedWeights(){
+  trimWeights=L('wg_trim_weights',{});
+  const cutoff=Date.now()-(12*60*60*1000);
+  let changed=false;
+  let packagesData=L('wg_packages',[]);
+  Object.entries(trimWeights).forEach(([itemId,w])=>{
+    if(w.status!=='approved')return;
+    if(!w.approvedAt){trimWeights[itemId].approvedAt=new Date().toISOString();changed=true;return;}
+    if(new Date(w.approvedAt).getTime()>cutoff)return;
+    const queueItem=trimQueue.find(q=>q.id===itemId);
+    const archived={id:itemId,strain:queueItem?.strain||w.strain||itemId,harvestBatch:queueItem?.harvestBatch||'',harvestDate:queueItem?.harvestDate||'',bigBuds:w.bigBuds,smallsAndTrim:w.smallsAndTrim,smallBuds:w.smallBuds,trimOnly:w.trimOnly,moisture:w.moisture,purplTHC:w.purplTHC,packageTag:w.packageTag||'',enteredBy:w.enteredBy,approvedBy:w.approvedBy,approvedAt:w.approvedAt,archivedAt:new Date().toISOString()};
+    if(!packagesData.find(p=>p.id===itemId)){packagesData.unshift(archived);changed=true;}
+    delete trimWeights[itemId];changed=true;
+  });
+  if(changed){S('wg_trim_weights',trimWeights);S('wg_packages',packagesData);pushConfigDebounced();}
 }
 
-// Render the packages tab
 function renderPackages(){
-  packagesData = L('wg_packages', []);
-  metrcPackages = L('wg_metrc_packages', []);
-  const list = document.getElementById('packages-list');
-  const summary = document.getElementById('packages-summary');
-  if(!list) return;
-
-  // Summary stats
+  const packagesData=L('wg_packages',[]);
+  const list=document.getElementById('packages-list'),summary=document.getElementById('packages-summary');
+  if(!list)return;
   if(summary){
-    const totalWeight = packagesData.reduce((a,p) => a+(parseFloat(p.bigBuds)||0)+(parseFloat(p.smallsAndTrim)||0), 0);
-    const totalSmalls = packagesData.reduce((a,p) => a+(parseFloat(p.smallBuds)||0), 0);
-    const avgTHC = packagesData.filter(p=>p.purplTHC).length
-      ? (packagesData.filter(p=>p.purplTHC).reduce((a,p)=>a+parseFloat(p.purplTHC),0)/packagesData.filter(p=>p.purplTHC).length).toFixed(1)
-      : '—';
-    summary.innerHTML = [
-      {label:'Archived lots', val:packagesData.length, color:'var(--text)'},
-      {label:'Total weight', val:totalWeight.toFixed(0)+'g', color:'var(--green)'},
-      {label:'Small buds', val:totalSmalls.toFixed(0)+'g', color:'var(--blue)'},
-      {label:'Avg THC', val:avgTHC+'%', color:'var(--purple)'},
-    ].map(s=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px">
-      <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div>
-    </div>`).join('');
+    const tw=packagesData.reduce((a,p)=>a+(parseFloat(p.bigBuds)||0)+(parseFloat(p.smallsAndTrim)||0),0);
+    const ts=packagesData.reduce((a,p)=>a+(parseFloat(p.smallBuds)||0),0);
+    const avgTHC=packagesData.filter(p=>p.purplTHC).length?(packagesData.filter(p=>p.purplTHC).reduce((a,p)=>a+parseFloat(p.purplTHC),0)/packagesData.filter(p=>p.purplTHC).length).toFixed(1):'—';
+    summary.innerHTML=[{label:'Archived lots',val:packagesData.length,color:'var(--text)'},{label:'Total weight',val:tw.toFixed(0)+'g',color:'var(--green)'},{label:'Smalls',val:ts.toFixed(0)+'g',color:'var(--blue)'},{label:'Avg THC',val:avgTHC+'%',color:'var(--purple)'}].map(s=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px"><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${s.color}">${s.val}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${s.label}</div></div>`).join('');
   }
-
-  if(!packagesData.length){
-    list.innerHTML = '<div class="empty-state">No archived lots yet. Approved weights appear here automatically 12 hours after approval.</div>';
-    return;
-  }
-
-  list.innerHTML = packagesData.map(p => {
-    // Look up METRC package if available
-    const metrcPkg = metrcPackages.find(m =>
-      (m['Label']||m['Package Label']||'').slice(-4) === (p.packageTag||'').slice(-4) && p.packageTag
-    );
-    const pkgLabel = metrcPkg ? (metrcPkg['Label']||metrcPkg['Package Label']||'') : '';
-    const approvedDate = p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
-
-    return `<div class="card" style="border-left:3px solid var(--green)">
+  if(!packagesData.length){list.innerHTML='<div class="empty-state">No archived lots yet. Approved weights appear here 12 hours after approval.</div>';return;}
+  list.innerHTML=packagesData.map(p=>{
+    const approvedDate=p.approvedAt?new Date(p.approvedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+    return`<div class="card" style="border-left:3px solid var(--green)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">${p.strain}</div>
-          <div style="font-size:11px;color:var(--text3)">${p.harvestBatch||p.harvestDate||''} · Approved ${approvedDate}</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="text" placeholder="Package # (last 4 or full)" value="${p.packageTag||''}"
-            style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:160px;font-family:var(--mono)"
-            onchange="updatePackageTag('${p.id}',this.value)"/>
-          ${pkgLabel?`<span style="font-size:10px;font-family:var(--mono);padding:2px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);color:var(--green)">${pkgLabel}</span>`:''}
-        </div>
+        <div><div style="font-size:14px;font-weight:700">${p.strain}</div><div style="font-size:11px;color:var(--text3)">${p.harvestBatch||p.harvestDate||''} · Approved ${approvedDate}</div></div>
+        <input type="text" placeholder="Package #" value="${p.packageTag||''}" style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:160px;font-family:var(--mono)" onchange="updatePackageTag('${p.id}',this.value)"/>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:10px">
-        <div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
-          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--green)">${p.bigBuds||'—'}g</div>
-          <div style="font-size:10px;color:var(--text3)">Bigs</div>
-        </div>
-        <div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
-          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--blue)">${p.smallBuds||'—'}g</div>
-          <div style="font-size:10px;color:var(--text3)">Smalls</div>
-        </div>
-        <div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
-          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text)">${p.smallsAndTrim||'—'}g</div>
-          <div style="font-size:10px;color:var(--text3)">Smalls+Trim</div>
-        </div>
-        ${p.moisture?`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center">
-          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text2)">${p.moisture}%</div>
-          <div style="font-size:10px;color:var(--text3)">Moisture</div>
-        </div>`:''}
-        ${p.purplTHC?`<div style="background:var(--purple-dim);border-radius:var(--r);padding:8px;text-align:center">
-          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--purple)">${p.purplTHC}%</div>
-          <div style="font-size:10px;color:var(--text3)">THC</div>
-        </div>`:''}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-bottom:8px">
+        ${p.bigBuds?`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center"><div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--green)">${p.bigBuds}g</div><div style="font-size:10px;color:var(--text3)">Bigs</div></div>`:''}
+        ${p.smallBuds?`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center"><div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--blue)">${p.smallBuds}g</div><div style="font-size:10px;color:var(--text3)">Smalls</div></div>`:''}
+        ${p.trimOnly?`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center"><div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text2)">${p.trimOnly}g</div><div style="font-size:10px;color:var(--text3)">Trim</div></div>`:''}
+        ${p.purplTHC?`<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center"><div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--purple)">${p.purplTHC}%</div><div style="font-size:10px;color:var(--text3)">THC</div></div>`:''}
       </div>
-      <!-- Lead-editable fields -->
-      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Edit weights (lead)</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px">
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Bigs (g)</label><input type="number" value="${p.bigBuds||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','bigBuds',this.value)"/></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Smalls only (g)</label><input type="number" value="${p.smallBuds||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','smallBuds',this.value)"/></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Smalls+Trim (g)</label><input type="number" value="${p.smallsAndTrim||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','smallsAndTrim',this.value)"/></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Purpl THC %</label><input type="number" step="0.1" value="${p.purplTHC||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','purplTHC',this.value)"/></div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Moisture %</label><input type="number" step="0.1" value="${p.moisture||''}" style="width:100%;font-size:12px;padding:4px 7px" onchange="editPackageWeight('${p.id}','moisture',this.value)"/></div>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:8px">Entered by: ${p.enteredBy||'—'} · Approved by: ${p.approvedBy||'—'}</div>
+      <div style="font-size:11px;color:var(--text3)">Entered: ${p.enteredBy||'—'} · Approved: ${p.approvedBy||'—'}</div>
     </div>`;
   }).join('');
 }
 
-function updatePackageTag(id, val){
-  packagesData = L('wg_packages', []);
-  const p = packagesData.find(p => p.id === id);
-  if(p){ p.packageTag = val.trim(); S('wg_packages', packagesData); pushConfigDebounced(); }
-  // Also update trimWeights for preroll priority display
-  if(!trimWeights[id]) trimWeights[id] = {};
-  trimWeights[id].packageTag = val.trim();
-  S('wg_trim_weights', trimWeights);
-}
-
-function editPackageWeight(id, field, val){
-  packagesData = L('wg_packages', []);
-  const p = packagesData.find(p => p.id === id);
-  if(!p) return;
-  p[field] = val ? parseFloat(val) : null;
-  S('wg_packages', packagesData);
-  pushConfigDebounced();
-  renderPackages();
+function updatePackageTag(id,val){
+  const packagesData=L('wg_packages',[]);
+  const p=packagesData.find(x=>x.id===id);
+  if(p){p.packageTag=val.trim();S('wg_packages',packagesData);pushConfigDebounced();}
 }
 
 async function handlePackagesUpload(input){
-  const file = input.files[0]; if(!file) return;
-  const statusEl = document.getElementById('packages-upload-status');
-  if(statusEl) statusEl.textContent = 'Reading…';
+  const file=input.files[0];if(!file)return;
   try{
     let rows;
-    if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')) rows = await parseMetrcXLSX(file);
-    else { const text = await file.text(); rows = parseMetrcCSV(text); }
-    metrcPackages = rows;
-    S('wg_metrc_packages', rows);
-    if(statusEl){ statusEl.textContent = '✓ '+rows.length+' packages loaded'; statusEl.style.color='var(--green)'; }
-    renderPackages();
+    if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls'))rows=await parseMetrcXLSX(file);
+    else{const text=await file.text();rows=parseMetrcCSV(text);}
+    S('wg_metrc_packages',rows);renderPackages();
+  }catch(e){console.error('Packages upload error:',e);}
+}
+
+// ══════════════════════════════════════════════
+// WEIGHT LOG PULL + PRE-ROLL ENGINE
+// ══════════════════════════════════════════════
+let weightLogData=L('wg_weight_log',[]);
+let prerollBlends=L('wg_preroll_blends',[]);
+let prerollFinished=L('wg_preroll_finished',{});
+let prerollFinalWeights=L('wg_preroll_final_weights',{});
+let _blendModalComponents=[];
+
+async function pullWeightLog(silent=false){
+  if(!gsUrl)return;
+  const statusEl=document.getElementById('preroll-sync-status');
+  if(statusEl)statusEl.textContent='Syncing…';
+  try{
+    const res=await fetch(gsUrl+'?action=getSheet&sheet=Weight_Log&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok||!json.rows)throw new Error(json.error||'No data');
+    // Cols: [0]=Timestamp [1]=Strain [2]=HarvestDate [3]=Bigs [4]=Smalls+Trim [5]=Smalls [6]=Trim [7]=THC% [8]=EnteredBy [9]=ApprovedBy [10]=ApprovedAt
+    const deduped={};
+    json.rows.filter(r=>r[1]&&r[9]).forEach(r=>{
+      const key=(r[1]||'').toString().trim()+'_'+(r[2]||'').toString().trim();
+      const row={id:'wl_'+(r[1]||'').toString().replace(/[^a-z0-9]/gi,'_')+'_'+(r[2]||'').toString().replace(/[^0-9]/g,''),strain:(r[1]||'').toString().trim(),harvestDate:(r[2]||'').toString().trim(),bigBuds:parseFloat(r[3])||0,smallsAndTrim:parseFloat(r[4])||0,smallBuds:parseFloat(r[5])||0,trimOnly:parseFloat(r[6])||0,purplTHC:parseFloat(r[7])||null,enteredBy:(r[8]||'').toString(),approvedBy:(r[9]||'').toString(),approvedAt:(r[10]||r[0]||'').toString(),fromSheet:true};
+      if(!deduped[key]||new Date(row.approvedAt)>new Date(deduped[key].approvedAt))deduped[key]=row;
+    });
+    weightLogData=Object.values(deduped);
+    S('wg_weight_log',weightLogData);
+    if(statusEl){statusEl.textContent='✓ '+weightLogData.length+' entries synced';statusEl.style.color='var(--green)';}
+    renderPrerollPriority();
   }catch(e){
-    if(statusEl){ statusEl.textContent = '✗ '+e.message; statusEl.style.color='var(--red)'; }
+    if(!silent&&statusEl){statusEl.textContent='Could not sync — check Apps Script';statusEl.style.color='var(--amber)';}
   }
 }
 
+function getPrerollItems(){
+  const all={};
+  weightLogData=L('wg_weight_log',[]);
+  weightLogData.forEach(row=>{all[row.id]={...row};});
+  const tq=L('wg_trim_queue',[]),tw=L('wg_trim_weights',{});
+  tq.forEach(item=>{
+    const w=tw[item.id]||{};if(!w.purplTHC)return;
+    all[item.id]={id:item.id,strain:item.strain,harvestDate:item.harvestDate||'',harvestBatch:item.harvestBatch||'',bigBuds:parseFloat(w.bigBuds)||0,smallsAndTrim:parseFloat(w.smallsAndTrim)||(parseFloat(w.smallBuds||0)+parseFloat(w.trimOnly||0)),smallBuds:parseFloat(w.smallBuds)||0,trimOnly:parseFloat(w.trimOnly)||0,purplTHC:parseFloat(w.purplTHC)||null,packageTag:w.packageTag||'',enteredBy:w.enteredBy||'',approvedBy:w.approvedBy||'',fromLocal:true};
+  });
+  L('wg_packages',[]).forEach(p=>{
+    if(!p.purplTHC||all[p.id])return;
+    all[p.id]={id:p.id,strain:p.strain,harvestDate:p.harvestDate||'',harvestBatch:p.harvestBatch||'',bigBuds:parseFloat(p.bigBuds)||0,smallsAndTrim:parseFloat(p.smallsAndTrim)||0,smallBuds:parseFloat(p.smallBuds)||0,trimOnly:parseFloat(p.trimOnly)||0,purplTHC:parseFloat(p.purplTHC)||null,packageTag:p.packageTag||'',approvedBy:p.approvedBy||'',fromArchive:true};
+  });
+  prerollBlends=L('wg_preroll_blends',[]);
+  prerollBlends.forEach(b=>{if(b.purplTHC||b.components)all['blend_'+b.id]={...b,isBlend:true};});
+  const now=Date.now(),cut=12*60*60*1000,finished=L('wg_preroll_finished',{});
+  return Object.values(all).filter(item=>{
+    const fin=finished[item.id];
+    if(fin&&fin.approvedBy&&fin.approvedAt&&now-new Date(fin.approvedAt).getTime()>cut)return false;
+    return true;
+  }).sort((a,b)=>(parseFloat(b.purplTHC)||0)-(parseFloat(a.purplTHC)||0));
+}
 
-// ══════════════════════════════════════════════
-// ROOM DETAIL MODAL
-// Click any room card to see full phase targets vs live data
-// ══════════════════════════════════════════════
-function openRoomModal(roomId){
-  const room = rooms.find(r => r.id === roomId);
-  if(!room) return;
-  const fd = flowerDay(room);
-  const phase = fd ? getPhaseForDay(fd) : null;
-  const ecr = fd ? getECRainbow(fd) : null;
-  const gl = getGrowlinkForRoom(room.name);
-  const additive = fd ? (ADDITIVES[fd] || null) : null;
+function renderPrerollPriority(){
+  const list=document.getElementById('preroll-list');if(!list)return;
+  const notesEl=document.getElementById('preroll-notes');
+  if(notesEl&&!notesEl.value)notesEl.value=L('wg_preroll_notes','')||'';
+  prerollBlends=L('wg_preroll_blends',[]);prerollFinished=L('wg_preroll_finished',{});prerollFinalWeights=L('wg_preroll_final_weights',{});
+  const items=getPrerollItems();
+  if(!items.length){list.innerHTML='<div class="empty-state">No weight entries with THC% yet. Click ↻ Sync Weight Log or approve weights in Log Weights.</div>';return;}
+  const isPostProd=currentRole==='postprod'||currentRole==='lead';
+  list.innerHTML=items.map((item,i)=>{
+    const rank=i+1,rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
+    const smalls=parseFloat(item.smallBuds)||0,trim=parseFloat(item.trimOnly)||0;
+    const combined=parseFloat(item.smallsAndTrim)||(smalls+trim);
+    const fw=prerollFinalWeights[item.id]||{},fin=prerollFinished[item.id]||{};
+    const finalApproved=!!fw.approvedBy,isFinished=!!fin.approvedBy;
+    const remaining=finalApproved?parseFloat(fw.weight)||0:combined;
+    const remColor=remaining<=0?'var(--text3)':remaining<combined*0.25?'var(--amber)':'var(--green)';
 
-  // Header
-  document.getElementById('rdm-room-name').textContent = room.name + (fd ? ' — Day ' + fd + ' / ' + CYCLE : ' — Veg');
-  document.getElementById('rdm-phase-label').textContent = phase ? phase.name + ' · Day ' + fd : (fd ? 'Day ' + fd : 'Vegetative');
-  document.getElementById('rdm-phase-name').textContent = phase ? phase.name : '—';
-
-  // ── Live readings vs targets ──────────────────────
-  const liveEl = document.getElementById('rdm-live-targets');
-  if(gl && phase) {
-    const dp = (gl.temp && gl.humidity) ? (() => {
-      const tc=(gl.temp-32)*5/9, a=17.27, b=237.7;
-      const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
-      return ((b*alpha)/(a-alpha))*9/5+32;
-    })() : null;
-    const lst = gl.leafTemp || gl.temp;
-    const spread = (dp && lst) ? lst - dp : null;
-
-    function liveRow(label, live, targetLow, targetHigh, unit, decimals=1){
-      if(live === null || live === undefined) return '';
-      const v = parseFloat(live);
-      const inRange = (targetLow === null || v >= targetLow) && (targetHigh === null || v <= targetHigh);
-      const color = inRange ? 'var(--green)' : 'var(--red)';
-      const targetStr = targetLow !== null && targetHigh !== null ? targetLow+'–'+targetHigh+unit
-        : targetHigh !== null ? '≤'+targetHigh+unit
-        : targetLow !== null ? '≥'+targetLow+unit : '—';
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${color}">
-        <span style="font-size:12px;color:var(--text2)">${label}</span>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color}">${v.toFixed(decimals)}${unit}</span>
-          <span style="font-size:10px;color:var(--text3)">target ${targetStr}</span>
-        </div>
-      </div>`;
+    // Finish section
+    let finishSection='';
+    if(isPostProd){
+      if(fin.pendingBy&&!fin.approvedBy){
+        const canApp=loggedInMember&&loggedInMember.name!==fin.pendingBy;
+        finishSection=`<div style="margin-top:10px;padding:8px 10px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r)"><div style="font-size:11px;font-weight:600;color:var(--amber)">Finish pending — submitted by ${fin.pendingBy}</div>${canApp?`<button onclick="approveFinishInline('${item.id}')" style="margin-top:6px;font-size:11px;padding:4px 12px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">Approve — mark finished ✓</button>`:'<div style="font-size:11px;color:var(--text3);margin-top:4px">Waiting for different team member</div>'}</div>`;
+      } else if(isFinished){
+        finishSection='<div style="font-size:11px;color:var(--text3);margin-top:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--r)">✓ Finished · Disappears in 12h</div>';
+      } else {
+        let fwSection='';
+        if(fw.weight&&!finalApproved){
+          const canApp=loggedInMember&&loggedInMember.name!==fw.enteredBy;
+          fwSection=`<div style="padding:7px 10px;background:var(--amber-bg);border:1px solid var(--amber-dim);border-radius:var(--r)"><div style="font-size:11px;font-weight:600;color:var(--amber)">Final weight pending: ${parseFloat(fw.weight).toFixed(1)}g — entered by ${fw.enteredBy}</div>${canApp?`<button onclick="approveFinalWeightInline('${item.id}')" style="margin-top:5px;font-size:11px;padding:4px 12px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">Approve ✓</button>`:'<div style="font-size:11px;color:var(--text3);margin-top:3px">Waiting for different team member</div>'}</div>`;
+        } else if(finalApproved){
+          fwSection=`<div style="font-size:11px;color:var(--green)">✓ Final weight verified: ${parseFloat(fw.weight).toFixed(1)}g remaining</div>`;
+        }
+        finishSection=`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+          ${!fw.weight?`<button onclick="openFinalWeightModal('${item.id}','${item.strain.replace(/'/g,"\\'")}')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--blue-dim);background:var(--blue-bg);color:var(--blue);cursor:pointer">📝 Enter final weight</button>`:''}
+          ${finalApproved?`<button onclick="submitFinishInline('${item.id}','${item.strain.replace(/'/g,"\\'")}') " style="font-size:12px;font-weight:600;padding:5px 14px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer">✓ Mark finished</button>`:''}
+          ${fwSection}
+        </div>`;
+      }
     }
 
-    const spreadRow = spread !== null ? (() => {
-      const color = spread <= 2 ? 'var(--red)' : spread <= 3 ? 'var(--amber)' : 'var(--green)';
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${color}">
-        <span style="font-size:12px;color:var(--text2)">Dew pt spread (LST−Dew)</span>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color}">${spread.toFixed(1)}°F</span>
-          <span style="font-size:10px;color:var(--text3)">target ≥4°F · alert ≤2°F</span>
+    if(item.isBlend){
+      const compLines=(item.components||[]).map(comp=>`<div style="font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border)"><span style="font-weight:600">${comp.strain}</span><span style="font-family:var(--mono);color:var(--text3);margin-left:8px">${comp.weight}g</span></div>`).join('');
+      return`<div class="card" style="border-left:3px solid var(--teal)${isFinished?';opacity:0.5':''}">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:24px;font-weight:700;color:var(--teal);font-family:var(--mono);min-width:32px">${rank}</div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:13px;font-weight:700">${item.strain||item.name||'Blend'}</span><span style="font-size:10px;padding:2px 7px;border-radius:var(--r);background:var(--teal-dim,#1a3a3a);color:var(--teal)">Blend</span></div>
+            <div style="margin-bottom:8px">${compLines}</div>
+            <div style="display:flex;gap:14px"><div><div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--purple)">${item.purplTHC?parseFloat(item.purplTHC).toFixed(1)+'%':'—'}</div><div style="font-size:10px;color:var(--text3)">Avg THC</div></div><div><div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--green)">${item.totalWeight||0}g</div><div style="font-size:10px;color:var(--text3)">Total</div></div></div>
+          </div>
+        </div>${finishSection}</div>`;
+    }
+    return`<div class="card" style="border-left:3px solid ${rankColor}${isFinished?';opacity:0.5':''}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:24px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:32px">${rank}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
+            <div style="font-size:14px;font-weight:700">${item.strain}</div>
+            ${item.packageTag?`<span style="font-family:var(--mono);font-size:11px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text3)">Pkg …${String(item.packageTag).slice(-4)}</span>`:''}
+            ${currentRole==='lead'?`<input type="text" placeholder="Pkg #" value="${item.packageTag||''}" style="font-size:11px;padding:2px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);width:110px;font-family:var(--mono)" onchange="updatePrerollPackageTag('${item.id}',this.value)" onclick="event.stopPropagation()"/>`:``}
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${item.harvestBatch||item.harvestDate||''} ${item.approvedBy?'· '+item.approvedBy:''}</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div><div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${parseFloat(item.purplTHC).toFixed(1)}%</div><div style="font-size:10px;color:var(--text3)">THC</div></div>
+            ${smalls?`<div><div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${smalls.toFixed(1)}g</div><div style="font-size:10px;color:var(--text3)">Smalls</div></div>`:''}
+            ${trim?`<div><div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${trim.toFixed(1)}g</div><div style="font-size:10px;color:var(--text3)">Trim</div></div>`:''}
+            <div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${remColor}">${finalApproved?remaining.toFixed(1):combined.toFixed(1)}g</div><div style="font-size:10px;color:var(--text3)">${finalApproved?'Remaining (verified)':'Combined'}</div></div>
+          </div>
         </div>
-      </div>`;
-    })() : '';
-
-    liveEl.innerHTML = [
-      liveRow('Temp', gl.temp, phase.dayTemp-4, phase.dayTemp+3, '°F'),
-      liveRow('RH', gl.humidity, phase.rh-7, phase.rh+7, '%'),
-      liveRow('CO₂', gl.co2, phase.co2-150, phase.co2+150, 'ppm', 0),
-      liveRow('VPD', gl.vpd, phase.vpdMin, phase.vpdMax, ' kPa', 2),
-      liveRow('VWC', gl.soilMoisture, phase.vwcMin, phase.vwcMax, '%'),
-      liveRow('EC (substrate)', gl.soilEC, phase.subECMin, phase.subECMax, ' mS', 2),
-      spreadRow,
-    ].filter(Boolean).join('');
-  } else if(!gl) {
-    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No Growlink data available for this room.</div>';
-  } else {
-    liveEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No phase data — room may be in veg.</div>';
-  }
-
-  // ── Environment targets ───────────────────────
-  const envEl = document.getElementById('rdm-env-targets');
-  function targetCell(label, val, unit=''){
-    return `<div style="background:var(--bg3);border-radius:var(--r);padding:8px 10px">
-      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
-      <div style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text)">${val !== null && val !== undefined ? val+unit : '—'}</div>
-    </div>`;
-  }
-  if(phase){
-    envEl.innerHTML = [
-      targetCell('Temp day', phase.dayTemp, '°F'),
-      targetCell('Temp night', phase.nightTemp, '°F'),
-      targetCell('Day RH', phase.rh, '%'),
-      targetCell('Night RH', phase.nightRH||phase.rh, '%'),
-      targetCell('CO₂ target', phase.co2, ' ppm'),
-      targetCell('VPD range', phase.vpdMin && phase.vpdMax ? phase.vpdMin+'–'+phase.vpdMax : '—', ' kPa'),
-      targetCell('Light', phase.light, '%'),
-    ].join('');
-  } else {
-    envEl.innerHTML = '<div style="font-size:12px;color:var(--text3);grid-column:1/-1">Vegetative — targets set in veg room config.</div>';
-  }
-
-  // ── Irrigation & substrate targets ───────────────
-  const irrEl = document.getElementById('rdm-irrigation-targets');
-  const shotEl = document.getElementById('rdm-shot-note');
-  if(phase){
-    irrEl.innerHTML = [
-      targetCell('VWC range', phase.vwcMin && phase.vwcMax ? phase.vwcMin+'–'+phase.vwcMax : '—', '%'),
-      targetCell('Substrate EC', phase.subECMin && phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '—', ' mS'),
-      targetCell('Overnight dryback', phase.dryback ? '~'+phase.dryback : '—', '%'),
-      targetCell('Runoff target', '15–20', '%'),
-    ].join('');
-    shotEl.textContent = phase.shotNote || '';
-    shotEl.style.display = phase.shotNote ? 'block' : 'none';
-  } else {
-    irrEl.innerHTML = '';
-    shotEl.style.display = 'none';
-  }
-
-  // ── EC Rainbow ────────────────────────────────
-  const ecrEl = document.getElementById('rdm-ec-rainbow');
-  if(ecr){
-    const pct = fd ? Math.min(100, Math.round(((fd - ecr.start + 1)/(ecr.end - ecr.start + 1))*100)) : 0;
-    ecrEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${ecr.color}">
-      <div style="width:12px;height:12px;border-radius:50%;background:${ecr.color};flex-shrink:0"></div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">${ecr.name} — EC ${ecr.ecMin}–${ecr.ecMax} mS/cm</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Days ${ecr.start}–${ecr.end} · ${pct}% through this band</div>
-        <div class="prog-track" style="margin-top:5px"><div class="prog-fill" style="width:${pct}%;background:${ecr.color}"></div></div>
-      </div>
-    </div>`;
-  } else {
-    ecrEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">—</div>';
-  }
-
-  // ── Runoff targets ────────────────────────────
-  document.getElementById('rdm-runoff-targets').innerHTML = [
-    targetCell('pH', '5.6–6.2', ''),
-    targetCell('EC runoff', phase ? phase.subECMin && phase.subECMax ? phase.subECMin+'–'+phase.subECMax : '3.0–5.0' : '—', ' mS'),
-    targetCell('Volume', '15–20', '% of input'),
-  ].join('');
-
-  // ── Additive note ─────────────────────────────
-  const addEl = document.getElementById('rdm-additive-note');
-  if(additive && additive.name !== 'Base feed only'){
-    addEl.innerHTML = '🧪 <strong>Today&#39;s additive:</strong> ' + additive.name + ' · ' + additive.dose + (additive.tier2 ? ' · <span style="color:var(--amber)">Tier 2 only</span>' : '');
-    addEl.style.display = 'block';
-  } else {
-    addEl.style.display = 'none';
-  }
-
-  // Open modal
-  document.getElementById('room-detail-modal-bg').classList.add('open');
+      </div>${finishSection}</div>`;
+  }).join('');
 }
 
-function closeRoomModal(){
-  document.getElementById('room-detail-modal-bg').classList.remove('open');
+let _fwModalId=null;
+function openFinalWeightModal(id,strainName){
+  _fwModalId=id;
+  document.getElementById('fwm-title').textContent='Final weight — '+strainName;
+  document.getElementById('fwm-weight').value='';
+  document.getElementById('final-weight-modal-bg').classList.add('open');
+}
+function closeFinalWeightModal(){document.getElementById('final-weight-modal-bg').classList.remove('open');_fwModalId=null;}
+function submitFinalWeight(){
+  if(!loggedInMember){alert('Sign in first');return;}
+  const weight=parseFloat(document.getElementById('fwm-weight').value);
+  if(isNaN(weight)||weight<0){alert('Enter a valid weight');return;}
+  prerollFinalWeights=L('wg_preroll_final_weights',{});
+  prerollFinalWeights[_fwModalId]={weight,enteredBy:loggedInMember.name,approvedBy:null,approvedAt:null};
+  S('wg_preroll_final_weights',prerollFinalWeights);
+  closeFinalWeightModal();renderPrerollPriority();pushConfigDebounced();
+}
+function approveFinalWeightInline(id){
+  if(!loggedInMember){alert('Sign in first');return;}
+  prerollFinalWeights=L('wg_preroll_final_weights',{});
+  const fw=prerollFinalWeights[id];if(!fw)return;
+  if(loggedInMember.name===fw.enteredBy){alert('A different team member must approve.');return;}
+  fw.approvedBy=loggedInMember.name;fw.approvedAt=new Date().toISOString();
+  S('wg_preroll_final_weights',prerollFinalWeights);renderPrerollPriority();pushConfigDebounced();
+}
+function submitFinishInline(id,strainName){
+  if(!loggedInMember){alert('Sign in first');return;}
+  prerollFinished=L('wg_preroll_finished',{});
+  prerollFinished[id]={pendingBy:loggedInMember.name,approvedBy:null,approvedAt:null,strain:strainName};
+  S('wg_preroll_finished',prerollFinished);renderPrerollPriority();pushConfigDebounced();
+}
+function approveFinishInline(id){
+  if(!loggedInMember){alert('Sign in first');return;}
+  prerollFinished=L('wg_preroll_finished',{});
+  const fin=prerollFinished[id];if(!fin)return;
+  if(loggedInMember.name===fin.pendingBy){alert('A different team member must approve.');return;}
+  fin.approvedBy=loggedInMember.name;fin.approvedAt=new Date().toISOString();
+  S('wg_preroll_finished',prerollFinished);renderPrerollPriority();pushConfigDebounced();
+  postToSheet('Preroll_Finished',[fin.strain||id,fin.pendingBy,fin.approvedBy,fin.approvedAt]);
+}
+function updatePrerollPackageTag(id,val){
+  const tw=L('wg_trim_weights',{});if(!tw[id])tw[id]={};tw[id].packageTag=val;S('wg_trim_weights',tw);
+  const arch=L('wg_packages',[]),p=arch.find(x=>x.id===id);if(p){p.packageTag=val;S('wg_packages',arch);}
+}
+
+// ── BLEND BUILDER ─────────────────────────────────────────────────────────
+function openBlendModal(){
+  _blendModalComponents=[];
+  document.getElementById('bm-name').value='';
+  document.getElementById('bm-components').innerHTML='';
+  document.getElementById('bm-total').textContent='0g';
+  addBlendComponent();
+  document.getElementById('blend-modal-bg').classList.add('open');
+}
+function closeBlendModal(){document.getElementById('blend-modal-bg').classList.remove('open');}
+function addBlendComponent(){
+  const items=getPrerollItems().filter(i=>!i.isBlend);
+  const idx=_blendModalComponents.length;
+  _blendModalComponents.push({strain:'',harvestDate:'',weight:0});
+  const container=document.getElementById('bm-components');
+  const div=document.createElement('div');
+  div.id='bm-comp-'+idx;div.style.cssText='display:grid;grid-template-columns:1fr 100px auto;gap:6px;align-items:end;margin-bottom:6px';
+  div.innerHTML=`<div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Strain</label><select style="width:100%;font-size:12px;padding:5px 8px" onchange="updateBlendComp(${idx},'strain',this.value)"><option value="">— select —</option>${items.map(it=>`<option value="${it.strain}">${it.strain}${it.harvestDate?' ('+it.harvestDate+')':''}${it.purplTHC?' — '+parseFloat(it.purplTHC).toFixed(1)+'%':''}</option>`).join('')}</select></div><div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Weight (g)</label><input type="number" min="0" step="0.1" placeholder="0" style="width:100%;font-size:12px;padding:5px 8px" oninput="updateBlendComp(${idx},'weight',parseFloat(this.value)||0);updateBlendTotal()"/></div><button onclick="removeBlendComp(${idx})" style="font-size:16px;background:none;border:none;color:var(--text3);cursor:pointer;align-self:flex-end;padding-bottom:4px">✕</button>`;
+  container.appendChild(div);
+}
+function updateBlendComp(idx,field,val){if(_blendModalComponents[idx])_blendModalComponents[idx][field]=val;}
+function removeBlendComp(idx){const el=document.getElementById('bm-comp-'+idx);if(el)el.remove();if(_blendModalComponents[idx])_blendModalComponents[idx].removed=true;updateBlendTotal();}
+function updateBlendTotal(){const total=_blendModalComponents.filter(c=>!c.removed).reduce((a,c)=>a+(parseFloat(c.weight)||0),0);const el=document.getElementById('bm-total');if(el)el.textContent=total.toFixed(1)+'g';}
+function confirmBlend(){
+  const name=document.getElementById('bm-name').value.trim();
+  const components=_blendModalComponents.filter(c=>!c.removed&&c.strain&&c.weight>0);
+  if(!name){alert('Enter a blend name');return;}
+  if(components.length<2){alert('Add at least 2 strains');return;}
+  const items=getPrerollItems();
+  let totalWeight=0,weightedTHC=0;
+  components.forEach(comp=>{const src=items.find(i=>i.strain===comp.strain);const thc=src?parseFloat(src.purplTHC)||0:0;totalWeight+=parseFloat(comp.weight)||0;weightedTHC+=thc*(parseFloat(comp.weight)||0);});
+  const avgTHC=totalWeight>0?weightedTHC/totalWeight:null;
+  prerollBlends=L('wg_preroll_blends',[]);
+  prerollBlends.push({id:'bl_'+Date.now(),name,strain:name,components,totalWeight:totalWeight.toFixed(1),purplTHC:avgTHC?avgTHC.toFixed(2):null,smallsAndTrim:totalWeight,smallBuds:totalWeight,createdBy:loggedInMember?.name||'Unknown',createdAt:new Date().toISOString(),isBlend:true});
+  S('wg_preroll_blends',prerollBlends);closeBlendModal();renderPrerollPriority();pushConfigDebounced();
 }
 
 // INIT
@@ -4431,7 +4313,7 @@ try { renderChores(); } catch(e){ console.error('renderChores:',e); }
 try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
 // auto-refresh checks silently on load
 setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
-// Pull Growlink first (5min push interval from TamperMonkey)
+// Pull Growlink first — fast, works on all devices including mobile
 setTimeout(async ()=>{
   try{ await pullGrowlinkFromCloud(true); }catch(e){}
 },800);
@@ -4793,7 +4675,7 @@ function getGuardrailsForPhase(phaseId){
     co2:   { setpoint:p.co2,     t2Low:p.co2-150,    t2High:p.co2+150,    t1Low:p.co2-300,    t1High:p.co2+300 },
     soilEC:     { t1High:10 },
     soilMoisture: { t1Low:10 },
-    // dewPoint handled separately via spread logic in evaluateRoom — not a flat ceiling
+    dewPoint:   { t1High:60 }, // hard ceiling, always T1
   };
 }
 
@@ -4844,31 +4726,12 @@ function evaluateRoom(roomName, sensors, phaseId){
   check('temp',        sensors.temp,         g.temp,         'Temp',     '°F');
   check('rh',          sensors.humidity,      g.rh,           'RH',       '%');
   check('co2',         sensors.co2,           g.co2,          'CO₂',      'ppm');
-  check('soilEC',      sensors.soilEC,        g.soilEC,       'EC',  'mS');
-  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'VWC', '%');
+  check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
+  check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
 
-  // Dew point — spread-based model (boss's rules):
-  // Only alert if dewpoint is within 2°F of leaf temp (LST)
-  // Awareness band: 65-70°F = info only, 70-75°F = soft advisory
-  // No flat ceiling alerts — spread is what matters
+  // Dew point hard ceiling
   const dp = calcDewPoint(sensors.temp, sensors.humidity);
-  if(dp !== null) {
-    const lst = sensors.leafTemp || sensors.temp; // use leaf temp if available, else room temp
-    const spread = lst - dp;
-    if(spread <= 2) {
-      issues.push({param:'dewPoint', value:dp, setpoint:lst, tier:1,
-        message:`${roomName} — Dew point within ${spread.toFixed(1)}°F of leaf temp (${dp.toFixed(1)}°F dew / ${lst.toFixed(1)}°F LST) — condensation risk`});
-    } else if(spread <= 3) {
-      issues.push({param:'dewPoint', value:dp, setpoint:lst, tier:2,
-        message:`${roomName} — Spread narrowing: ${spread.toFixed(1)}°F (dew ${dp.toFixed(1)}°F / LST ${lst.toFixed(1)}°F) — watch airflow`});
-    }
-    // Awareness band — T2 log only, no Slack
-    else if(dp >= 70 && dp < 75) {
-      issues.push({param:'dewPoint', value:dp, setpoint:lst, tier:2,
-        message:`${roomName} — High humidity zone: dew ${dp.toFixed(1)}°F, spread ${spread.toFixed(1)}°F — monitor airflow/VPD`});
-    }
-    // 65-70 = normal for early flower, no log needed
-  }
+  if(dp!==null) check('dewPoint', dp, g.dewPoint, 'Dew point', '°F');
 
   return issues;
 }
@@ -4888,7 +4751,7 @@ function runGuardrails(){
 
     // Don't evaluate stale data (>20 min old)
     const age = now - new Date(gl.fetchedAt).getTime();
-    if(age > 12*60*1000) return; // 12min — matched to 5min push interval
+    if(age > 20*60*1000) return;
 
     const fd = flowerDay(room);
     const phase = fd ? getPhaseForDay(fd) : null;
