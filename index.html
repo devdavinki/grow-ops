@@ -840,18 +840,24 @@ button { cursor: pointer; }
     <div id="metrc-tab-nav" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)"></div>
     <!-- SUBTAB CONTENT -->
     <div id="metrc-sub-mothers" style="display:none">
-      <div class="row mb12" style="margin-bottom:12px">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="metrc-mother-search" type="text" placeholder="Search strain…" style="flex:1;max-width:280px;font-size:13px" oninput="renderMetrcMothers()"/>
         <span id="metrc-mother-count" style="font-size:12px;color:var(--text3)"></span>
       </div>
       <div id="metrc-mothers-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-clones" style="display:none">
-      <div class="row mb12" style="margin-bottom:12px">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="metrc-clone-search" type="text" placeholder="Search strain…" style="flex:1;max-width:280px;font-size:13px" oninput="renderMetrcClones()"/>
         <span id="metrc-clone-count" style="font-size:12px;color:var(--text3)"></span>
       </div>
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-strains" style="display:none">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="metrc-strain-search" type="text" placeholder="Search strain…" style="flex:1;max-width:280px;font-size:13px" oninput="renderMetrcStrains()"/>
+        <span id="metrc-strain-count" style="font-size:12px;color:var(--text3)"></span>
+      </div>
       <div id="metrc-strains-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-harvests" style="display:none">
@@ -979,7 +985,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.1'; // dew point spread on room card tile, Maxx OS v1.4
+const APP_VERSION = '3.2'; // METRC search, alpha sort, flash fix
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -3523,7 +3529,22 @@ function showMetrcTab(tab,el){
 }
 
 function renderCurrentMetrcTab(){
-  buildMetrcTabNav();
+  // Re-render active tab content without resetting tab selection
+  const activeBtn = document.querySelector('#metrc-tab-nav .nav-tab.active');
+  if(activeBtn){
+    // Find which tab is active and re-render it
+    const activeTab = ['mothers','clones','strains','harvests'].find(t=>{
+      const el=document.getElementById('metrc-sub-'+t);
+      return el&&el.style.display!=='none';
+    });
+    if(activeTab==='mothers') renderMetrcMothers();
+    else if(activeTab==='clones') renderMetrcClones();
+    else if(activeTab==='strains') renderMetrcStrains();
+    else if(activeTab==='harvests') renderMetrcHarvests();
+    else buildMetrcTabNav(); // fallback first load only
+  } else {
+    buildMetrcTabNav(); // first time — no tab selected yet
+  }
 }
 
 function renderMetrcMothers(){
@@ -3531,9 +3552,11 @@ function renderMetrcMothers(){
   const countEl=document.getElementById('metrc-mother-count');
   const rows=metrcData.mother;
   if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Mother Plants export to see data here.</div>';if(countEl)countEl.textContent='';return;}
+  const search=(document.getElementById('metrc-mother-search')?.value||'').toLowerCase().trim();
   const byStrain={};
   rows.forEach(r=>{
     const strain=r['Strain']||r['StrainName']||r['Strain Name']||'—';
+    if(search&&!strain.toLowerCase().includes(search))return;
     if(!byStrain[strain])byStrain[strain]={count:0,locations:{},cloned:0};
     byStrain[strain].count++;
     const loc=r['Location']||r['LocationName']||'Unknown';
@@ -3542,8 +3565,8 @@ function renderMetrcMothers(){
   });
   const clonesByStrain={};
   metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
-  const strains=Object.keys(byStrain).sort();
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers';
+  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers'+(search?' (filtered)':'');
   if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains found.</div>';return;}
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
@@ -3565,18 +3588,20 @@ function renderMetrcClones(){
   const countEl=document.getElementById('metrc-clone-count');
   const rows=metrcData.immature;
   if(!rows||!rows.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Immature/Clones export.</div>';if(countEl)countEl.textContent='';return;}
+  const search=(document.getElementById('metrc-clone-search')?.value||'').toLowerCase().trim();
   const byStrain={};
   rows.forEach(r=>{
     const strain=r['Strain']||r['StrainName']||r['Strain Name']||'—';
+    if(search&&!strain.toLowerCase().includes(search))return;
     if(!byStrain[strain])byStrain[strain]={batches:[],totalPlants:0};
     byStrain[strain].batches.push(r);
     byStrain[strain].totalPlants+=parseInt(r['Plants']||0)||0;
   });
   const mothersByStrain={};
   metrcData.mother.forEach(r=>{const s=r['Strain']||r['StrainName']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
-  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].totalPlants-byStrain[a].totalPlants);
+  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
   const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones';
+  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones'+(search?' (filtered)':'');
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
     const mc=mothersByStrain[strain]||0;
@@ -3600,9 +3625,11 @@ function renderMetrcStrains(){
     grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">Upload the Vegetative and Flowering exports to see strain data.</div>';
     return;
   }
+  const search=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase().trim();
   const byStrain={};
   vegRows.forEach(r=>{
     const s=r['Strain']||r['StrainName']||r['Strain Name']||'Unknown';
+    if(search&&!s.toLowerCase().includes(search))return;
     const loc=r['Location']||r['LocationName']||r['Location Name']||'Unknown';
     if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
     byStrain[s].veg++;
@@ -3610,6 +3637,7 @@ function renderMetrcStrains(){
   });
   flowerRows.forEach(r=>{
     const s=r['Strain']||r['StrainName']||r['Strain Name']||'Unknown';
+    if(search&&!s.toLowerCase().includes(search))return;
     const loc=r['Location']||r['LocationName']||r['Location Name']||'Unknown';
     if(!byStrain[s])byStrain[s]={veg:0,vegLocs:{},flower:0,flowerLocs:{}};
     byStrain[s].flower++;
@@ -3617,7 +3645,9 @@ function renderMetrcStrains(){
   });
   const totalVeg=vegRows.length;
   const totalFlower=flowerRows.length;
-  const strains=Object.keys(byStrain).sort((a,b)=>(byStrain[b].veg+byStrain[b].flower)-(byStrain[a].veg+byStrain[a].flower)||a.localeCompare(b));
+  const strains=Object.keys(byStrain).sort((a,b)=>a.localeCompare(b));
+  const countEl2=document.getElementById('metrc-strain-count');
+  if(countEl2) countEl2.textContent=strains.length+' strains'+(search?' (filtered)':'');
   const summary='<div style="grid-column:1/-1;display:flex;gap:24px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);margin-bottom:8px;flex-wrap:wrap">'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+totalVeg+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Veg plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].veg>0).length+' strains</div></div></div>'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">'+totalFlower+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Flowering plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].flower>0).length+' strains</div></div></div>'
