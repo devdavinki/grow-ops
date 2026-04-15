@@ -1418,8 +1418,8 @@ function renderRooms(){
           </div>`:'',
         ].filter(Boolean).join('');
         const row2=[
-          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
-          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
+          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
           gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row1Count=row1.split('env-cell').length-1;
