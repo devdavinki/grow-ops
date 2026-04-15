@@ -383,6 +383,9 @@ button { cursor: pointer; }
 .metrc-upload-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
 .metrc-upload-cell input[type=file] { font-size: 11px; color: var(--text3); }
 .metrc-upload-status { font-size: 11px; font-family: var(--mono); color: var(--green); min-height: 16px; }
+/* Room checks form inputs */
+input[id^="rc-"]:focus, select[id^="rc-"] { outline:2px solid var(--green); outline-offset:1px; }
+@media(max-width:600px){ #rc-rh,#rc-temp,#rc-leaf,#rc-dew,#rc-ppfd{ } }
 </style>
 </head>
 <body>
@@ -391,15 +394,7 @@ button { cursor: pointer; }
 <div class="topbar">
   <div class="topbar-brand">WESTSIDE<span> GROWERS</span></div>
   <div class="topbar-date" id="topbar-date"></div>
-  <div class="role-select" id="role-select">
-    <button class="role-btn active" onclick="setRole('lead')" data-role="lead">Lead / Pat</button>
-    <button class="role-btn" onclick="setRole('defoliator')" data-role="defoliator">Defoliator</button>
-    <button class="role-btn" onclick="setRole('fertigator')" data-role="fertigator">Fertigator</button>
-    <button class="role-btn" onclick="setRole('cloner')" data-role="cloner">Cloner</button>
-    <button class="role-btn" onclick="setRole('ipm')" data-role="ipm">IPM</button>
-    <button class="role-btn" onclick="setRole('checker')" data-role="checker">Room Check</button>
-    <button class="role-btn" onclick="setRole('postprod')" data-role="postprod">Post Prod</button>
-  </div>
+  <div class="role-select" id="role-select"></div>
 </div>
 
 <!-- NAV -->
@@ -590,18 +585,100 @@ button { cursor: pointer; }
 
   <!-- ══ PAGE: ROOM CHECKS ══ -->
   <div id="page-checks" class="page">
-    <div class="row mb12">
-      <div class="section-title">Flower room checks</div>
-      <span class="tag tag-amber">Tier 2 · #flower-rooms</span>
-      <div style="flex:1"></div>
-      <button onclick="loadChecks()" class="send-btn green">Refresh</button>
+
+    <!-- Sub-nav: Submit / History -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;width:fit-content">
+      <button id="checks-tab-submit" onclick="showChecksTab('submit',this)" class="nav-tab active" style="font-size:12px;border-radius:0;border:none;padding:8px 18px">Submit check</button>
+      <button id="checks-tab-history" onclick="showChecksTab('history',this)" class="nav-tab" style="font-size:12px;border-radius:0;border:none;border-left:1px solid var(--border);padding:8px 18px">View history</button>
     </div>
-    <div class="row mb12" style="gap:8px;flex-wrap:wrap">
-      <input id="csv-url" style="flex:1;min-width:200px;font-size:12px" placeholder="Google Sheet CSV URL" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vTjSQZCbmNGCNU5sKmwmEt6oHZw1rwvJF_vfOY3xsiWwJZSnlstJ3nVKJ366hOALncDN8U7gFVtSnLH/pub?gid=1259070290&single=true&output=csv"/>
-      <span id="check-refresh-note" style="font-size:11px;color:var(--text3)"></span>
+
+    <!-- ── SUBMIT FORM ── -->
+    <div id="checks-sub-submit">
+      <!-- Progress bar -->
+      <div style="background:var(--border);border-radius:3px;height:3px;margin-bottom:16px;overflow:hidden">
+        <div id="rc-progress" style="height:100%;background:linear-gradient(90deg,var(--green),var(--teal));border-radius:3px;transition:width .4s ease;width:0%"></div>
+      </div>
+
+      <!-- Meta row -->
+      <div class="card" style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Date</div>
+          <input type="date" id="rc-date" class="field-input" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Time</div>
+          <input type="time" id="rc-time" class="field-input" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Room</div>
+          <select id="rc-room" onchange="rcRenderTables()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);-webkit-appearance:none">
+            <option value="">— Select —</option>
+            <option>R1</option><option>R2</option><option>R3</option><option>R4</option><option>R5</option>
+            <option>R6</option><option>R7</option><option>R8</option><option>R9</option><option>R10</option><option>R11</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Environment readings -->
+      <div class="card" style="margin-bottom:12px">
+        <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg2);border-radius:var(--r2) var(--r2) 0 0;display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);background:var(--green-bg);border:1px solid var(--green-dim);padding:2px 8px;border-radius:4px">Environment</span>
+          <span style="font-size:12px;color:var(--text3)">Room conditions</span>
+        </div>
+        <div style="padding:16px;display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">RH %</div>
+            <input type="number" step="0.1" id="rc-rh" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Room Temp °F</div>
+            <input type="number" step="0.1" id="rc-temp" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Leaf Temp °F</div>
+            <input type="number" step="0.1" id="rc-leaf" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Dewpoint °F</div>
+            <input type="number" step="0.1" id="rc-dew" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">PPFD</div>
+            <input type="number" step="1" id="rc-ppfd" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/>
+            <div style="font-size:9px;color:var(--text3);margin-top:2px">μmol/m²/s</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table readings (populated by rcRenderTables) -->
+      <div id="rc-tables-wrap">
+        <div class="empty-state">Select a room above to load table inputs</div>
+      </div>
+
+      <!-- Submit row -->
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button id="rc-save-btn" onclick="rcSaveEntry()" class="btn-primary" style="font-size:13px;padding:9px 22px">Save entry</button>
+        <button onclick="rcClearForm()" style="font-size:12px;padding:8px 14px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Clear</button>
+        <span id="rc-save-status" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+
+      <!-- Today submissions log -->
+      <div id="rc-entries-section" style="display:none;margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Today&#39;s submissions</div>
+        <div id="rc-entries-list" style="display:grid;gap:6px"></div>
+      </div>
     </div>
-    <div class="grid-2" id="checks-grid"></div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text3)">Form: <a href="https://devdavinki.github.io/flower-room-checks/" target="_blank" style="color:var(--blue)">devdavinki.github.io/flower-room-checks</a></div>
+
+    <!-- ── HISTORY / VIEW ── -->
+    <div id="checks-sub-history" style="display:none">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="csv-url" style="flex:1;min-width:200px;font-size:12px" placeholder="Google Sheet CSV URL" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vTjSQZCbmNGCNU5sKmwmEt6oHZw1rwvJF_vfOY3xsiWwJZSnlstJ3nVKJ366hOALncDN8U7gFVtSnLH/pub?gid=1259070290&single=true&output=csv"/>
+        <button onclick="loadChecks()" class="send-btn green" style="font-size:12px">↻ Refresh</button>
+        <span id="check-refresh-note" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div class="grid-2" id="checks-grid"></div>
+    </div>
+
   </div>
 
   <!-- ══ PAGE: SLACK ══ -->
@@ -2931,7 +3008,7 @@ function showPage(page){
   if(page==='slack') renderSlackPanels();
   if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
-  if(page==='checks') loadChecks();
+  if(page==='checks'){ rcInitForm(); }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
   if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
@@ -4288,6 +4365,213 @@ function confirmBlend(){
   S('wg_preroll_blends',prerollBlends);closeBlendModal();renderPrerollPriority();pushConfigDebounced();
 }
 
+
+// ══════════════════════════════════════════════
+// ROOM CHECKS — INTEGRATED FORM
+// ══════════════════════════════════════════════
+const RC_ROOM_TABLES = {R1:2,R2:3,R3:3,R4:3,R5:3,R6:2,R7:3,R8:3,R9:2,R10:3,R11:3};
+const RC_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz7-pRO6encj5j8vP6KlqA6vsWhJIFDrcrnzSwPGfKNZAj42_gLhrP6x265wk6FANaP/exec';
+
+// Also try the main gsUrl so they both work
+function getRcUrl(){ return gsUrl || RC_SHEETS_URL; }
+
+function showChecksTab(tab, el){
+  document.querySelectorAll('#page-checks .nav-tab').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('checks-sub-submit').style.display = tab==='submit' ? 'block' : 'none';
+  document.getElementById('checks-sub-history').style.display = tab==='history' ? 'block' : 'none';
+  if(tab==='history') loadChecks();
+}
+
+function rcInitForm(){
+  const now = new Date();
+  const dateEl = document.getElementById('rc-date');
+  const timeEl = document.getElementById('rc-time');
+  if(dateEl && !dateEl.value) dateEl.value = now.toISOString().split('T')[0];
+  if(timeEl && !timeEl.value) timeEl.value = now.toTimeString().slice(0,5);
+  // Pre-select logged-in user's room if they only have one assigned room — skip for now
+  rcUpdateProgress();
+  rcRenderEntries();
+}
+
+function rcRenderTables(){
+  const room = document.getElementById('rc-room')?.value;
+  const wrap = document.getElementById('rc-tables-wrap');
+  if(!wrap) return;
+  if(!room){ wrap.innerHTML='<div class="empty-state">Select a room above to load table inputs</div>'; rcUpdateProgress(); return; }
+  const count = RC_ROOM_TABLES[room] || 3;
+  wrap.innerHTML = Array.from({length:count},(_,i)=>{
+    const t = i+1;
+    return `<div class="card" style="margin-bottom:10px;overflow:hidden">
+      <div style="padding:9px 16px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:8px;border-radius:var(--r2) var(--r2) 0 0">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);background:var(--green-bg);border:1px solid var(--green-dim);padding:2px 10px;border-radius:4px">Table ${t}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr">
+        <!-- Front -->
+        <div style="padding:12px 14px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>Front</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Volume mL</div><input type="number" step="1" id="rc-t${t}-front-vol" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:7px 9px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/></div>
+            <div><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">EC ppm</div><input type="number" step="1" id="rc-t${t}-front-ec" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:7px 9px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/></div>
+            <div><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">pH</div><input type="number" step="0.1" min="0" max="14" id="rc-t${t}-front-ph" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:7px 9px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/></div>
+          </div>
+        </div>
+        <!-- Back -->
+        <div style="padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block"></span>Back</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Volume mL</div><input type="number" step="1" id="rc-t${t}-back-vol" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:7px 9px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/></div>
+            <div><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">EC ppm</div><input type="number" step="1" id="rc-t${t}-back-ec" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:7px 9px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/></div>
+            <div><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">pH</div><input type="number" step="0.1" min="0" max="14" id="rc-t${t}-back-ph" placeholder="—" oninput="rcUpdateProgress()" style="width:100%;font-size:13px;padding:7px 9px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text)"/></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  rcUpdateProgress();
+}
+
+function rcUpdateProgress(){
+  const room = document.getElementById('rc-room')?.value;
+  const prog = document.getElementById('rc-progress');
+  if(!prog) return;
+  if(!room){ prog.style.width='0%'; return; }
+  const count = RC_ROOM_TABLES[room]||3;
+  const ids = ['rc-date','rc-time','rc-room','rc-rh','rc-temp','rc-leaf','rc-dew','rc-ppfd'];
+  for(let t=1;t<=count;t++){
+    ['front','back'].forEach(s=>{
+      ['vol','ec','ph'].forEach(f=> ids.push(`rc-t${t}-${s}-${f}`));
+    });
+  }
+  const filled = ids.filter(id=>{ const el=document.getElementById(id); return el&&el.value.trim()!==''; }).length;
+  prog.style.width = Math.round((filled/ids.length)*100)+'%';
+}
+
+function rcGetFormData(){
+  const room = document.getElementById('rc-room')?.value;
+  if(!room) return null;
+  const count = RC_ROOM_TABLES[room]||3;
+  const entry = {
+    id: Date.now(),
+    date: document.getElementById('rc-date')?.value||'',
+    time: document.getElementById('rc-time')?.value||'',
+    room,
+    rh:       document.getElementById('rc-rh')?.value||'',
+    room_temp:document.getElementById('rc-temp')?.value||'',
+    leaf_temp:document.getElementById('rc-leaf')?.value||'',
+    dewpoint: document.getElementById('rc-dew')?.value||'',
+    ppfd:     document.getElementById('rc-ppfd')?.value||'',
+    submittedBy: loggedInMember?.name||'Unknown',
+    tables: [],
+  };
+  for(let t=1;t<=count;t++){
+    entry.tables.push({
+      table: t,
+      front:{
+        vol: document.getElementById(`rc-t${t}-front-vol`)?.value||'',
+        ec:  document.getElementById(`rc-t${t}-front-ec`)?.value||'',
+        ph:  document.getElementById(`rc-t${t}-front-ph`)?.value||'',
+      },
+      back:{
+        vol: document.getElementById(`rc-t${t}-back-vol`)?.value||'',
+        ec:  document.getElementById(`rc-t${t}-back-ec`)?.value||'',
+        ph:  document.getElementById(`rc-t${t}-back-ph`)?.value||'',
+      }
+    });
+  }
+  return entry;
+}
+
+async function rcSaveEntry(){
+  const entry = rcGetFormData();
+  if(!entry){ alert('Select a room first'); return; }
+  const btn = document.getElementById('rc-save-btn');
+  const status = document.getElementById('rc-save-status');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  // Save to local
+  const localKey = 'rc_entries_'+dateToIso(TODAY);
+  const local = L(localKey, []);
+  local.push(entry);
+  S(localKey, local);
+  rcRenderEntries();
+
+  // Auto-mark room_check done
+  const rkNum = entry.room.replace(/\D/g,'');
+  const matchedRoom = rooms.find(r=>r.id==='r'+rkNum);
+  if(matchedRoom){
+    if(!roomOverrides[matchedRoom.id]) roomOverrides[matchedRoom.id]={};
+    if(!roomOverrides[matchedRoom.id]['done_room_check']){
+      roomOverrides[matchedRoom.id]['done_room_check']=true;
+      todayLog.push({id:Date.now(),roomId:matchedRoom.id,taskId:'room_check',taskName:'Daily check — '+matchedRoom.name,who:entry.submittedBy,notes:'Submitted via Room Checks tab',pct:'',time:fmtTime(),status:'done'});
+      S('wg_overrides_'+dateToIso(TODAY),roomOverrides);
+      S('wg_log_'+dateToIso(TODAY),todayLog);
+      renderAssignments(); renderRooms(); renderTodayLog();
+    }
+  }
+
+  // Post each table row to sheet (same format as standalone form)
+  try{
+    const url = getRcUrl();
+    const sends = entry.tables.map(t=>{
+      const body = new URLSearchParams({
+        date:entry.date, time:entry.time, room:entry.room,
+        rh:entry.rh, room_temp:entry.room_temp,
+        leaf_temp:entry.leaf_temp, dewpoint:entry.dewpoint, ppfd:entry.ppfd,
+        table:'Table '+t.table,
+        front_vol:t.front.vol, front_ec:t.front.ec, front_ph:t.front.ph,
+        back_vol:t.back.vol, back_ec:t.back.ec, back_ph:t.back.ph,
+        submitted_by:entry.submittedBy,
+      }).toString();
+      return fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    });
+    await Promise.all(sends);
+    if(status){ status.textContent='✓ Saved to sheet'; status.style.color='var(--green)'; }
+    btn.textContent = 'Save entry';
+    btn.disabled = false;
+    setTimeout(()=>{ if(status) status.textContent=''; },3000);
+    rcClearForm();
+    // Reload history in background
+    setTimeout(()=>loadChecks(),1000);
+  }catch(e){
+    if(status){ status.textContent='Saved locally — sheet sync failed'; status.style.color='var(--amber)'; }
+    btn.textContent='Save entry'; btn.disabled=false;
+  }
+}
+
+function rcClearForm(){
+  const now = new Date();
+  const dateEl=document.getElementById('rc-date'), timeEl=document.getElementById('rc-time');
+  if(dateEl) dateEl.value=now.toISOString().split('T')[0];
+  if(timeEl) timeEl.value=now.toTimeString().slice(0,5);
+  const roomEl=document.getElementById('rc-room');
+  if(roomEl) roomEl.value='';
+  ['rc-rh','rc-temp','rc-leaf','rc-dew','rc-ppfd'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const wrap=document.getElementById('rc-tables-wrap');
+  if(wrap) wrap.innerHTML='<div class="empty-state">Select a room above to load table inputs</div>';
+  rcUpdateProgress();
+}
+
+function rcRenderEntries(){
+  const sec=document.getElementById('rc-entries-section');
+  const list=document.getElementById('rc-entries-list');
+  if(!sec||!list) return;
+  const local=L('rc_entries_'+dateToIso(TODAY),[]);
+  if(!local.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  list.innerHTML=local.slice().reverse().map(e=>`
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-family:var(--mono)">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-dim);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${e.room}</span>
+        <span>${e.date} ${e.time}</span>
+        <span style="color:var(--text3)">${e.tables.length} table${e.tables.length>1?'s':''}</span>
+        <span style="color:var(--text3)">RH ${e.rh||'—'}%  T ${e.room_temp||'—'}°F  PPFD ${e.ppfd||'—'}</span>
+        <span style="color:var(--text3)">${e.submittedBy||''}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
 // INIT
 // ══════════════════════════════════════════════
 try { applyRolePerms(); } catch(e){ console.error('applyRolePerms:',e); }
@@ -4305,6 +4589,7 @@ if(team && team.length){
     document.body.classList.add('pre-login');
     showLoginModal();
   }
+  // If session restored, pre-login class is already removed by finishLogin
 }
 try { setRole(currentRole); } catch(e){ console.error('setRole:',e); try{setRole('lead');}catch(e2){} }
 try { renderRooms(); } catch(e){ console.error('renderRooms:',e); }
@@ -4312,7 +4597,7 @@ try { renderTodayLog(); } catch(e){ console.error('renderTodayLog:',e); }
 try { renderChores(); } catch(e){ console.error('renderChores:',e); }
 try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
 // auto-refresh checks silently on load
-setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
+setTimeout(()=>{ try{rcInitForm();}catch(e){} },800);
 // Pull Growlink first — fast, works on all devices including mobile
 setTimeout(async ()=>{
   try{ await pullGrowlinkFromCloud(true); }catch(e){}
