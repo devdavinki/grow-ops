@@ -785,14 +785,18 @@ button { cursor: pointer; }
     <div id="metrc-tab-nav" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)"></div>
     <!-- SUBTAB CONTENT -->
     <div id="metrc-sub-mothers" style="display:none">
-      <div class="row mb12" style="margin-bottom:12px">
-        <span id="metrc-mother-count" style="font-size:12px;color:var(--text3)"></span>
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <span id="metrc-mother-count" style="font-size:12px;color:var(--text3);flex:1"></span>
+        <input id="metrc-mother-search" type="text" placeholder="Search mothers..." 
+          style="width:220px;font-size:13px" oninput="renderMetrcMothers()"/>
       </div>
       <div id="metrc-mothers-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-clones" style="display:none">
-      <div class="row mb12" style="margin-bottom:12px">
-        <span id="metrc-clone-count" style="font-size:12px;color:var(--text3)"></span>
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <span id="metrc-clone-count" style="font-size:12px;color:var(--text3);flex:1"></span>
+        <input id="metrc-clone-search" type="text" placeholder="Search clones..." 
+          style="width:220px;font-size:13px" oninput="renderMetrcClones()"/>
       </div>
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
@@ -2956,7 +2960,12 @@ function showPage(page){
   if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
   if(page==='daily-review'){renderDailyReview();}
   if(page==='supplies'){renderSupplies();}
-  if(page==='clonetracker'){renderCloneTracker();pullMetrcFromCloud(true);}
+  if(page==='clonetracker'){
+    renderCloneTracker();
+    pullMetrcFromCloud(true);
+    // Also refresh from cloud config to get sessions logged by others today
+    pullConfigFromCloud(true).then(()=>renderCloneTracker()).catch(()=>{});
+  }
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
   if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});}
 }
@@ -3559,8 +3568,9 @@ function renderMetrcMothers(){
   });
   const clonesByStrain={};
   metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
-  const strains=Object.keys(byStrain).sort();
-  if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+rows.length+' mothers';
+  const _mq=(document.getElementById('metrc-mother-search')?.value||'').toLowerCase().trim();
+  const strains=Object.keys(byStrain).filter(s=>!_mq||s.toLowerCase().includes(_mq)).sort((a,b)=>a.localeCompare(b));
+  if(countEl) countEl.textContent=(strains.length!==Object.keys(byStrain).length?strains.length+' of '+Object.keys(byStrain).length:strains.length)+' strains \u00b7 '+rows.length+' mothers';
   if(!strains.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No strains found.</div>';return;}
   grid.innerHTML=strains.map(strain=>{
     const d=byStrain[strain];
@@ -3591,7 +3601,8 @@ function renderMetrcClones(){
   });
   const mothersByStrain={};
   metrcData.mother.forEach(r=>{const s=r['Strain']||r['StrainName']||'';mothersByStrain[s]=(mothersByStrain[s]||0)+1;});
-  const strains=Object.keys(byStrain).sort((a,b)=>byStrain[b].totalPlants-byStrain[a].totalPlants);
+  const _cq=(document.getElementById('metrc-clone-search')?.value||'').toLowerCase().trim();
+  const strains=Object.keys(byStrain).filter(s=>!_cq||s.toLowerCase().includes(_cq)).sort((a,b)=>a.localeCompare(b));
   const total=Object.values(byStrain).reduce((a,d)=>a+d.totalPlants,0);
   if(countEl) countEl.textContent=strains.length+' strains \u00b7 '+total+' clones';
   grid.innerHTML=strains.map(strain=>{
@@ -4011,7 +4022,10 @@ function renderSupportRooms(){
         `<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`,
         dp!=null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div>${ev(dp,dp<65,'°F')}</div>`:'',
       ].filter(Boolean).join('');
-      const soilCount=[gl.soilMoisture,gl.soilEC,gl.soilTemp].filter(v=>v!=null).length;
+      // Soil sensors on Veg/Mother/Dry rooms are controller bleed from adjacent flower rooms
+      // Only show soil data for rooms that actually have substrate (Veg has rockwool, Mother has soil)
+      const _showSoil = (key==='Veg Room'||key==='Mother Room');
+      const soilCount=_showSoil?[gl.soilMoisture,gl.soilEC,gl.soilTemp].filter(v=>v!=null).length:0;
       const row2=soilCount?[
         gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div>${ev(gl.soilMoisture,gl.soilMoisture>=40&&gl.soilMoisture<=85,'%')}</div>`:'',
         gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div>${ev(gl.soilEC,gl.soilEC>=1&&gl.soilEC<=6,'mS',2)}</div>`:'',
@@ -4159,9 +4173,11 @@ function openRoomModal(room) {
   </div>`;
 
   const raw=gl.rawSensors||[];
+  // Don't show per-table substrate for support rooms — sensors are controller bleed
+  const _isSupportRoom=['Veg Room','Mother Room','Dry Room 1','Dry Room 2'].includes(roomName);
   const roomNum=parseInt((roomName||'').replace(/\D/g,''));
   const tableCount=[1,6,9].includes(roomNum)?2:3;
-  const tables=raw.length?parseTableSensors(raw,tableCount):null;
+  const tables=(!_isSupportRoom&&raw.length)?parseTableSensors(raw,tableCount):null;
 
   function probeCard(data,posLabel,side){
     if(!data) return `<div style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);opacity:0.35;text-align:center;font-size:11px;color:var(--text3)">${posLabel}<br>No data</div>`;
@@ -4268,6 +4284,11 @@ setTimeout(async ()=>{
     renderAssignments();
     renderChores();
     try{renderSupplies();}catch(e){}
+    // Re-render clone tracker if visible so cloud-synced sessions appear
+    try{
+      const clonePage=document.getElementById('page-clonetracker');
+      if(clonePage&&clonePage.classList.contains('active')) renderCloneTracker();
+    }catch(e){}
   }catch(e){}
 },1000);
 // Pull METRC + Growlink again after METRC loads
