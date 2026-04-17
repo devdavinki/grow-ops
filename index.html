@@ -891,29 +891,20 @@ button { cursor: pointer; }
 <!-- LOGIN MODAL — visibility:visible !important overrides pre-login cascade -->
 
 <!-- ROOM DETAIL MODAL -->
-<div id="room-detail-bg" style="display:none;align-items:flex-start;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRoomModal()">
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);width:100%;max-width:560px;margin:auto;box-shadow:var(--shadow-md);overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg3)">
+<div id="room-detail-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="if(event.target===this)closeRoomModal()">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);width:calc(100% - 32px);max-width:620px;margin:16px auto 40px;box-shadow:var(--shadow-md)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg3);border-radius:var(--r2) var(--r2) 0 0">
       <div>
         <div id="rdm-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
         <div id="rdm-meta" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
       </div>
-      <button onclick="closeRoomModal()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px">✕</button>
+      <button onclick="closeRoomModal()" style="background:none;border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;padding:5px 12px;border-radius:var(--r)">✕ Close</button>
     </div>
-    <div style="padding:14px 16px;overflow-y:auto;max-height:80vh">
-
-      <!-- Phase targets -->
+    <div style="padding:14px 16px">
       <div id="rdm-phase-section"></div>
-
-      <!-- Ambient sensors -->
-      <div id="rdm-ambient-section" style="margin-top:12px"></div>
-
-      <!-- Substrate sensors per zone -->
-      <div id="rdm-substrate-section" style="margin-top:12px"></div>
-
-      <!-- No data fallback -->
-      <div id="rdm-nodata" style="display:none;text-align:center;padding:24px;color:var(--text3);font-size:13px">No Growlink data for this room yet</div>
-
+      <div id="rdm-ambient-section"></div>
+      <div id="rdm-substrate-section"></div>
+      <div id="rdm-nodata" style="display:none;text-align:center;padding:32px;color:var(--text3);font-size:13px">No Growlink sensor data for this room yet</div>
     </div>
   </div>
 </div>
@@ -1338,7 +1329,7 @@ function renderRooms(){
       ${room.note?`<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${room.note}</div>`:''}
     `;
     card.style.cursor='pointer';
-    card.addEventListener('click', ()=>openRoomModal(room));
+    card.addEventListener('click',()=>openRoomModal(room));
     grid.appendChild(card);
   });
 }
@@ -2040,8 +2031,6 @@ function renderChecks(latest){
       }).join('')}`:''}
       ${flags.map(f=>`<div style="font-size:11px;margin-top:4px;color:var(--amber)">⚠ ${f}</div>`).join('')}
     `;
-    card.style.cursor='pointer';
-    card.addEventListener('click', ()=>openRoomModal(room));
     grid.appendChild(card);
   });
 }
@@ -3942,176 +3931,217 @@ function openRoomModal(room) {
   const fd = flowerDay(room);
   const phase = fd && fd >= 1 ? getPhaseForDay(fd) : null;
   const ecr = fd && fd >= 1 ? getECRainbow(fd) : null;
-  const d = calcDates(room);
 
   document.getElementById('rdm-name').textContent = room.name;
   document.getElementById('rdm-meta').textContent =
-    [room.tier, room.sqft + ' sq ft', room.strain].filter(Boolean).join(' · ') +
-    (fd ? ' · Day ' + fd : '');
+    [room.tier, room.sqft + ' sq ft', room.strain, fd ? 'Day ' + fd : null].filter(Boolean).join(' · ');
 
-  // Phase targets section
   const phaseEl = document.getElementById('rdm-phase-section');
+  const ambEl   = document.getElementById('rdm-ambient-section');
+  const subEl   = document.getElementById('rdm-substrate-section');
+  const noEl    = document.getElementById('rdm-nodata');
+
+  // ── Phase targets ─────────────────────────────
   if (phase) {
-    phaseEl.innerHTML = `
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">
-          Phase Targets · ${phase.name}
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-          ${[
-            ['Temp', phase.dayTemp + '°/' + phase.nightTemp + '°F', ''],
-            ['RH', phase.rh + '%', ''],
-            ['CO₂', phase.co2 + ' ppm', ''],
-            ['Light', phase.light + '%', ''],
-            ['VPD', phase.vpdMin + '–' + phase.vpdMax + ' kPa', ''],
-            ['Sub EC', (phase.subECMin||'—') + '–' + (phase.subECMax||'—'), ''],
-            ['VWC', (phase.vwcMin||'—') + '–' + (phase.vwcMax||'—') + '%', ''],
-            ['Runoff', '15–20%', ''],
-          ].map(([l,v]) => `
-            <div style="text-align:center;padding:5px;background:var(--bg2);border-radius:var(--r)">
-              <div style="font-size:9px;color:var(--text3);margin-bottom:2px">${l}</div>
-              <div style="font-size:11px;font-weight:600;color:var(--text);font-family:var(--mono)">${v}</div>
-            </div>`).join('')}
-        </div>
-        ${ecr ? `<div style="margin-top:8px;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ecr.color}"></span>
-          EC Rainbow · ${ecr.name} · ${ecr.ecMin}–${ecr.ecMax} mS/cm
-        </div>` : ''}
-      </div>`;
+    phaseEl.innerHTML = `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;display:flex;justify-content:space-between">
+        <span>Phase Targets · ${phase.name}</span>
+        ${ecr ? `<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color}"></span>${ecr.name} EC ${ecr.ecMin}–${ecr.ecMax}</span>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+        ${[
+          ['Temp D/N', phase.dayTemp+'°/'+phase.nightTemp+'°'],
+          ['RH', phase.rh+'%'],
+          ['CO₂', phase.co2+' ppm'],
+          ['Light', phase.light+'%'],
+          ['VPD', (phase.vpdMin||'—')+'–'+(phase.vpdMax||'—')+' kPa'],
+          ['Sub EC', (phase.subECMin||'—')+'–'+(phase.subECMax||'—')+' mS'],
+          ['VWC', (phase.vwcMin||'—')+'–'+(phase.vwcMax||'—')+'%'],
+          ['Runoff', '15–20%'],
+        ].map(([l,v]) => `<div style="text-align:center;padding:5px 3px;background:var(--bg2);border-radius:var(--r)">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:2px">${l}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text);font-family:var(--mono)">${v}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
   } else {
     phaseEl.innerHTML = '';
   }
 
-  // No Growlink data
-  const ambEl = document.getElementById('rdm-ambient-section');
-  const subEl = document.getElementById('rdm-substrate-section');
-  const noDataEl = document.getElementById('rdm-nodata');
-
   if (!gl) {
-    ambEl.innerHTML = '';
-    subEl.innerHTML = '';
-    noDataEl.style.display = 'block';
-    document.getElementById('room-detail-bg').style.display = 'flex';
+    ambEl.innerHTML = ''; subEl.innerHTML = '';
+    noEl.style.display = 'block';
+    document.getElementById('room-detail-bg').style.display = 'block';
     return;
   }
-  noDataEl.style.display = 'none';
+  noEl.style.display = 'none';
 
-  const age = gl.fetchedAt ? Math.round((Date.now() - new Date(gl.fetchedAt).getTime()) / 60000) : null;
+  const age = gl.fetchedAt ? Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000) : null;
   const stale = age !== null && age > 15;
 
-  // Helper: value vs target comparison
-  function valRow(label, value, unit, min, max, decimals=1) {
-    if (value === null || value === undefined) return '';
-    const v = typeof value === 'number' ? value.toFixed(decimals) : value;
-    let status = 'ok';
-    if (min !== undefined && max !== undefined && value !== null) {
-      if (value < min || value > max) status = 'warn';
-    }
-    const color = stale ? 'var(--text2)' : status === 'ok' ? 'var(--green)' : 'var(--amber)';
-    const target = (min !== undefined && max !== undefined) ? `<span style="font-size:10px;color:var(--text3);margin-left:6px">target ${min}–${max}${unit}</span>` : '';
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--text2)">${label}</span>
-      <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${color}">${v}<span style="font-size:10px;font-weight:400;color:var(--text3)"> ${unit}</span>${target}</span>
-    </div>`;
+  // Phase targets for comparison
+  const tTemp = phase ? [phase.dayTemp-4, phase.dayTemp+4] : [72,84];
+  const tRH   = phase ? [phase.rh-7, phase.rh+7] : [50,75];
+  const tCO2  = phase ? [phase.co2-150, phase.co2+150] : [800,1600];
+  const tVPD  = phase ? [phase.vpdMin||0.8, phase.vpdMax||1.6] : [0.8,1.6];
+  const tVWC  = phase ? [phase.vwcMin||40, phase.vwcMax||80] : [40,80];
+  const tEC   = phase ? [phase.subECMin||1.5, phase.subECMax||5.5] : [1.5,5.5];
+
+  function chip(val, unit, min, max, dec=1) {
+    if (val===null||val===undefined) return `<span style="color:var(--text3)">—</span>`;
+    const v = typeof val==='number'?val.toFixed(dec):val;
+    const ok = stale ? true : (min===undefined||( val>=min && val<=max));
+    const col = stale ? 'var(--text2)' : ok ? 'var(--green)' : 'var(--amber)';
+    return `<span style="font-family:var(--mono);font-weight:600;color:${col}">${v}<span style="font-size:10px;color:var(--text3);font-weight:400"> ${unit}</span></span>`;
   }
 
-  // Get phase targets for comparisons
-  const tTemp = phase ? [phase.dayTemp - 4, phase.dayTemp + 4] : [72, 84];
-  const tRH = phase ? [phase.rh - 7, phase.rh + 7] : [50, 75];
-  const tCO2 = phase ? [phase.co2 - 150, phase.co2 + 150] : [800, 1600];
-  const tVPD = phase ? [phase.vpdMin, phase.vpdMax] : [0.8, 1.6];
-  const tVWC = phase ? [phase.vwcMin || 40, phase.vwcMax || 80] : [40, 80];
-  const tEC = phase ? [phase.subECMin || 1.5, phase.subECMax || 5.5] : [1.5, 5.5];
-
   // Dew point
-  const dp = (gl.temp && gl.humidity) ? (() => {
-    const tc = (gl.temp - 32) * 5 / 9;
-    const a = 17.27, b = 237.7;
-    const alpha = (a * tc) / (b + tc) + Math.log(gl.humidity / 100);
-    const dpc = (b * alpha) / (a - alpha);
-    return dpc * 9 / 5 + 32;
+  const dp = (gl.temp&&gl.humidity) ? (()=>{
+    const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;
+    const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
+    return ((b*alpha)/(a-alpha))*9/5+32;
   })() : null;
-  const lst = gl.leafTemp || gl.temp;
-  const spread = dp && lst ? (lst - dp).toFixed(1) : null;
+  const lst = gl.leafTemp||gl.temp;
+  const spread = dp&&lst ? (lst-dp) : null;
 
-  // Ambient section
-  ambEl.innerHTML = `
-    <div>
-      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:6px;display:flex;justify-content:space-between">
-        <span>Ambient · Live</span>
-        <span style="font-family:var(--mono)">${age !== null ? age + 'm ago' : ''}</span>
-      </div>
-      ${valRow('Temperature', gl.temp, '°F', tTemp[0], tTemp[1])}
-      ${valRow('Humidity', gl.humidity, '%', tRH[0], tRH[1])}
-      ${valRow('CO₂', gl.co2, 'ppm', tCO2[0], tCO2[1], 0)}
-      ${valRow('VPD', gl.vpd, 'kPa', tVPD[0], tVPD[1], 2)}
-      ${dp ? valRow('Dew Point', dp, '°F') : ''}
-      ${spread ? `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:12px;color:var(--text2)">LST → DP Spread</span>
-        <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${parseFloat(spread)<=2?'var(--red)':parseFloat(spread)<=3?'var(--amber)':'var(--green)'}">${spread}<span style="font-size:10px;font-weight:400;color:var(--text3)"> °F</span></span>
-      </div>` : ''}
-    </div>`;
+  // ── Ambient ───────────────────────────────────
+  ambEl.innerHTML = `<div style="margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:8px;display:flex;justify-content:space-between">
+      <span>Ambient · Averaged</span>
+      <span style="font-family:var(--mono);font-weight:400">${age!==null?age+'m ago':''}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+      ${[
+        ['Temp', gl.temp, '°F', tTemp[0], tTemp[1], 1],
+        ['Humidity', gl.humidity, '%', tRH[0], tRH[1], 1],
+        ['CO₂', gl.co2, 'ppm', tCO2[0], tCO2[1], 0],
+        ['VPD', gl.vpd, 'kPa', tVPD[0], tVPD[1], 2],
+        ['Dew Point', dp, '°F', undefined, undefined, 1],
+        ['DP Spread', spread, '°F', 3, 99, 1],
+      ].map(([l,v,u,mn,mx,dc])=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${l}</div>
+        <div>${chip(v,u,mn,mx,dc)}</div>
+        ${mn!==undefined?`<div style="font-size:9px;color:var(--text3);margin-top:2px">target ${mn}–${mx}</div>`:''}
+      </div>`).join('')}
+    </div>
+  </div>`;
 
-  // Substrate section — show per-zone if raw data available
-  const rawSensors = gl.rawSensors || [];
-  subEl.innerHTML = '';
+  // ── Substrate per table ───────────────────────
+  const raw = gl.rawSensors || [];
 
-  if (rawSensors.length) {
-    // Group soil sensors by zone index (they come in triplets: VWC, Temp, EC)
-    const zones = [];
-    let zone = null;
-    rawSensors.forEach(s => {
-      const name = (s.Name || '').toLowerCase();
-      if (name === 'soilmoisture') {
-        zone = { vwc: s.Value, temp: null, ec: null, label: 'Zone ' + (zones.length + 1) };
-        zones.push(zone);
-      } else if (name === 'soiltemperature' && zone) {
-        zone.temp = s.Value;
-      } else if (name === 'soilec' && zone) {
-        zone.ec = s.Value;
+  // Parse sensor names like "R4 T3 F SoilMoisture" or just "SoilMoisture" (positional)
+  // Group into tables by parsing room/table labels
+  // Pattern: name may contain "T1", "T2", "T3" and "F"/"B" (front/back)
+  // Each table has up to 2 positions: Front and Back
+  // Build: { tableNum: { F: {vwc,ec,temp}, B: {vwc,ec,temp} } }
+  const tables = {};
+
+  if (raw.length) {
+    // First pass: try to extract table/position from sensor Name
+    let parsed = false;
+    raw.forEach(s => {
+      const name = s.Name || '';
+      // Match pattern like "R4 T3 F" or "T2 B" or "T1 Front"
+      const tMatch = name.match(/T(\d)/i);
+      const posMatch = name.match(/(F|B|Front|Back)/i);
+      const sType = name.toLowerCase();
+      const isSoil = sType.includes('soil') || sType.includes('vwc') || sType.includes('moisture') || sType.includes('ec');
+      if (tMatch && isSoil) {
+        parsed = true;
+        const tNum = tMatch[1];
+        const pos = posMatch ? (posMatch[1].toUpperCase().startsWith('F') ? 'F' : 'B') : 'F';
+        if (!tables[tNum]) tables[tNum] = { F: {}, B: {} };
+        const entry = tables[tNum][pos];
+        if (sType.includes('moisture') || sType.includes('vwc')) entry.vwc = s.Value;
+        else if (sType.includes('soilec') || sType.includes('soil ec')) entry.ec = s.Value;
+        else if (sType.includes('soiltemp') || sType.includes('soil temp') || sType.includes('soiltemperature')) entry.temp = s.Value;
       }
     });
 
-    if (zones.length) {
-      let zoneHTML = zones.map((z, i) => `
-        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;margin-bottom:6px">
-          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:6px">Table ${i + 1}</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
-            <div style="text-align:center">
-              <div style="font-size:9px;color:var(--text3)">VWC</div>
-              <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${z.vwc>=tVWC[0]&&z.vwc<=tVWC[1]?'var(--green)':'var(--amber)'}">${z.vwc!=null?z.vwc.toFixed(1):'—'}<span style="font-size:9px;color:var(--text3)"> %</span></div>
-              <div style="font-size:9px;color:var(--text3)">target ${tVWC[0]}–${tVWC[1]}%</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:var(--text3)">EC</div>
-              <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${z.ec>=tEC[0]&&z.ec<=tEC[1]?'var(--green)':'var(--amber)'}">${z.ec!=null?z.ec.toFixed(2):'—'}</div>
-              <div style="font-size:9px;color:var(--text3)">target ${tEC[0]}–${tEC[1]}</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:var(--text3)">Soil Temp</div>
-              <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)">${z.temp!=null?z.temp.toFixed(1):'—'}<span style="font-size:9px;color:var(--text3)"> °F</span></div>
-            </div>
-          </div>
-        </div>`).join('');
-
-      subEl.innerHTML = `
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Substrate · Per Table</div>
-          ${zoneHTML}
-        </div>`;
+    // Fallback: positional grouping — soil sensors come in triplets (VWC, Temp, EC)
+    if (!parsed) {
+      const soilSensors = raw.filter(s => {
+        const n = (s.Name||'').toLowerCase();
+        return n.includes('soil');
+      });
+      // Group in threes
+      for (let i=0; i<soilSensors.length; i+=3) {
+        const tNum = String(Math.floor(i/3)+1);
+        tables[tNum] = { F: {} };
+        soilSensors.slice(i, i+3).forEach(s => {
+          const n = (s.Name||'').toLowerCase();
+          if (n.includes('moisture')) tables[tNum].F.vwc = s.Value;
+          else if (n.includes('soilec') || n.includes('soil ec')) tables[tNum].F.ec = s.Value;
+          else if (n.includes('soiltemp') || n.includes('soiltemperature')) tables[tNum].F.temp = s.Value;
+        });
+      }
     }
-  } else if (gl.soilMoisture || gl.soilEC || gl.soilTemp) {
-    // Fallback: averaged values only
-    subEl.innerHTML = `
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Substrate · Averaged</div>
-        ${valRow('VWC', gl.soilMoisture, '%', tVWC[0], tVWC[1])}
-        ${valRow('EC', gl.soilEC, 'mS', tEC[0], tEC[1], 2)}
-        ${valRow('Soil Temp', gl.soilTemp, '°F')}
-      </div>`;
   }
 
-  document.getElementById('room-detail-bg').style.display = 'flex';
+  // Determine layout: rooms 1, 6, 9 have 2 tables; rest have 3
+  const roomNum = parseInt((room.name||'').replace(/\D/g,''));
+  const tableCount = [1,6,9].includes(roomNum) ? 2 : 3;
+
+  function posCard(pos, data, label) {
+    if (!data || Object.keys(data).length===0) return '';
+    const vwcOk = data.vwc!=null ? (data.vwc>=tVWC[0]&&data.vwc<=tVWC[1]) : true;
+    const ecOk  = data.ec!=null  ? (data.ec>=tEC[0]&&data.ec<=tEC[1])   : true;
+    return `<div style="flex:1;padding:6px 8px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--border)">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase">${label}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <div>
+          <div style="font-size:9px;color:var(--text3)">VWC</div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:${stale?'var(--text2)':vwcOk?'var(--green)':'var(--amber)'}">${data.vwc!=null?data.vwc.toFixed(1)+'%':'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--text3)">EC</div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:${stale?'var(--text2)':ecOk?'var(--green)':'var(--amber)'}">${data.ec!=null?data.ec.toFixed(2):'—'}</div>
+        </div>
+        <div style="grid-column:span 2">
+          <div style="font-size:9px;color:var(--text3)">Soil Temp</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text)">${data.temp!=null?data.temp.toFixed(1)+'°F':'—'}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Build table cards
+  const hasRaw = Object.keys(tables).length > 0;
+  let tableHTML = '';
+
+  if (hasRaw) {
+    const nums = Array.from({length:tableCount},(_,i)=>String(i+1));
+    tableHTML = nums.map(tNum => {
+      const tData = tables[tNum] || {};
+      const hasPositions = tData.B && Object.keys(tData.B).length > 0;
+      return `<div style="margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;gap:8px">
+          <span>Table ${tNum}</span>
+          <span style="font-size:9px;color:var(--text3);font-weight:400">${tNum==='1'?'Right side':tNum===String(tableCount)?'Left side':'Center'}</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${hasPositions ? posCard('F', tData.F||{}, 'Front') + posCard('B', tData.B||{}, 'Back') : posCard('F', tData.F||{}, 'Reading')}
+        </div>
+      </div>`;
+    }).join('');
+  } else if (gl.soilMoisture || gl.soilEC) {
+    // Averaged fallback
+    tableHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+      ${[['VWC', gl.soilMoisture, '%', tVWC[0], tVWC[1], 1],['EC', gl.soilEC, 'mS', tEC[0], tEC[1], 2],['Soil T', gl.soilTemp, '°F', undefined, undefined, 1]]
+        .map(([l,v,u,mn,mx,dc])=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:3px">${l}</div>
+          <div>${chip(v,u,mn,mx,dc)}</div>
+          ${mn!==undefined?`<div style="font-size:9px;color:var(--text3);margin-top:2px">tgt ${mn}–${mx}</div>`:''}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  subEl.innerHTML = tableHTML ? `<div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Substrate · By Table</div>
+    ${tableHTML}
+  </div>` : '';
+
+  document.getElementById('room-detail-bg').style.display = 'block';
 }
 
 function closeRoomModal() {
