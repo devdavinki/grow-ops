@@ -896,10 +896,7 @@ button { cursor: pointer; }
 <div id="room-detail-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="if(event.target===this)closeRoomModal()">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);width:calc(100% - 32px);max-width:640px;margin:16px auto 40px;box-shadow:var(--shadow-md)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg3);border-radius:var(--r2) var(--r2) 0 0">
-      <div>
-        <div id="rdm-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
-        <div id="rdm-meta" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
-      </div>
+      <div><div id="rdm-name" style="font-size:16px;font-weight:700;color:var(--text)"></div><div id="rdm-meta" style="font-size:11px;color:var(--text3);margin-top:2px"></div></div>
       <button onclick="closeRoomModal()" style="background:none;border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;padding:5px 12px;border-radius:var(--r)">✕ Close</button>
     </div>
     <div style="padding:14px 16px">
@@ -3236,29 +3233,24 @@ const GROWLINK_ROOM_MAP = {
   'Dry Room 1':'Dry Room 1','Dry Room 2':'Dry Room 2'
 };
 
-// Non-flower room cards (Veg, Mother, Dry 1, Dry 2) — rendered after flower rooms
 function renderSupportRooms(){
-  const container = document.getElementById('support-rooms-grid');
+  const container=document.getElementById('support-rooms-grid');
   if(!container) return;
-  container.innerHTML = '';
-  const supportRooms = [
-    {key:'Veg Room', label:'Veg Room', icon:'🌿'},
-    {key:'Mother Room', label:'Mother Room', icon:'🌱'},
-    {key:'Dry Room 1', label:'Dry Room 1', icon:'💨'},
-    {key:'Dry Room 2', label:'Dry Room 2', icon:'💨'},
-  ];
-  supportRooms.forEach(({key,label,icon})=>{
-    const gl = growlinkData[key];
-    const card = document.createElement('div');
-    card.className = 'room-card stage-veg';
-    card.style.cursor = 'pointer';
-    const age = gl&&gl.fetchedAt ? Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000) : null;
-    const stale = age!==null&&age>15;
+  container.innerHTML='';
+  [{key:'Veg Room',label:'Veg Room',icon:'🌿'},{key:'Mother Room',label:'Mother Room',icon:'🌱'},
+   {key:'Dry Room 1',label:'Dry Room 1',icon:'💨'},{key:'Dry Room 2',label:'Dry Room 2',icon:'💨'}
+  ].forEach(({key,label,icon})=>{
+    const gl=growlinkData[key];
+    const card=document.createElement('div');
+    card.className='room-card stage-veg';
+    card.style.cursor='pointer';
     if(!gl){
-      card.innerHTML = `<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">No sensor data</div></div></div>`;
+      card.innerHTML=`<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">No sensor data</div></div></div>`;
     } else {
-      const dp = (gl.temp&&gl.humidity)?(()=>{const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);return((b*alpha)/(a-alpha))*9/5+32;})():null;
-      function ev(v,ok,unit,dec=1){if(v==null)return'<span style="color:var(--text3)">—</span>';const col=stale?'var(--text2)':ok?'var(--green)':'var(--amber)';return`<div class="env-num ${stale?'':(ok?'ok':'warn')}" style="color:${col}">${typeof v==='number'?v.toFixed(dec):v}<span class="env-unit">${unit}</span></div>`;}
+      const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
+      const stale=age!==null&&age>15;
+      const dp=(gl.temp&&gl.humidity)?(()=>{const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);return((b*alpha)/(a-alpha))*9/5+32;})():null;
+      function ev(v,ok,unit,dec=1){if(v==null)return'<span style="color:var(--text3)">—</span>';const col=stale?'var(--text2)':ok?'var(--green)':'var(--amber)';return`<div class="env-num" style="color:${col}">${typeof v==='number'?v.toFixed(dec):v}<span class="env-unit">${unit}</span></div>`;}
       const row1=[
         `<div class="env-cell"><div class="env-lbl">Temp</div>${ev(gl.temp,gl.temp>=72&&gl.temp<=84,'°F')}</div>`,
         `<div class="env-cell"><div class="env-lbl">RH</div>${ev(gl.humidity,gl.humidity>=40&&gl.humidity<=70,'%')}</div>`,
@@ -3271,19 +3263,30 @@ function renderSupportRooms(){
         gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div>${ev(gl.soilEC,gl.soilEC>=1&&gl.soilEC<=6,'mS',2)}</div>`:'',
         gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div>${ev(gl.soilTemp,true,'°F')}</div>`:'',
       ].filter(Boolean).join('');
-      card.innerHTML=`
-        <div class="card-head">
-          <div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">${stale?'⚠ Stale':'Live'} · ${age!==null?age+'m ago':''}</div></div>
-        </div>
+      card.innerHTML=`<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">${stale?'⚠ Stale':'Live'} · ${age!==null?age+'m ago':''}</div></div></div>
         <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:5px">Live · Growlink</div>
           <div class="env-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:4px">${row1}</div>
           ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${row2.split('env-cell').length-1},1fr)">${row2}</div>`:''}
         </div>`;
     }
-    card.addEventListener('click', ()=>openRoomModal({name:key, label, tier:'Support', sqft:'—', strain:'', id:key}));
+    card.addEventListener('click',()=>openRoomModal({name:key,label,tier:'Support',sqft:'—',strain:'',id:key}));
     container.appendChild(card);
   });
+}
+
+function expandGrowlinkRoom(room) {
+  // Expand compressed _soil/_amb arrays back into rawSensors
+  if (!room._soil && !room._amb) return room;
+  const raw = [];
+  (room._amb||[]).forEach(([n,v]) => raw.push({Name:n, Value:v}));
+  (room._soil||[]).forEach(([vwc,temp,ec,peak,db]) => {
+    raw.push({Name:'SoilMoisture',    Value:vwc,  Peak:peak, Dryback:db});
+    if (temp!==null) raw.push({Name:'SoilTemperature', Value:temp});
+    if (ec  !==null) raw.push({Name:'SoilEc',          Value:ec});
+  });
+  const {_soil, _amb, ...rest} = room;
+  return {...rest, rawSensors: raw};
 }
 
 async function pullGrowlinkFromCloud(silent=false){
@@ -3292,7 +3295,10 @@ async function pullGrowlinkFromCloud(silent=false){
     const res=await fetch(gsUrl+'?action=getGrowlink&t='+Date.now());
     const json=await res.json();
     if(!json.ok||!json.data||!json.data.rooms) return;
-    growlinkData=json.data.rooms;
+    // Expand compressed sensor format
+    const rooms = json.data.rooms;
+    Object.keys(rooms).forEach(k => { rooms[k] = expandGrowlinkRoom(rooms[k]); });
+    growlinkData=rooms;
     S('wg_growlink_rooms', growlinkData);
     const age=json.data.pushedAt?Math.round((Date.now()-new Date(json.data.pushedAt).getTime())/60000):null;
     if(!silent) console.log('Growlink pulled:',Object.keys(growlinkData).length,'rooms, pushed',age,'min ago');
@@ -3980,43 +3986,32 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 // ROOM DETAIL MODAL
 // ══════════════════════════════════════════════
-
-// Parse raw sensor array into structured table data
-// Sensors come in triplets: SoilMoisture, SoilTemperature, SoilEc (repeated per probe)
-// The Growlink portal shows them as R{N} T{N} {F|B} — we assign positions by count
-// Positions per room: 3-table rooms = T1B,T1F,T2B,T2F,T3B,T3F (6 probes)
-//                    2-table rooms (1,6,9) = T1B,T1F,T2B,T2F (4 probes)
 function parseTableSensors(rawSensors, tableCount) {
-  // Extract soil triplets in order
+  // Sensors come as triplets: SoilMoisture, SoilTemperature, SoilEc
+  // Order from Growlink: T1B, T1F, T2B, T2F, T3B, T3F
   const triplets = [];
   let cur = null;
   rawSensors.forEach(s => {
     const n = (s.Name||'').toLowerCase();
     if (n === 'soilmoisture') {
-      cur = { vwc: s.Value, temp: null, ec: null, peak: s.Peak||null, dryback: s.Dryback||null };
+      cur = {vwc:s.Value, temp:null, ec:null, peak:s.Peak||null, dryback:s.Dryback!=null?s.Dryback:null};
       triplets.push(cur);
-    } else if (n === 'soiltemperature' && cur && cur.temp === null) {
+    } else if (n === 'soiltemperature' && cur && cur.temp===null) {
       cur.temp = s.Value;
-    } else if (n === 'soilec' && cur && cur.ec === null) {
-      cur.ec = s.Value;
-      cur = null; // triplet complete
+    } else if (n === 'soilec' && cur && cur.ec===null) {
+      cur.ec = s.Value; cur = null;
     }
   });
-
-  // Map triplets to table/position
-  // Order from Growlink: T1B, T1F, T2B, T2F, T3B, T3F (back before front per table)
-  const positions = [];
-  for (let t = 1; t <= tableCount; t++) {
-    positions.push({table: t, pos: 'B', label: 'Back'});
-    positions.push({table: t, pos: 'F', label: 'Front'});
-  }
-
   const tables = {};
-  for (let t = 1; t <= tableCount; t++) tables[t] = {F: null, B: null};
-
-  triplets.forEach((triplet, i) => {
+  for (let t=1; t<=tableCount; t++) tables[t]={F:null,B:null};
+  const positions=[];
+  for (let t=1; t<=tableCount; t++) {
+    positions.push({table:t,pos:'B'});
+    positions.push({table:t,pos:'F'});
+  }
+  triplets.forEach((triplet,i) => {
     if (i < positions.length) {
-      const {table, pos} = positions[i];
+      const {table,pos} = positions[i];
       tables[table][pos] = triplet;
     }
   });
@@ -4024,24 +4019,24 @@ function parseTableSensors(rawSensors, tableCount) {
 }
 
 function openRoomModal(room) {
-  const roomName = room.name || room.label || room.key;
+  const roomName = room.name || room.key;
   const gl = growlinkData[roomName] || getGrowlinkForRoom(roomName);
-  const fd = typeof flowerDay === 'function' ? flowerDay(room) : null;
-  const phase = fd && fd >= 1 ? getPhaseForDay(fd) : null;
-  const ecr = fd && fd >= 1 ? getECRainbow(fd) : null;
+  const fd = typeof flowerDay==='function' ? flowerDay(room) : null;
+  const phase = fd&&fd>=1 ? getPhaseForDay(fd) : null;
+  const ecr   = fd&&fd>=1 ? getECRainbow(fd)   : null;
 
   document.getElementById('rdm-name').textContent = roomName;
-  const metaParts = [room.tier!=='Support'?room.tier:null, room.sqft&&room.sqft!=='—'?room.sqft+' sq ft':null, room.strain||null, fd?'Day '+fd:null].filter(Boolean);
-  document.getElementById('rdm-meta').textContent = metaParts.join(' · ');
+  document.getElementById('rdm-meta').textContent =
+    [room.tier!=='Support'?room.tier:null, room.sqft&&room.sqft!=='—'?room.sqft+' sq ft':null,
+     room.strain||null, fd?'Day '+fd:null].filter(Boolean).join(' · ');
 
-  const phaseEl = document.getElementById('rdm-phase-section');
-  const ambEl   = document.getElementById('rdm-ambient-section');
-  const subEl   = document.getElementById('rdm-substrate-section');
-  const noEl    = document.getElementById('rdm-nodata');
+  const phaseEl=document.getElementById('rdm-phase-section');
+  const ambEl  =document.getElementById('rdm-ambient-section');
+  const subEl  =document.getElementById('rdm-substrate-section');
+  const noEl   =document.getElementById('rdm-nodata');
 
-  // Phase targets
   if (phase) {
-    phaseEl.innerHTML = `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
+    phaseEl.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
       <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;display:flex;justify-content:space-between">
         <span>Phase Targets · ${phase.name}</span>
         ${ecr?`<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ecr.color}"></span>${ecr.name} EC ${ecr.ecMin}–${ecr.ecMax}</span>`:''}
@@ -4056,7 +4051,7 @@ function openRoomModal(room) {
           </div>`).join('')}
       </div>
     </div>`;
-  } else { phaseEl.innerHTML = ''; }
+  } else { phaseEl.innerHTML=''; }
 
   if (!gl) {
     ambEl.innerHTML=''; subEl.innerHTML='';
@@ -4066,31 +4061,27 @@ function openRoomModal(room) {
   }
   noEl.style.display='none';
 
-  const age = gl.fetchedAt ? Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000) : null;
-  const stale = age !== null && age > 15;
-  const tTemp = phase?[phase.dayTemp-4,phase.dayTemp+4]:[72,84];
-  const tRH   = phase?[phase.rh-7,phase.rh+7]:[45,75];
-  const tCO2  = phase?[phase.co2-150,phase.co2+150]:[400,1600];
-  const tVPD  = phase?[phase.vpdMin||0.8,phase.vpdMax||1.6]:[0.6,1.8];
-  const tVWC  = phase?[phase.vwcMin||40,phase.vwcMax||80]:[40,80];
-  const tEC   = phase?[phase.subECMin||1.5,phase.subECMax||5.5]:[1.5,5.5];
+  const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
+  const stale=age!==null&&age>15;
+  const tTemp=phase?[phase.dayTemp-4,phase.dayTemp+4]:[72,84];
+  const tRH  =phase?[phase.rh-7,phase.rh+7]:[45,75];
+  const tCO2 =phase?[phase.co2-150,phase.co2+150]:[400,1600];
+  const tVPD =phase?[phase.vpdMin||0.8,phase.vpdMax||1.6]:[0.6,1.8];
+  const tVWC =phase?[phase.vwcMin||40,phase.vwcMax||80]:[40,80];
+  const tEC  =phase?[phase.subECMin||1.5,phase.subECMax||5.5]:[1.5,5.5];
 
-  function statCol(val, min, max) {
-    if (val===null||val===undefined||stale) return 'var(--text2)';
-    return (val>=min&&val<=max) ? 'var(--green)' : 'var(--amber)';
-  }
-  function fmt(val, dec=1) { return val!=null ? (typeof val==='number'?val.toFixed(dec):val) : '—'; }
+  function sc(v,mn,mx){return(!stale&&v!=null)?(v>=mn&&v<=mx?'var(--green)':'var(--amber)'):'var(--text2)';}
+  function fmt(v,d=1){return v!=null?(typeof v==='number'?v.toFixed(d):v):'—';}
 
-  function ambCell(label, val, unit, min, max, dec=1) {
-    const col = val!=null ? statCol(val,min,max) : 'var(--text3)';
+  function ambCell(l,v,u,mn,mx,d=1){
+    const col=v!=null?sc(v,mn||0,mx||9999):'var(--text3)';
     return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px;text-align:center">
-      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${label}</div>
-      <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${col}">${fmt(val,dec)}<span style="font-size:10px;color:var(--text3);font-weight:400"> ${unit}</span></div>
-      ${min!==undefined?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${min}–${max}</div>`:''}
-    </div>`;
-  }
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${l}</div>
+      <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${col}">${fmt(v,d)}<span style="font-size:10px;color:var(--text3);font-weight:400"> ${u}</span></div>
+      ${mn!=null?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${mn}–${mx}</div>`:''}
+    </div>`;}
 
-  const dp = (gl.temp&&gl.humidity)?(()=>{
+  const dp=(gl.temp&&gl.humidity)?(()=>{
     const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;
     const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);
     return((b*alpha)/(a-alpha))*9/5+32;
@@ -4099,103 +4090,95 @@ function openRoomModal(room) {
   const spread=dp&&lst?(lst-dp):null;
   const spreadCol=spread!=null?(spread<=2?'var(--red)':spread<=3?'var(--amber)':'var(--green)'):'var(--text3)';
 
-  ambEl.innerHTML = `<div style="margin-bottom:14px">
+  ambEl.innerHTML=`<div style="margin-bottom:14px">
     <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:8px;display:flex;justify-content:space-between">
       <span>Ambient · Live</span><span style="font-family:var(--mono);font-weight:400">${age!==null?age+'m ago':''}</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
       ${ambCell('Temp',gl.temp,'°F',tTemp[0],tTemp[1])}
       ${ambCell('Humidity',gl.humidity,'%',tRH[0],tRH[1])}
       ${ambCell('CO₂',gl.co2,'ppm',tCO2[0],tCO2[1],0)}
       ${ambCell('VPD',gl.vpd,'kPa',tVPD[0],tVPD[1],2)}
-      ${ambCell('Dew Point',dp,'°F')}
+      ${ambCell('Dew Point',dp,'°F',null,null)}
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px;text-align:center">
         <div style="font-size:10px;color:var(--text3);margin-bottom:3px">DP Spread</div>
         <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${spreadCol}">${spread!=null?spread.toFixed(1):'—'}<span style="font-size:10px;color:var(--text3);font-weight:400"> °F</span></div>
-        <div style="font-size:9px;color:var(--text3);margin-top:2px">&gt;3 = safe</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">&gt;3°F = safe</div>
       </div>
     </div>
   </div>`;
 
-  // Substrate — parse raw sensors into table structure
-  const raw = gl.rawSensors || [];
-  const roomNum = parseInt((roomName||'').replace(/\D/g,''));
-  const tableCount = [1,6,9].includes(roomNum) ? 2 : 3;
-  const tables = raw.length ? parseTableSensors(raw, tableCount) : null;
+  const raw=gl.rawSensors||[];
+  const roomNum=parseInt((roomName||'').replace(/\D/g,''));
+  const tableCount=[1,6,9].includes(roomNum)?2:3;
+  const tables=raw.length?parseTableSensors(raw,tableCount):null;
 
-  function probeCard(data, posLabel, side) {
-    if (!data) return `<div style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);opacity:0.4;text-align:center;font-size:11px;color:var(--text3)">${posLabel}<br>No data</div>`;
-    const vwcCol = data.vwc!=null ? statCol(data.vwc,tVWC[0],tVWC[1]) : 'var(--text3)';
-    const ecCol  = data.ec!=null  ? statCol(data.ec,tEC[0],tEC[1])   : 'var(--text3)';
-    const dbCol  = data.dryback!=null ? (data.dryback>20?'var(--red)':data.dryback>10?'var(--amber)':'var(--green)') : 'var(--text3)';
-    const peakTxt = data.peak!=null ? `pk ${data.peak.toFixed(1)}%` : '';
-    return `<div style="flex:1;padding:7px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);margin-bottom:5px;display:flex;justify-content:space-between">
-        <span>${posLabel}</span><span style="font-weight:400;color:var(--text3)">${side}</span>
+  function probeCard(data,posLabel,side){
+    if(!data) return `<div style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);opacity:0.35;text-align:center;font-size:11px;color:var(--text3)">${posLabel}<br>No data</div>`;
+    const vwcCol=data.vwc!=null?sc(data.vwc,tVWC[0],tVWC[1]):'var(--text3)';
+    const ecCol =data.ec!=null ?sc(data.ec, tEC[0], tEC[1]) :'var(--text3)';
+    const dbCol =data.dryback!=null?(data.dryback>20?'var(--red)':data.dryback>10?'var(--amber)':'var(--green)'):'var(--text3)';
+    return `<div style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
+        <span style="color:var(--text2)">${posLabel}</span><span>${side}</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:3px">
-        <div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px">
+        <div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center">
           <div style="font-size:9px;color:var(--text3)">VWC</div>
-          <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${vwcCol}">${fmt(data.vwc)}<span style="font-size:9px;font-weight:400;color:var(--text3)">%</span></div>
+          <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${vwcCol}">${fmt(data.vwc)}<span style="font-size:9px;font-weight:400;color:var(--text3)">%</span></div>
+          ${data.peak!=null?`<div style="font-size:8px;color:var(--text3)">pk ${data.peak.toFixed(1)}%</div>`:''}
         </div>
-        <div>
-          <div style="font-size:9px;color:var(--text3)">EC</div>
-          <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${ecCol}">${fmt(data.ec,2)}</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
-        <div>
-          <div style="font-size:9px;color:var(--text3)">Soil T</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--text2)">${fmt(data.temp)}°</div>
-        </div>
-        <div>
+        <div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center">
           <div style="font-size:9px;color:var(--text3)">Dryback</div>
-          <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${dbCol}">${data.dryback!=null?data.dryback.toFixed(1)+'%':'—'}</div>
-          ${peakTxt?`<div style="font-size:8px;color:var(--text3)">${peakTxt}</div>`:''}
+          <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${dbCol}">${data.dryback!=null?data.dryback.toFixed(1)+'%':'—'}</div>
+          <div style="font-size:8px;color:var(--text3)">&lt;10% ok</div>
         </div>
       </div>
-    </div>`;
-  }
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center">
+          <div style="font-size:9px;color:var(--text3)">EC</div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${ecCol}">${fmt(data.ec,2)}<span style="font-size:9px;font-weight:400;color:var(--text3)"> mS</span></div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center">
+          <div style="font-size:9px;color:var(--text3)">Soil Temp</div>
+          <div style="font-family:var(--mono);font-size:13px;color:var(--text2)">${fmt(data.temp)}°<span style="font-size:9px;color:var(--text3)">F</span></div>
+        </div>
+      </div>
+    </div>`;}
 
   if (tables) {
-    const tableNums = Object.keys(tables).sort();
-    const tableHTML = tableNums.map(tNum => {
-      const tData = tables[tNum];
-      const side = tNum==='1'?'Right':tNum===String(tableCount)?'Left':'Center';
-      return `<div style="margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px">
-          Table ${tNum} <span style="font-size:10px;font-weight:400;color:var(--text3)">· ${side} side</span>
-        </div>
-        <div style="display:flex;gap:6px">
-          ${probeCard(tData.F,'Front','→ aisle')}
-          ${probeCard(tData.B,'Back','→ wall')}
-        </div>
-      </div>`;
-    }).join('');
-
-    subEl.innerHTML = `<div>
+    subEl.innerHTML=`<div>
       <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;display:flex;justify-content:space-between">
         <span>Substrate · Per Table</span>
-        <span style="font-size:9px;font-weight:400;color:var(--text3)">VWC target ${tVWC[0]}–${tVWC[1]}% · EC target ${tEC[0]}–${tEC[1]}</span>
+        <span style="font-size:9px;font-weight:400">VWC ${tVWC[0]}–${tVWC[1]}% · EC ${tEC[0]}–${tEC[1]}</span>
       </div>
-      ${tableHTML}
+      ${Object.keys(tables).sort().map(tNum=>`
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px">
+            Table ${tNum} <span style="font-size:10px;font-weight:400;color:var(--text3)">· ${tNum==='1'?'Right side':tNum===String(tableCount)?'Left side':'Center'}</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            ${probeCard(tables[tNum].F,'Front','→ aisle')}
+            ${probeCard(tables[tNum].B,'Back','→ wall')}
+          </div>
+        </div>`).join('')}
     </div>`;
-  } else if (gl.soilMoisture || gl.soilEC) {
-    subEl.innerHTML = `<div>
+  } else if (gl.soilMoisture||gl.soilEC) {
+    subEl.innerHTML=`<div>
       <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Substrate · Averaged</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
         ${ambCell('VWC',gl.soilMoisture,'%',tVWC[0],tVWC[1])}
         ${ambCell('EC',gl.soilEC,'mS',tEC[0],tEC[1],2)}
-        ${ambCell('Soil Temp',gl.soilTemp,'°F')}
+        ${ambCell('Soil Temp',gl.soilTemp,'°F',null,null)}
       </div>
     </div>`;
-  } else { subEl.innerHTML = ''; }
+  } else { subEl.innerHTML=''; }
 
-  document.getElementById('room-detail-bg').style.display = 'block';
+  document.getElementById('room-detail-bg').style.display='block';
 }
 
-function closeRoomModal() {
-  document.getElementById('room-detail-bg').style.display = 'none';
+function closeRoomModal(){
+  document.getElementById('room-detail-bg').style.display='none';
 }
 
 // INIT
