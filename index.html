@@ -458,23 +458,32 @@ button { cursor: pointer; }
         </div>
         <div id="clone-totals" class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
         <hr class="divider">
-        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;flex-wrap:wrap">
-          <div style="position:relative">
-            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Strain</label>
-            <input id="ce-strain" type="text" placeholder="Type to search mothers…" style="width:100%" oninput="showStrainAutocomplete(this.value);if(!this.value){const p=document.getElementById('clone-strain-info');if(p)p.style.display='none';}" autocomplete="off"/>
-            <div id="strain-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto"></div>
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">Log a cut session</div>
+        <div style="position:relative;margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Strain</label>
+          <input id="ce-strain" type="text" placeholder="Type strain name or search mothers…"
+            style="width:100%;font-size:16px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box"
+            oninput="showStrainAutocomplete(this.value);if(!this.value){const p=document.getElementById('clone-strain-info');if(p)p.style.display='none';}"
+            autocomplete="off" autocorrect="off" autocapitalize="words"/>
+          <div id="strain-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Clones cut</label>
+            <input id="ce-count" type="number" min="1" inputmode="numeric" placeholder="0"
+              style="width:100%;font-size:22px;font-weight:700;text-align:center;padding:12px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"/>
           </div>
           <div>
-            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Mother tag (last 4)</label>
-            <input id="ce-mother-tag" type="text" maxlength="4" placeholder="e.g. 2184" style="width:100%;letter-spacing:.1em;font-family:var(--mono)" oninput="onMotherTagInput(this.value)"/>
-            <div id="ce-mother-hint" style="font-size:10px;color:var(--text3);margin-top:2px;min-height:14px"></div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Mother tag <span style="font-weight:400">(last 4)</span></label>
+            <input id="ce-mother-tag" type="text" maxlength="4" inputmode="numeric" placeholder="2184"
+              style="width:100%;font-size:22px;font-weight:700;text-align:center;letter-spacing:.2em;padding:12px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"
+              oninput="onMotherTagInput(this.value)"/>
+            <div id="ce-mother-hint" style="font-size:11px;color:var(--text3);margin-top:4px;min-height:16px;line-height:1.4"></div>
           </div>
-          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Clones cut</label><input id="ce-count" type="number" min="1" placeholder="e.g. 50" style="width:100%"/></div>
-          <div style="display:flex;flex-direction:column;gap:5px;align-self:flex-start;margin-top:19px">
-          <button onclick="logCloneCut(false)" class="btn-primary" style="font-size:11px;padding:6px 10px;white-space:nowrap">Save + same strain</button>
-          <button onclick="logCloneCut(true)" style="font-size:11px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;white-space:nowrap">Save + new strain</button>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button onclick="logCloneCut(false)" class="btn-primary" style="font-size:14px;padding:13px 10px;border-radius:var(--r)">✓ Save · same strain</button>
+          <button onclick="logCloneCut(true)" style="font-size:14px;padding:13px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">↩ Save · new strain</button>
         </div>
       </div>
       <div class="section-title mb12">Strain breakdown this week</div>
@@ -788,6 +797,10 @@ button { cursor: pointer; }
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-strains" style="display:none">
+      <div style="margin-bottom:12px">
+        <input id="metrc-strain-search" type="text" placeholder="Search strains..." 
+          style="width:100%;max-width:320px;font-size:13px" oninput="renderMetrcStrains()"/>
+      </div>
       <div id="metrc-strains-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-harvests" style="display:none">
@@ -1277,8 +1290,8 @@ function renderRooms(){
           dp!==null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div><div class="env-num ${stale?'':(dpOk?'ok':'alert')}">${dp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row2=[
-          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">Soil H₂O</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
-          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">Soil EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
+          gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div><div class="env-num ${stale?'':(soilECOk?'ok':'warn')}">${gl.soilEC.toFixed(2)}</div></div>`:'',
           gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div><div class="env-num ok">${gl.soilTemp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
         ].filter(Boolean).join('');
         const row1Count=row1.split('env-cell').length-1;
@@ -2536,9 +2549,9 @@ function renderSettings(){
       <label>Strain</label>
       <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
       <label>Launch date (plants in)</label>
-      <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
       <label>Flip date (day 1 of flower)</label>
-      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);renderRooms()"/>
+      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
       <label>Note</label>
       <input value="${room.note||''}" placeholder="e.g. Harvested Fri" onchange="rooms[${i}].note=this.value;S('wg_rooms_v2',rooms)"/>
       ${d.harvestDate?`<div class="calc-row">
@@ -2824,45 +2837,87 @@ function renderPrerollPriority(){
   const list=document.getElementById('preroll-list');
   if(!list)return;
   trimWeights=L('wg_trim_weights',{});
-  const strains=trimQueue
+  const isLead=currentRole==='lead';
+
+  // Deduplicate by strain name — merge weights, weighted avg THC
+  const byStrain={};
+  trimQueue
     .map(item=>({...item,w:trimWeights[item.id]||{}}))
     .filter(item=>item.w.purplTHC)
-    .sort((a,b)=>parseFloat(b.w.purplTHC)-parseFloat(a.w.purplTHC));
+    .forEach(item=>{
+      const key=(item.strain||'').toLowerCase().trim();
+      if(!byStrain[key]){
+        byStrain[key]={strain:item.strain,thc:parseFloat(item.w.purplTHC)||0,
+          total:item.w.purplTotal?parseFloat(item.w.purplTotal):null,
+          smalls:item.w.smallBuds?parseFloat(item.w.smallBuds):0,
+          roomName:rooms.find(r=>r.id===item.roomId)?.name||'',ids:[item.id]};
+      } else {
+        const ex=byStrain[key];
+        const w1=ex.smalls||1, w2=item.w.smallBuds?parseFloat(item.w.smallBuds):1;
+        ex.thc=((ex.thc*w1)+(parseFloat(item.w.purplTHC)*w2))/(w1+w2);
+        ex.smalls+=(item.w.smallBuds?parseFloat(item.w.smallBuds):0);
+        ex.ids.push(item.id);
+        ex.roomName='Multiple rooms';
+      }
+    });
 
+  const strains=Object.values(byStrain).sort((a,b)=>b.thc-a.thc);
   if(!strains.length){
     list.innerHTML=`<div class="empty-state">No Purpl Pro results entered yet. Add test results in the Log Weights tab.</div>`;
     return;
   }
 
   list.innerHTML=strains.map((item,i)=>{
-    const w=item.w;
-    const smallBuds=w.smallBuds?parseFloat(w.smallBuds):null;
     const rank=i+1;
-    const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'var(--orange)':'var(--text3)';
+    const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'#cd7f32':'var(--text3)';
+    const rankLabel=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
     return`<div class="card" style="border-left:3px solid ${rankColor}">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="font-size:28px;font-weight:700;color:${rankColor};font-family:var(--mono);min-width:36px">${rank}</div>
-        <div style="flex:1">
+        <div style="font-size:22px;min-width:32px;text-align:center">${rankLabel}</div>
+        <div style="flex:1;min-width:120px">
           <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-          <div style="font-size:11px;color:var(--text3)">${rooms.find(r=>r.id===item.roomId)?.name||''}</div>
+          <div style="font-size:11px;color:var(--text3)">${item.roomName}${item.ids.length>1?` · ${item.ids.length} lots`:''}</div>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
           <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${parseFloat(w.purplTHC).toFixed(1)}%</div>
+            <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${item.thc.toFixed(1)}%</div>
             <div style="font-size:10px;color:var(--text3)">THC</div>
           </div>
-          ${w.purplTotal?`<div style="text-align:center">
-            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${parseFloat(w.purplTotal).toFixed(1)}%</div>
-            <div style="font-size:10px;color:var(--text3)">Total cannabinoids</div>
+          ${item.total!==null?`<div style="text-align:center">
+            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${item.total.toFixed(1)}%</div>
+            <div style="font-size:10px;color:var(--text3)">Total</div>
           </div>`:''}
           <div style="text-align:center">
-            <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${smallBuds!==null?smallBuds.toFixed(1)+'g':'—'}</div>
-            <div style="font-size:10px;color:var(--text3)">Small buds available</div>
+            <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${item.smalls>0?item.smalls.toFixed(1)+'g':'—'}</div>
+            <div style="font-size:10px;color:var(--text3)">Smalls</div>
           </div>
         </div>
+        ${isLead?`<div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
+          <button onclick="editPrerollEntry('${item.ids[0]}')" style="font-size:11px;padding:4px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">Edit</button>
+          <button onclick="removePrerollEntry(${JSON.stringify(item.ids)})" style="font-size:11px;padding:4px 9px;border-radius:var(--r);border:1px solid var(--red-bg);background:none;color:var(--red);cursor:pointer">Remove</button>
+        </div>`:''}
       </div>
     </div>`;
   }).join('');
+}
+
+function editPrerollEntry(id){
+  showPostTab('weights',document.querySelectorAll('#page-postprod .nav-tab')[1]);
+  setTimeout(()=>{
+    const el=document.getElementById('weight-card-'+id);
+    if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='2px solid var(--green)';setTimeout(()=>el.style.outline='',2000);}
+    else{ const cards=document.querySelectorAll('#weight-cards .card');cards.forEach(c=>{if(c.textContent.includes(id)){c.scrollIntoView({behavior:'smooth',block:'center'});c.style.outline='2px solid var(--green)';setTimeout(()=>c.style.outline='',2000);}});}
+  },200);
+}
+
+function removePrerollEntry(ids){
+  if(!confirm('Remove '+ids.length+' entr'+(ids.length===1?'y':'ies')+' from pre-roll priority? Clears THC and smalls data.')) return;
+  ids.forEach(id=>{
+    if(trimWeights[id]){delete trimWeights[id].purplTHC;delete trimWeights[id].purplTotal;delete trimWeights[id].smallBuds;}
+  });
+  S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
+  renderPrerollPriority();
 }
 
 function showPostTab(tab,el){
@@ -3233,72 +3288,16 @@ const GROWLINK_ROOM_MAP = {
   'Dry Room 1':'Dry Room 1','Dry Room 2':'Dry Room 2'
 };
 
-function renderSupportRooms(){
-  const container=document.getElementById('support-rooms-grid');
-  if(!container) return;
-  container.innerHTML='';
-  [{key:'Veg Room',label:'Veg Room',icon:'🌿'},{key:'Mother Room',label:'Mother Room',icon:'🌱'},
-   {key:'Dry Room 1',label:'Dry Room 1',icon:'💨'},{key:'Dry Room 2',label:'Dry Room 2',icon:'💨'}
-  ].forEach(({key,label,icon})=>{
-    const gl=growlinkData[key];
-    const card=document.createElement('div');
-    card.className='room-card stage-veg';
-    card.style.cursor='pointer';
-    if(!gl){
-      card.innerHTML=`<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">No sensor data</div></div></div>`;
-    } else {
-      const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
-      const stale=age!==null&&age>15;
-      const dp=(gl.temp&&gl.humidity)?(()=>{const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);return((b*alpha)/(a-alpha))*9/5+32;})():null;
-      function ev(v,ok,unit,dec=1){if(v==null)return'<span style="color:var(--text3)">—</span>';const col=stale?'var(--text2)':ok?'var(--green)':'var(--amber)';return`<div class="env-num" style="color:${col}">${typeof v==='number'?v.toFixed(dec):v}<span class="env-unit">${unit}</span></div>`;}
-      const row1=[
-        `<div class="env-cell"><div class="env-lbl">Temp</div>${ev(gl.temp,gl.temp>=72&&gl.temp<=84,'°F')}</div>`,
-        `<div class="env-cell"><div class="env-lbl">RH</div>${ev(gl.humidity,gl.humidity>=40&&gl.humidity<=70,'%')}</div>`,
-        `<div class="env-cell"><div class="env-lbl">CO₂</div>${ev(gl.co2,gl.co2>=400&&gl.co2<=1600,'ppm',0)}</div>`,
-        `<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`,
-        dp!=null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div>${ev(dp,dp<65,'°F')}</div>`:'',
-      ].filter(Boolean).join('');
-      const row2=[
-        gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div>${ev(gl.soilMoisture,gl.soilMoisture>=40&&gl.soilMoisture<=85,'%')}</div>`:'',
-        gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div>${ev(gl.soilEC,gl.soilEC>=1&&gl.soilEC<=6,'mS',2)}</div>`:'',
-        gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div>${ev(gl.soilTemp,true,'°F')}</div>`:'',
-      ].filter(Boolean).join('');
-      card.innerHTML=`<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">${stale?'⚠ Stale':'Live'} · ${age!==null?age+'m ago':''}</div></div></div>
-        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:5px">Live · Growlink</div>
-          <div class="env-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:4px">${row1}</div>
-          ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${row2.split('env-cell').length-1},1fr)">${row2}</div>`:''}
-        </div>`;
-    }
-    card.addEventListener('click',()=>openRoomModal({name:key,label,tier:'Support',sqft:'—',strain:'',id:key}));
-    container.appendChild(card);
-  });
-}
-
-function expandGrowlinkRoom(room) {
-  // Expand compressed _soil/_amb arrays back into rawSensors
-  if (!room._soil && !room._amb) return room;
-  const raw = [];
-  (room._amb||[]).forEach(([n,v]) => raw.push({Name:n, Value:v}));
-  (room._soil||[]).forEach(([vwc,temp,ec,peak,db]) => {
-    raw.push({Name:'SoilMoisture',    Value:vwc,  Peak:peak, Dryback:db});
-    if (temp!==null) raw.push({Name:'SoilTemperature', Value:temp});
-    if (ec  !==null) raw.push({Name:'SoilEc',          Value:ec});
-  });
-  const {_soil, _amb, ...rest} = room;
-  return {...rest, rawSensors: raw};
-}
-
 async function pullGrowlinkFromCloud(silent=false){
   if(!gsUrl) return;
   try{
     const res=await fetch(gsUrl+'?action=getGrowlink&t='+Date.now());
     const json=await res.json();
     if(!json.ok||!json.data||!json.data.rooms) return;
-    // Expand compressed sensor format
-    const rooms = json.data.rooms;
-    Object.keys(rooms).forEach(k => { rooms[k] = expandGrowlinkRoom(rooms[k]); });
-    growlinkData=rooms;
+    // Expand compressed _soil/_amb back to rawSensors
+    const _rooms=json.data.rooms;
+    Object.keys(_rooms).forEach(k=>{ _rooms[k]=expandGrowlinkRoom(_rooms[k]); });
+    growlinkData=_rooms;
     S('wg_growlink_rooms', growlinkData);
     const age=json.data.pushedAt?Math.round((Date.now()-new Date(json.data.pushedAt).getTime())/60000):null;
     if(!silent) console.log('Growlink pulled:',Object.keys(growlinkData).length,'rooms, pushed',age,'min ago');
@@ -3635,7 +3634,8 @@ function renderMetrcStrains(){
   });
   const totalVeg=vegRows.length;
   const totalFlower=flowerRows.length;
-  const strains=Object.keys(byStrain).sort((a,b)=>(byStrain[b].veg+byStrain[b].flower)-(byStrain[a].veg+byStrain[a].flower)||a.localeCompare(b));
+  const _sq=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase().trim();
+  const strains=Object.keys(byStrain).filter(s=>!_sq||s.toLowerCase().includes(_sq)).sort((a,b)=>a.localeCompare(b));
   const summary='<div style="grid-column:1/-1;display:flex;gap:24px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);margin-bottom:8px;flex-wrap:wrap">'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+totalVeg+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Veg plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].veg>0).length+' strains</div></div></div>'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)">'+totalFlower+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Flowering plants</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].flower>0).length+' strains</div></div></div>'
@@ -3984,11 +3984,68 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 
 // ══════════════════════════════════════════════
+// SUPPORT ROOMS
+// ══════════════════════════════════════════════
+function renderSupportRooms(){
+  const container=document.getElementById('support-rooms-grid');
+  if(!container) return;
+  container.innerHTML='';
+  [{key:'Veg Room',label:'Veg Room',icon:'🌿'},{key:'Mother Room',label:'Mother Room',icon:'🌱'},
+   {key:'Dry Room 1',label:'Dry Room 1',icon:'💨'},{key:'Dry Room 2',label:'Dry Room 2',icon:'💨'}
+  ].forEach(({key,label,icon})=>{
+    const gl=growlinkData[key];
+    const card=document.createElement('div');
+    card.className='room-card stage-veg';
+    card.style.cursor='pointer';
+    if(!gl){
+      card.innerHTML=`<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:var(--text3)">No sensor data</div></div></div>`;
+    } else {
+      const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
+      const stale=age!==null&&age>15;
+      const dp=(gl.temp&&gl.humidity)?(()=>{const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);return((b*alpha)/(a-alpha))*9/5+32;})():null;
+      function ev(v,ok,unit,dec=1){if(v==null)return'<span style="color:var(--text3)">—</span>';const col=stale?'var(--text2)':ok?'var(--green)':'var(--amber)';return`<div class="env-num" style="color:${col}">${typeof v==='number'?v.toFixed(dec):v}<span class="env-unit">${unit}</span></div>`;}
+      const row1=[
+        `<div class="env-cell"><div class="env-lbl">Temp</div>${ev(gl.temp,gl.temp>=72&&gl.temp<=84,'°F')}</div>`,
+        `<div class="env-cell"><div class="env-lbl">RH</div>${ev(gl.humidity,gl.humidity>=40&&gl.humidity<=70,'%')}</div>`,
+        `<div class="env-cell"><div class="env-lbl">CO₂</div>${ev(gl.co2,gl.co2>=400&&gl.co2<=1600,'ppm',0)}</div>`,
+        `<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`,
+        dp!=null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div>${ev(dp,dp<65,'°F')}</div>`:'',
+      ].filter(Boolean).join('');
+      const soilCount=[gl.soilMoisture,gl.soilEC,gl.soilTemp].filter(v=>v!=null).length;
+      const row2=soilCount?[
+        gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div>${ev(gl.soilMoisture,gl.soilMoisture>=40&&gl.soilMoisture<=85,'%')}</div>`:'',
+        gl.soilEC!=null?`<div class="env-cell"><div class="env-lbl">EC</div>${ev(gl.soilEC,gl.soilEC>=1&&gl.soilEC<=6,'mS',2)}</div>`:'',
+        gl.soilTemp!=null?`<div class="env-cell"><div class="env-lbl">Soil T</div>${ev(gl.soilTemp,true,'°F')}</div>`:'',
+      ].filter(Boolean).join(''):'';
+      card.innerHTML=`<div class="card-head"><div><div class="room-name">${icon} ${label}</div><div class="room-meta" style="color:${stale?'var(--amber)':'var(--text3)'}">${stale?'⚠ Stale':'Live'} · ${age!==null?age+'m ago':''}</div></div></div>
+        <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${stale?'var(--amber)':'var(--text3)'};margin-bottom:5px">Live · Growlink</div>
+          <div class="env-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:4px">${row1}</div>
+          ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${soilCount},1fr)">${row2}</div>`:''}
+        </div>`;
+    }
+    card.addEventListener('click',()=>openRoomModal({name:key,label,tier:'Support',sqft:'—',strain:'',id:key}));
+    container.appendChild(card);
+  });
+}
+
+function expandGrowlinkRoom(room) {
+  if (!room._soil && !room._amb) return room;
+  const raw = [];
+  (room._amb||[]).forEach(([n,v]) => raw.push({Name:n, Value:v}));
+  (room._soil||[]).forEach(([vwc,temp,ec,peak,db]) => {
+    raw.push({Name:'SoilMoisture', Value:vwc, Peak:peak, Dryback:db});
+    if (temp!==null) raw.push({Name:'SoilTemperature', Value:temp});
+    if (ec  !==null) raw.push({Name:'SoilEc', Value:ec});
+  });
+  const {_soil, _amb, ...rest} = room;
+  return {...rest, rawSensors: raw};
+}
+
+// ══════════════════════════════════════════════
 // ROOM DETAIL MODAL
 // ══════════════════════════════════════════════
 function parseTableSensors(rawSensors, tableCount) {
-  // Sensors come as triplets: SoilMoisture, SoilTemperature, SoilEc
-  // Order from Growlink: T1B, T1F, T2B, T2F, T3B, T3F
   const triplets = [];
   let cur = null;
   rawSensors.forEach(s => {
@@ -4005,15 +4062,9 @@ function parseTableSensors(rawSensors, tableCount) {
   const tables = {};
   for (let t=1; t<=tableCount; t++) tables[t]={F:null,B:null};
   const positions=[];
-  for (let t=1; t<=tableCount; t++) {
-    positions.push({table:t,pos:'B'});
-    positions.push({table:t,pos:'F'});
-  }
+  for (let t=1; t<=tableCount; t++) { positions.push({table:t,pos:'B'}); positions.push({table:t,pos:'F'}); }
   triplets.forEach((triplet,i) => {
-    if (i < positions.length) {
-      const {table,pos} = positions[i];
-      tables[table][pos] = triplet;
-    }
+    if (i < positions.length) { const {table,pos} = positions[i]; tables[table][pos] = triplet; }
   });
   return tables;
 }
@@ -4072,7 +4123,6 @@ function openRoomModal(room) {
 
   function sc(v,mn,mx){return(!stale&&v!=null)?(v>=mn&&v<=mx?'var(--green)':'var(--amber)'):'var(--text2)';}
   function fmt(v,d=1){return v!=null?(typeof v==='number'?v.toFixed(d):v):'—';}
-
   function ambCell(l,v,u,mn,mx,d=1){
     const col=v!=null?sc(v,mn||0,mx||9999):'var(--text3)';
     return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px;text-align:center">
