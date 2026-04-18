@@ -698,7 +698,7 @@ button { cursor: pointer; }
     <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
       <button class="nav-tab active" onclick="showPostTab('queue',this)" style="font-size:12px">Trim queue</button>
       <button class="nav-tab" onclick="showPostTab('weights',this)" style="font-size:12px">Log weights</button>
-      <button class="nav-tab" onclick="showPostTab('preroll',this)" style="font-size:12px">Pre-roll priority</button>
+      <button class="nav-tab" id="preroll-subtab-btn" onclick="showPostTab('preroll',this)" style="font-size:12px;display:none">Pre-roll priority</button>
     </div>
 
     <!-- TRIM QUEUE -->
@@ -1545,7 +1545,7 @@ function logCloneCut(clearStrain=false){
   }
   cloneSessions.push({strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)});
   S(getWeekKey(),cloneSessions);
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate — clone saves must sync right away
   postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
   // Always clear count and mother tag
   if(document.getElementById('ce-mother-tag')) document.getElementById('ce-mother-tag').value='';
@@ -2967,7 +2967,12 @@ function showPage(page){
     pullConfigFromCloud(true).then(()=>renderCloneTracker()).catch(()=>{});
   }
   if(page==='metrc'){updateMetrcSyncLabel();buildMetrcTabNav();pullMetrcFromCloud(true);}
-  if(page==='postprod'){pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});}
+  if(page==='postprod'){
+    // Show pre-roll sub-tab for leads only
+    const prerollBtn=document.getElementById('preroll-subtab-btn');
+    if(prerollBtn) prerollBtn.style.display=currentRole==='lead'?'':'none';
+    pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});
+  }
 }
 
 
@@ -3286,6 +3291,7 @@ let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 // ── GROWLINK LIVE DATA ──────────────────────────────────────────
 // Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
 let growlinkData = L('wg_growlink_rooms', {});
+let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{strain:'',harvestDate:'',note:''},'Dry Room 2':{strain:'',harvestDate:'',note:''}});
 
 // Map Growlink room names → dashboard room names
 const GROWLINK_ROOM_MAP = {
@@ -4038,6 +4044,40 @@ function renderSupportRooms(){
           ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${soilCount},1fr)">${row2}</div>`:''}
         </div>`;
     }
+    // Dry room assignment UI
+    const isDry=key==='Dry Room 1'||key==='Dry Room 2';
+    if(isDry){
+      const dr=dryRooms[key]||{strain:'',harvestDate:'',note:''};
+      const assignDiv=document.createElement('div');
+      assignDiv.style.cssText='border-top:1px solid var(--border);padding:8px 0 2px;margin-top:8px';
+      if(currentRole==='lead'){
+        assignDiv.innerHTML=`
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Current Drying</div>
+          <input id="dr-strain-${key.replace(' ','_')}" value="${dr.strain||''}" placeholder="Strain name"
+            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-bottom:5px"
+            oninput="dryRooms['${key}'].strain=this.value;S('wg_dry_rooms',dryRooms)" />
+          <input id="dr-date-${key.replace(' ','_')}" type="date" value="${dr.harvestDate||''}"
+            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-bottom:5px"
+            oninput="dryRooms['${key}'].harvestDate=this.value;S('wg_dry_rooms',dryRooms)" />
+          <input id="dr-note-${key.replace(' ','_')}" value="${dr.note||''}" placeholder="Notes (optional)"
+            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-bottom:5px"
+            oninput="dryRooms['${key}'].note=this.value;S('wg_dry_rooms',dryRooms)" />
+          <button onclick="event.stopPropagation();dryRooms['${key}'].strain=document.getElementById('dr-strain-${key.replace(' ','_')}').value;dryRooms['${key}'].harvestDate=document.getElementById('dr-date-${key.replace(' ','_')}').value;dryRooms['${key}'].note=document.getElementById('dr-note-${key.replace(' ','_')}').value;S('wg_dry_rooms',dryRooms);pushConfigToCloud(true);renderSupportRooms();"
+            class="btn-primary" style="font-size:11px;padding:5px 12px;width:100%">Save · Sync</button>`;
+      } else {
+        const strain=dr.strain||'—';
+        const hDate=dr.harvestDate?'Harvest: '+dr.harvestDate:'';
+        const note=dr.note||'';
+        assignDiv.innerHTML=`
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Current Drying</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${strain}</div>
+          ${hDate?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${hDate}</div>`:''}
+          ${note?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${note}</div>`:''}`;
+      }
+      card.appendChild(assignDiv);
+      // Prevent card click from opening modal when clicking inputs/button
+      assignDiv.addEventListener('click',e=>e.stopPropagation());
+    }
     card.addEventListener('click',()=>openRoomModal({name:key,label,tier:'Support',sqft:'—',strain:'',id:key}));
     container.appendChild(card);
   });
@@ -4515,6 +4555,7 @@ async function pushConfigToCloud(silent=false){
       alertLog:L('wg_alert_log',[]),
       todayLogs,
       cloneSessions,
+      dryRooms,
       syncedBy:loggedInMember?loggedInMember.name:'Unknown',
       syncedAt:new Date().toISOString(),
     }
@@ -4599,6 +4640,13 @@ async function pullConfigFromCloud(silent=false){
       const merged=[...local,...d.alertLog.filter(e=>!localIds.has(e.id))];
       merged.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
       S('wg_alert_log',merged);
+    }
+
+    if(d.dryRooms){
+      dryRooms=d.dryRooms;
+      S('wg_dry_rooms',dryRooms);
+      // Re-render support rooms if visible
+      if(document.getElementById('support-rooms-grid')) renderSupportRooms();
     }
 
     if(!silent) console.log('[Config] Pulled from cloud, synced by',d.syncedBy);
