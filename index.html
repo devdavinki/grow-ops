@@ -601,18 +601,93 @@ button { cursor: pointer; }
 
   <!-- ══ PAGE: ROOM CHECKS ══ -->
   <div id="page-checks" class="page">
-    <div class="row mb12">
-      <div class="section-title">Flower room checks</div>
-      <span class="tag tag-amber">Tier 2 · #flower-rooms</span>
-      <div style="flex:1"></div>
-      <button onclick="loadChecks()" class="send-btn green">Refresh</button>
+    <!-- SUB-TABS -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="nav-tab active" id="checks-subtab-submit" onclick="showChecksTab('submit',this)" style="font-size:12px">Submit check</button>
+      <button class="nav-tab" id="checks-subtab-history" onclick="showChecksTab('history',this)" style="font-size:12px">View history</button>
     </div>
-    <div class="row mb12" style="gap:8px;flex-wrap:wrap">
-      <input id="csv-url" style="flex:1;min-width:200px;font-size:12px" placeholder="Google Sheet CSV URL" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vTjSQZCbmNGCNU5sKmwmEt6oHZw1rwvJF_vfOY3xsiWwJZSnlstJ3nVKJ366hOALncDN8U7gFVtSnLH/pub?gid=1259070290&single=true&output=csv"/>
-      <span id="check-refresh-note" style="font-size:11px;color:var(--text3)"></span>
+
+    <!-- SUBMIT FORM -->
+    <div id="checks-sub-submit">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Record environment readings and runoff data for a room. Auto-marks the room check task done for today.</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Room</label>
+          <select id="rc-room" onchange="rcLoadTables()" style="width:100%;font-size:13px;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)">
+            <option value="">— Select —</option>
+            <option value="R1">Room 1</option>
+            <option value="R2">Room 2</option>
+            <option value="R3">Room 3</option>
+            <option value="R4">Room 4</option>
+            <option value="R5">Room 5</option>
+            <option value="R6">Room 6</option>
+            <option value="R7">Room 7</option>
+            <option value="R8">Room 8</option>
+            <option value="R9">Room 9</option>
+            <option value="R10">Room 10</option>
+            <option value="R11">Room 11</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Date</label>
+          <input type="date" id="rc-date" style="width:100%;box-sizing:border-box;font-size:13px;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+        </div>
+      </div>
+
+      <!-- ENV READINGS -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Environment · Room conditions</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">RH %</label>
+          <input type="number" id="rc-rh" step="0.1" placeholder="—" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Room Temp °F</label>
+          <input type="number" id="rc-temp" step="0.1" placeholder="—" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Leaf Temp °F</label>
+          <input type="number" id="rc-leaf" step="0.1" placeholder="—" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Dewpoint °F</label>
+          <input type="number" id="rc-dew" step="0.1" placeholder="—" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">PPFD μmol/m²/s</label>
+          <input type="number" id="rc-ppfd" step="1" placeholder="—" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+        </div>
+      </div>
+
+      <!-- RUNOFF TABLES — rendered by rcLoadTables() -->
+      <div id="rc-tables-wrap" style="display:none">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Runoff · per table</div>
+        <div id="rc-tables-grid"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-top:14px">
+        <button onclick="submitRoomCheck()" class="btn-primary" style="font-size:13px;padding:10px 24px">Save entry</button>
+        <button onclick="clearRoomCheckForm()" style="font-size:12px;padding:8px 16px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Clear</button>
+        <span id="rc-status" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+
+      <!-- TODAY'S SUBMISSIONS -->
+      <div style="margin-top:20px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Today's submissions</div>
+        <div id="rc-today-list" style="display:grid;gap:6px"></div>
+      </div>
     </div>
-    <div class="grid-2" id="checks-grid"></div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text3)">Form: <a href="https://devdavinki.github.io/flower-room-checks/" target="_blank" style="color:var(--blue)">devdavinki.github.io/flower-room-checks</a></div>
+
+    <!-- VIEW HISTORY -->
+    <div id="checks-sub-history" style="display:none">
+      <div class="row mb12" style="gap:8px;flex-wrap:wrap">
+        <input id="csv-url" style="flex:1;min-width:200px;font-size:12px" placeholder="Google Sheet CSV URL" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vTjSQZCbmNGCNU5sKmwmEt6oHZw1rwvJF_vfOY3xsiWwJZSnlstJ3nVKJ366hOALncDN8U7gFVtSnLH/pub?gid=1259070290&single=true&output=csv"/>
+        <button onclick="loadChecks()" class="send-btn green" style="white-space:nowrap">↻ Refresh</button>
+        <span id="check-refresh-note" style="font-size:11px;color:var(--text3);width:100%"></span>
+      </div>
+      <div class="grid-2" id="checks-grid"></div>
+    </div>
   </div>
 
   <!-- ══ PAGE: SLACK ══ -->
@@ -1936,6 +2011,166 @@ function parseCSV(text){
 function findCol(row,...candidates){for(const c of candidates){const k=Object.keys(row).find(k=>k.toLowerCase().includes(c.toLowerCase()));if(k&&row[k])return row[k];}return '';}
 function numOrNull(v){if(!v||v===''||v==='—')return null;const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?null:n;}
 
+// ══════════════════════════════════════════════
+// ROOM CHECKS — SUBMIT FORM
+// ══════════════════════════════════════════════
+
+// Table counts per room (rooms 1,6,9 have 2 tables; all others 3)
+const RC_TABLE_COUNTS = {R1:2,R2:3,R3:3,R4:3,R5:3,R6:2,R7:3,R8:3,R9:2,R10:3,R11:3};
+
+function showChecksTab(tab, btn){
+  document.getElementById('checks-sub-submit').style.display = tab==='submit'?'block':'none';
+  document.getElementById('checks-sub-history').style.display = tab==='history'?'block':'none';
+  document.querySelectorAll('#page-checks .nav-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(tab==='history') loadChecks();
+  if(tab==='submit') renderTodayCheckSubmissions();
+}
+
+function rcLoadTables(){
+  const room = document.getElementById('rc-room').value;
+  const wrap = document.getElementById('rc-tables-wrap');
+  const grid = document.getElementById('rc-tables-grid');
+  if(!room){ wrap.style.display='none'; grid.innerHTML=''; return; }
+  const count = RC_TABLE_COUNTS[room] || 3;
+  wrap.style.display = 'block';
+  grid.innerHTML = '';
+  for(let t=1; t<=count; t++){
+    const tDiv = document.createElement('div');
+    tDiv.style.cssText = 'display:grid;grid-template-columns:60px 1fr 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg3)';
+    tDiv.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:var(--text2)">Table ${t}</div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">EC (ppm)</label>
+        <input type="number" id="rc-t${t}-ec" step="1" placeholder="—"
+          style="width:100%;box-sizing:border-box;font-size:13px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">pH</label>
+        <input type="number" id="rc-t${t}-ph" step="0.01" placeholder="—"
+          style="width:100%;box-sizing:border-box;font-size:13px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px">Volume (mL)</label>
+        <input type="number" id="rc-t${t}-vol" step="1" placeholder="—"
+          style="width:100%;box-sizing:border-box;font-size:13px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text)"/>
+      </div>`;
+    grid.appendChild(tDiv);
+  }
+}
+
+async function submitRoomCheck(){
+  const status = document.getElementById('rc-status');
+  const room = document.getElementById('rc-room').value;
+  if(!room){ status.textContent='⚠ Select a room'; status.style.color='var(--amber)'; return; }
+
+  const who = loggedInMember ? loggedInMember.name : 'Unknown';
+  const dateVal = document.getElementById('rc-date').value || dateToIso(TODAY);
+  const timeVal = fmtTime();
+  const rh   = document.getElementById('rc-rh').value   || '';
+  const temp = document.getElementById('rc-temp').value || '';
+  const leaf = document.getElementById('rc-leaf').value || '';
+  const dew  = document.getElementById('rc-dew').value  || '';
+  const ppfd = document.getElementById('rc-ppfd').value || '';
+
+  const count = RC_TABLE_COUNTS[room] || 3;
+  const tableData = {};
+  for(let t=1; t<=count; t++){
+    tableData[t] = {
+      ec:  document.getElementById(`rc-t${t}-ec`)?.value  || '',
+      ph:  document.getElementById(`rc-t${t}-ph`)?.value  || '',
+      vol: document.getElementById(`rc-t${t}-vol`)?.value || '',
+    };
+  }
+
+  // Build sheet row — fixed columns then one triplet per table
+  // Columns: Date, Time, Who, Room, RH, RoomTemp, LeafTemp, Dewpoint, PPFD,
+  //          Table1 EC, Table1 pH, Table1 Vol, Table2 EC, ...
+  const row = [dateVal, timeVal, who, room, rh, temp, leaf, dew, ppfd];
+  for(let t=1; t<=count; t++){
+    row.push(tableData[t].ec, tableData[t].ph, tableData[t].vol);
+  }
+  // Pad to max 3 tables so every row has same column count
+  for(let t=count+1; t<=3; t++){
+    row.push('','','');
+  }
+
+  status.textContent = 'Saving…'; status.style.color = 'var(--text3)';
+  try {
+    await postToSheet('Runoff_Form', row);
+    status.textContent = '✓ Saved'; status.style.color = 'var(--green)';
+
+    // Auto-mark room_check done for today
+    const roomNum = room.replace('R','');
+    const matchedRoom = rooms.find(r => r.id === 'r'+roomNum);
+    if(matchedRoom){
+      const todayIso = dateToIso(TODAY);
+      if(!roomOverrides[matchedRoom.id]) roomOverrides[matchedRoom.id]={};
+      if(!roomOverrides[matchedRoom.id]['done_room_check']){
+        roomOverrides[matchedRoom.id]['done_room_check'] = true;
+        todayLog.push({id:Date.now(),roomId:matchedRoom.id,taskId:'room_check',
+          taskName:'Daily check — '+matchedRoom.name,who,notes:'',pct:'',time:timeVal,status:'done'});
+        S('wg_overrides_'+todayIso, roomOverrides);
+        S('wg_log_'+todayIso, todayLog);
+        renderAssignments(); renderRooms(); renderTodayLog();
+      }
+    }
+
+    // Save to local submission log for "today's submissions" display
+    const subLog = L('wg_check_subs_'+dateToIso(TODAY), []);
+    subLog.push({room, who, time:timeVal, rh, temp, leaf, dew, ppfd, tables:tableData});
+    S('wg_check_subs_'+dateToIso(TODAY), subLog);
+    renderTodayCheckSubmissions();
+
+    // Clear form room/table fields but keep date
+    document.getElementById('rc-room').value = '';
+    document.getElementById('rc-rh').value = '';
+    document.getElementById('rc-temp').value = '';
+    document.getElementById('rc-leaf').value = '';
+    document.getElementById('rc-dew').value = '';
+    document.getElementById('rc-ppfd').value = '';
+    rcLoadTables(); // clears table inputs
+
+    setTimeout(()=>{ status.textContent=''; }, 3000);
+  } catch(e) {
+    status.textContent = '✗ Save failed — check Apps Script URL'; status.style.color = 'var(--red)';
+  }
+}
+
+function clearRoomCheckForm(){
+  ['rc-room','rc-rh','rc-temp','rc-leaf','rc-dew','rc-ppfd'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('rc-date').value = dateToIso(TODAY);
+  rcLoadTables();
+  document.getElementById('rc-status').textContent='';
+}
+
+function renderTodayCheckSubmissions(){
+  const list = document.getElementById('rc-today-list');
+  if(!list) return;
+  const subs = L('wg_check_subs_'+dateToIso(TODAY), []);
+  if(!subs.length){
+    list.innerHTML='<div style="font-size:12px;color:var(--text3)">No submissions yet today.</div>';
+    return;
+  }
+  list.innerHTML = subs.slice().reverse().map(s=>{
+    const tableCount = RC_TABLE_COUNTS[s.room] || 3;
+    const tables = Object.entries(s.tables||{}).map(([t,d])=>{
+      if(!d.ec && !d.ph && !d.vol) return '';
+      return `<span style="font-size:11px;color:var(--text3)">T${t}: EC ${d.ec||'—'} pH ${d.ph||'—'} ${d.vol?d.vol+'mL':''}</span>`;
+    }).filter(Boolean).join(' · ');
+    return `<div style="padding:8px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--bg3);font-size:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-weight:700;color:var(--text)">${s.room}</span>
+        <span style="color:var(--text3)">${s.who} · ${s.time}</span>
+      </div>
+      <div style="color:var(--text2)">RH ${s.rh||'—'}% · Temp ${s.temp||'—'}°F · Leaf ${s.leaf||'—'}°F · Dew ${s.dew||'—'}°F · PPFD ${s.ppfd||'—'}</div>
+      ${tables?`<div style="margin-top:3px">${tables}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
 async function loadChecks(){
   const url=document.getElementById('csv-url').value.trim();
   const note=document.getElementById('check-refresh-note');
@@ -2954,7 +3189,12 @@ function showPage(page){
   if(page==='slack') renderSlackPanels();
   if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
-  if(page==='checks') loadChecks();
+  if(page==='checks'){
+    // Initialize date field and today's submissions on tab open
+    const rcDate=document.getElementById('rc-date');
+    if(rcDate&&!rcDate.value) rcDate.value=dateToIso(TODAY);
+    renderTodayCheckSubmissions();
+  }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
   if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
@@ -3291,7 +3531,7 @@ let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 // ── GROWLINK LIVE DATA ──────────────────────────────────────────
 // Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
 let growlinkData = L('wg_growlink_rooms', {});
-let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{strain:'',harvestDate:'',note:''},'Dry Room 2':{strain:'',harvestDate:'',note:''}});
+let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{note:''},'Dry Room 2':{note:''}});
 
 // Map Growlink room names → dashboard room names
 const GROWLINK_ROOM_MAP = {
@@ -4003,6 +4243,53 @@ function addCustomTask() {
 // ══════════════════════════════════════════════
 // SUPPORT ROOMS
 // ══════════════════════════════════════════════
+// ── DRY ROOM HELPERS ──────────────────────────────────────────
+// Returns array of {batch, roomTag, strain, plants, harvestDate}
+// for batches assigned to the given dry room key.
+// Assignment is stored in dryRooms[key].batches = ['batch name', ...]
+// If no assignment is set, returns ALL unassigned harvest batches
+// (leads can then assign them to specific dry rooms).
+function getDryRoomBatches(dryKey){
+  const harvests = metrcData.harvests || [];
+  if(!harvests.length) return [];
+
+  // Filter harvest rows whose Location field matches this dry room
+  // METRC Location field will be "Dry Room 1" or "Dry Room 2"
+  const rows = harvests.filter(r=>{
+    const loc = (r['Location']||r['LocationName']||r['Location Name']||'').trim();
+    return loc === dryKey;
+  });
+
+  // Parse into display objects — one entry per unique batch name
+  const seen = {};
+  rows.forEach(r=>{
+    const batch = r['Harvest Batch']||r['Name']||r['Batch']||'';
+    if(!batch) return;
+    // Source room: R# tag embedded in batch name (e.g. "041226 KM3 R8" → "R8")
+    const rmMatch = batch.match(/R(\d{1,2})(?:\s|$)/i);
+    const roomTag = rmMatch ? 'R'+rmMatch[1] : '';
+    const plants = parseInt(r['Plants']||r['Plant Count']||r['PlantCount']||
+      r['# Plants']||r['Number of Plants']||r['Count']||0)||0;
+    // Strain: strip MMDDYY date prefix and room tag, clean up remainder
+    const strain = batch
+      .replace(/^\d{6}\s*/,'')
+      .replace(/R\d{1,2}(?:\s|$)/gi,'')
+      .replace(/[-_]+/g,' ')
+      .trim() || batch;
+    // Harvest date: prefer MMDDYY prefix in batch name, fallback to Date field
+    const bDate = parseBatchDate(batch);
+    const rawDate = (r['Date']||r['Harvest Date']||r['HarvestDate']||'').split('T')[0];
+    const harvestDate = bDate ? dateToIso(bDate) : rawDate;
+
+    if(!seen[batch]){
+      seen[batch] = {batch, roomTag, strain, plants:0, harvestDate};
+    }
+    seen[batch].plants += plants;
+  });
+
+  return Object.values(seen);
+}
+
 function renderSupportRooms(){
   const container=document.getElementById('support-rooms-grid');
   if(!container) return;
@@ -4044,38 +4331,80 @@ function renderSupportRooms(){
           ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${soilCount},1fr)">${row2}</div>`:''}
         </div>`;
     }
-    // Dry room assignment UI
+    // Dry room — METRC-populated drying inventory
     const isDry=key==='Dry Room 1'||key==='Dry Room 2';
     if(isDry){
-      const dr=dryRooms[key]||{strain:'',harvestDate:'',note:''};
+      const dr=dryRooms[key]||{note:''};
       const assignDiv=document.createElement('div');
       assignDiv.style.cssText='border-top:1px solid var(--border);padding:8px 0 2px;margin-top:8px';
-      if(currentRole==='lead'){
-        assignDiv.innerHTML=`
-          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Current Drying</div>
-          <input id="dr-strain-${key.replace(' ','_')}" value="${dr.strain||''}" placeholder="Strain name"
-            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-bottom:5px"
-            oninput="dryRooms['${key}'].strain=this.value;S('wg_dry_rooms',dryRooms)" />
-          <input id="dr-date-${key.replace(' ','_')}" type="date" value="${dr.harvestDate||''}"
-            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-bottom:5px"
-            oninput="dryRooms['${key}'].harvestDate=this.value;S('wg_dry_rooms',dryRooms)" />
-          <input id="dr-note-${key.replace(' ','_')}" value="${dr.note||''}" placeholder="Notes (optional)"
-            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-bottom:5px"
-            oninput="dryRooms['${key}'].note=this.value;S('wg_dry_rooms',dryRooms)" />
-          <button onclick="event.stopPropagation();dryRooms['${key}'].strain=document.getElementById('dr-strain-${key.replace(' ','_')}').value;dryRooms['${key}'].harvestDate=document.getElementById('dr-date-${key.replace(' ','_')}').value;dryRooms['${key}'].note=document.getElementById('dr-note-${key.replace(' ','_')}').value;S('wg_dry_rooms',dryRooms);pushConfigToCloud(true);renderSupportRooms();"
-            class="btn-primary" style="font-size:11px;padding:5px 12px;width:100%">Save · Sync</button>`;
+
+      // Get METRC harvest batches assigned to this dry room
+      const batches=getDryRoomBatches(key);
+
+      let html='<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Drying</div>';
+
+      if(batches.length){
+        // Group batches by source room tag
+        const byRoom={};
+        batches.forEach(b=>{
+          const rk=b.roomTag||'Unknown';
+          if(!byRoom[rk]) byRoom[rk]={roomTag:rk,strains:[],totalPlants:0,harvestDate:b.harvestDate};
+          byRoom[rk].strains.push({strain:b.strain,plants:b.plants});
+          byRoom[rk].totalPlants+=b.plants;
+          // Use earliest harvest date for the room group
+          if(b.harvestDate&&(!byRoom[rk].harvestDate||b.harvestDate<byRoom[rk].harvestDate))
+            byRoom[rk].harvestDate=b.harvestDate;
+        });
+        Object.values(byRoom).forEach(group=>{
+          const hDate=group.harvestDate?new Date(group.harvestDate+' 00:00:00'):null;
+          const daysDrying=hDate?Math.floor((TODAY-hDate)/(1000*60*60*24)):null;
+          const TARGET_DAYS=14;
+          const pct=daysDrying!==null?Math.min(100,Math.round(daysDrying/TARGET_DAYS*100)):0;
+          const daysLeft=daysDrying!==null?TARGET_DAYS-daysDrying:null;
+          const barColor=daysDrying===null?'var(--text3)':daysDrying>=TARGET_DAYS?'var(--green)':daysDrying>=TARGET_DAYS-2?'var(--amber)':'var(--blue)';
+          const daysLabel=daysDrying===null?'':daysDrying>=TARGET_DAYS?'Ready to process':'Day '+daysDrying+' · '+Math.max(0,daysLeft)+'d to go';
+
+          html+=`<div style="background:var(--bg3);border-radius:var(--r);padding:7px 8px;margin-bottom:6px;border:1px solid var(--border)">`;
+          // Room header row
+          html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:700;color:var(--text)">Room ${group.roomTag.replace(/[^0-9]/g,'')}</span>
+            <span style="font-size:11px;font-family:var(--mono);color:var(--text2)">${group.totalPlants} plants</span>
+          </div>`;
+          // Strains
+          group.strains.forEach(s=>{
+            html+=`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:2px">
+              <span>${s.strain}</span><span style="font-family:var(--mono);color:var(--text3)">${s.plants}p</span>
+            </div>`;
+          });
+          // Days drying progress
+          if(daysDrying!==null){
+            html+=`<div style="margin-top:6px">
+              <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+                <span style="color:${barColor};font-weight:600">${daysLabel}</span>
+                <span style="color:var(--text3)">${group.harvestDate||''}</span>
+              </div>
+              <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .3s"></div>
+              </div>
+            </div>`;
+          }
+          html+='</div>';
+        });
       } else {
-        const strain=dr.strain||'—';
-        const hDate=dr.harvestDate?'Harvest: '+dr.harvestDate:'';
-        const note=dr.note||'';
-        assignDiv.innerHTML=`
-          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Current Drying</div>
-          <div style="font-size:13px;font-weight:700;color:var(--text)">${strain}</div>
-          ${hDate?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${hDate}</div>`:''}
-          ${note?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${note}</div>`:''}`;
+        html+=`<div style="font-size:12px;color:var(--text3)">No harvests in this dry room — upload METRC harvests file to populate.</div>`;
       }
+
+      // Lead notes field (no assignment needed — Location field drives everything)
+      if(currentRole==='lead'){
+        html+=`<input id="dr-note-${key.replace(/ /g,'_')}" value="${dr.note||''}" placeholder="Notes (optional)"
+          style="width:100%;box-sizing:border-box;font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-top:6px"
+          oninput="dryRooms['${key}'].note=this.value;S('wg_dry_rooms',dryRooms);pushConfigToCloud(true)" />`;
+      } else if(dr.note){
+        html+=`<div style="font-size:11px;color:var(--text2);margin-top:4px">${dr.note}</div>`;
+      }
+
+      assignDiv.innerHTML=html;
       card.appendChild(assignDiv);
-      // Prevent card click from opening modal when clicking inputs/button
       assignDiv.addEventListener('click',e=>e.stopPropagation());
     }
     card.addEventListener('click',()=>openRoomModal({name:key,label,tier:'Support',sqft:'—',strain:'',id:key}));
@@ -4311,7 +4640,7 @@ try { renderTodayLog(); } catch(e){ console.error('renderTodayLog:',e); }
 try { renderChores(); } catch(e){ console.error('renderChores:',e); }
 try { updateMetrcSyncLabel(); } catch(e){ console.error('updateMetrcSyncLabel:',e); }
 // auto-refresh checks silently on load
-setTimeout(()=>{ try{loadChecks();}catch(e){} },800);
+setTimeout(()=>{ try{ const rcDate=document.getElementById('rc-date'); if(rcDate&&!rcDate.value) rcDate.value=dateToIso(TODAY); renderTodayCheckSubmissions(); }catch(e){} },800);
 // Pull Growlink first — fast, works on all devices including mobile
 setTimeout(async ()=>{
   try{ await pullGrowlinkFromCloud(true); }catch(e){}
