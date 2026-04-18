@@ -416,6 +416,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
   <button class="nav-tab" onclick="showPage('supplies')" data-page="supplies" data-roles="lead,fertigator">Supplies</button>
   <button class="nav-tab" onclick="showPage('settings')" data-page="settings" data-roles="lead">Settings</button>
+  <button class="nav-tab" onclick="showPage('blueprint')" data-page="blueprint" data-roles="lead">Blueprint</button>
 </div>
 
 <!-- MAIN -->
@@ -982,6 +983,27 @@ button { cursor: pointer; }
 
 </div>
 
+<!-- ══ PAGE: BLUEPRINT ══ -->
+  <div id="page-blueprint" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="section-title">Maxx OS v1.4 — Growlink Blueprint</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Phase setpoints · Alert thresholds (amber = T2 log, red = T1 Slack after sustain)</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button onclick="resetAlertThresholds()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Reset to defaults</button>
+        <span id="blueprint-save-status" style="font-size:11px;color:var(--green)"></span>
+      </div>
+    </div>
+    <!-- Global threshold controls -->
+    <div class="card" style="margin-bottom:16px;border-left:3px solid var(--blue)">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Global Thresholds — apply to all phases</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px" id="blueprint-global-controls"></div>
+    </div>
+    <!-- Per-phase cards -->
+    <div id="blueprint-phases-grid" style="display:grid;gap:12px"></div>
+  </div>
+
 <!-- LOGIN MODAL — visibility:visible !important overrides pre-login cascade -->
 
 <!-- ROOM DETAIL MODAL -->
@@ -1182,7 +1204,7 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies'], roomView:'full'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies','blueprint'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log'], roomView:'defol'},
   fertigator: {pages:['assignments','rooms','clonetracker','today-log','additive','checks','slack','metrc','supplies'], roomView:'basic'},
   cloner:     {pages:['assignments','rooms','clonetracker','today-log','metrc'], roomView:'basic'},
@@ -1988,7 +2010,7 @@ function renderAdditiveTable(){
       <td>${ad?`<span class="add-pill ${ad.pill}">${ad.name}</span>`:`<span class="add-pill pill-base">Base feed only</span>`}</td>
       <td style="font-family:var(--mono);font-size:12px">${ad?.dose||'—'}</td>
       <td>${ad?.tier2?`<span class="tag tag-amber" style="font-size:9px">#flower-rooms</span>`:d<64?`<span class="tag tag-blue" style="font-size:9px">#daily-dispatch</span>`:''}</td>
-      <td style="font-size:11px;color:var(--text3)">${d===28?'<span style="color:var(--red)">Hard cutoff defol</span>':d>=64&&d<=65?'No entry':d===CYCLE?'Harvest day — notify #harvest':''}</td>
+      <td style="font-size:11px;color:var(--text3)">${d===28?'<span style="color:var(--red)">Hard cutoff defol</span>':d>=64&&d<=67?'Harvest prep':d===CYCLE?'Harvest day — notify #harvest':''}</td>
     `;
     tbody.appendChild(tr);
   }
@@ -2564,7 +2586,7 @@ function applyRolePerms(){
   if(!rolePerms) return;
   // Always ensure new pages are present even on old cached rolePerms
   const ensurePages = {
-    lead: ['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies'],
+    lead: ['assignments','rooms','postprod','clonetracker','today-log','additive','checks','slack','settings','metrc','daily-review','supplies','blueprint'],
     fertigator: ['supplies','additive','checks','slack','clonetracker'],
     ipm: ['additive'],
   };
@@ -3199,6 +3221,7 @@ function showPage(page){
   if(page==='assignments'){renderAssignments();renderChores();}
   if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
   if(page==='daily-review'){renderDailyReview();}
+  if(page==='blueprint'){renderBlueprint();}
   if(page==='supplies'){renderSupplies();}
   if(page==='clonetracker'){
     renderCloneTracker();
@@ -3479,23 +3502,26 @@ function renderChores(){
 }
 
 // ══════════════════════════════════════════════
-// MAXX OS v1.4 PHASES + EC RAINBOW
+// MAXX OS v1.4 PHASES + EC RAINBOW + GROWLINK BLUEPRINTS
 // ══════════════════════════════════════════════
+// Maxx OS v1.4 — full Growlink blueprint setpoints
+// nightRH = separate night RH target; vpdMin/Max = VPD range; vwcMin/Max = substrate moisture range
+// subECMin/Max = substrate EC range; dryback = target dryback %; shotNote = irrigation guidance
 const MAXX_PHASES=[
-  {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0},
-  {id:'F2', name:'F2 Foundation',  start:5,  end:9,  light:80, co2:1050, dayTemp:82,nightTemp:76,rh:75,ecMin:2.0,ecMax:2.1},
-  {id:'F3', name:'F3 Foundation',  start:10, end:14, light:90, co2:1150, dayTemp:82,nightTemp:76,rh:73,ecMin:2.1,ecMax:2.3},
-  {id:'E1', name:'E1 Expansion',   start:15, end:18, light:100,co2:1250, dayTemp:82,nightTemp:75,rh:70,ecMin:2.1,ecMax:2.3},
-  {id:'E2', name:'E2 Expansion',   start:19, end:22, light:100,co2:1300, dayTemp:82,nightTemp:75,rh:68,ecMin:2.3,ecMax:2.5},
-  {id:'E3', name:'E3 Expansion',   start:23, end:25, light:100,co2:1350, dayTemp:82,nightTemp:75,rh:66,ecMin:2.3,ecMax:2.5},
-  {id:'E4', name:'E4 Pre-Stack',   start:26, end:28, light:100,co2:1400, dayTemp:82,nightTemp:75,rh:64,ecMin:2.3,ecMax:2.5},
-  {id:'S1', name:'S1 Stack',       start:29, end:35, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:58,ecMin:2.6,ecMax:2.7},
-  {id:'S2', name:'S2 True Peak',   start:36, end:42, light:100,co2:1400, dayTemp:82,nightTemp:74,rh:56,ecMin:2.8,ecMax:2.9},
-  {id:'S3', name:'S3 Peak Hold',   start:43, end:49, light:100,co2:1350, dayTemp:81,nightTemp:73,rh:55,ecMin:2.6,ecMax:2.7},
-  {id:'X1', name:'X1 Fade',        start:50, end:56, light:90, co2:1200, dayTemp:78,nightTemp:70,rh:52,ecMin:2.2,ecMax:2.5},
-  {id:'X2A',name:'X2A Fade Mid',   start:57, end:60, light:80, co2:1000, dayTemp:77,nightTemp:68,rh:51,ecMin:1.5,ecMax:2.1},
-  {id:'X2B',name:'X2B Fade Final', start:61, end:63, light:70, co2:900,  dayTemp:75,nightTemp:67,rh:50,ecMin:1.5,ecMax:2.1},
-  {id:'DK', name:'Dark / Flush End',start:64, end:65, light:0,  co2:400,  dayTemp:69,nightTemp:69,rh:50,ecMin:null,ecMax:null},
+  {id:'F1', name:'F1 Foundation',   start:1,  end:4,  light:70, co2:900,  dayTemp:78, nightTemp:74, rh:78, nightRH:76, ecMin:1.9, ecMax:2.0, vpdMin:0.8, vpdMax:1.1, vwcMin:65, vwcMax:80, subECMin:2.5, subECMax:3.5, dryback:5,  shotNote:'Small frequent shots. Build root zone.'},
+  {id:'F2', name:'F2 Foundation',   start:5,  end:9,  light:80, co2:1050, dayTemp:80, nightTemp:74, rh:75, nightRH:74, ecMin:2.0, ecMax:2.1, vpdMin:0.9, vpdMax:1.2, vwcMin:65, vwcMax:78, subECMin:2.5, subECMax:3.5, dryback:6,  shotNote:'Maintain moisture. 4-6 shots/day. Watch for stretch.'},
+  {id:'F3', name:'F3 Foundation',   start:10, end:14, light:90, co2:1150, dayTemp:80, nightTemp:74, rh:73, nightRH:73, ecMin:2.1, ecMax:2.3, vpdMin:1.0, vpdMax:1.3, vwcMin:63, vwcMax:75, subECMin:2.8, subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
+  {id:'E1', name:'E1 Expansion',    start:15, end:18, light:100,co2:1250, dayTemp:80, nightTemp:73, rh:70, nightRH:70, ecMin:2.1, ecMax:2.3, vpdMin:1.0, vpdMax:1.4, vwcMin:62, vwcMax:75, subECMin:3.0, subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Match irrigation to transpiration.'},
+  {id:'E2', name:'E2 Expansion',    start:19, end:22, light:100,co2:1300, dayTemp:80, nightTemp:73, rh:68, nightRH:68, ecMin:2.3, ecMax:2.5, vpdMin:1.1, vpdMax:1.5, vwcMin:60, vwcMax:73, subECMin:3.0, subECMax:4.2, dryback:9,  shotNote:'High transpiration. Runoff EC 3.0–4.5 target.'},
+  {id:'E3', name:'E3 Expansion',    start:23, end:25, light:100,co2:1350, dayTemp:80, nightTemp:73, rh:66, nightRH:66, ecMin:2.3, ecMax:2.5, vpdMin:1.1, vpdMax:1.5, vwcMin:60, vwcMax:73, subECMin:3.2, subECMax:4.5, dryback:9,  shotNote:'Approach peak veg mass. Maintain runoff 15–20%.'},
+  {id:'E4', name:'E4 Pre-Stack',    start:26, end:28, light:100,co2:1400, dayTemp:80, nightTemp:73, rh:64, nightRH:64, ecMin:2.3, ecMax:2.5, vpdMin:1.1, vpdMax:1.5, vwcMin:58, vwcMax:72, subECMin:3.2, subECMax:4.5, dryback:10, shotNote:'Tighten dryback. Hard cutoff defol Day 28.'},
+  {id:'S1', name:'S1 Stack',        start:29, end:35, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:58, nightRH:58, ecMin:2.6, ecMax:2.7, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:70, subECMin:3.5, subECMax:4.8, dryback:10, shotNote:'Stacking begins. Push EC steadily. Supa Stiky Day 29.'},
+  {id:'S2', name:'S2 True Peak',    start:36, end:42, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:56, nightRH:56, ecMin:2.8, ecMax:2.9, vpdMin:1.2, vpdMax:1.6, vwcMin:53, vwcMax:68, subECMin:3.8, subECMax:5.2, dryback:11, shotNote:'Peak EC. Spray window closes Day 42. Monitor runoff EC closely.'},
+  {id:'S3', name:'S3 Peak Hold',    start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.6, ecMax:2.7, vpdMin:1.2, vpdMax:1.6, vwcMin:52, vwcMax:67, subECMin:3.5, subECMax:5.0, dryback:11, shotNote:'Hold peak. Dial back EC slightly. Round 2 defol opens Day 42.'},
+  {id:'X1', name:'X1 Fade',         start:50, end:56, light:90, co2:1200, dayTemp:78, nightTemp:70, rh:52, nightRH:51, ecMin:2.2, ecMax:2.5, vpdMin:1.1, vpdMax:1.5, vwcMin:50, vwcMax:65, subECMin:3.0, subECMax:4.5, dryback:12, shotNote:'EC fade begins. NO H₂O₂. Reduce shot frequency. Supa Stiky X1.'},
+  {id:'X2A',name:'X2A Fade Mid',    start:57, end:60, light:80, co2:1000, dayTemp:77, nightTemp:68, rh:51, nightRH:50, ecMin:1.5, ecMax:2.1, vpdMin:1.0, vpdMax:1.4, vwcMin:48, vwcMax:62, subECMin:2.0, subECMax:3.5, dryback:13, shotNote:'Aggressive fade. Push dryback. Reduce to 3–4 shots/day.'},
+  {id:'X2B',name:'X2B Fade Final',  start:61, end:63, light:70, co2:900,  dayTemp:75, nightTemp:67, rh:50, nightRH:48, ecMin:1.5, ecMax:2.1, vpdMin:0.9, vpdMax:1.3, vwcMin:45, vwcMax:60, subECMin:1.5, subECMax:2.5, dryback:15, shotNote:'Final fade. Pre-harvest defol Day 60–63. Minimal water.'},
+  {id:'X3', name:'X3 Harvest Prep', start:64, end:67, light:45, co2:550,  dayTemp:69, nightTemp:65, rh:45, nightRH:44, ecMin:null,ecMax:null, vpdMin:null,vpdMax:null, vwcMin:35, vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Harvest prep. Minimal to no irrigation. Push final dry.'},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
@@ -5014,6 +5040,7 @@ async function pushConfigToCloud(silent=false){
       todayLogs,
       cloneSessions,
       dryRooms,
+      alertThresholds,
       syncedBy:loggedInMember?loggedInMember.name:'Unknown',
       syncedAt:new Date().toISOString(),
     }
@@ -5103,8 +5130,12 @@ async function pullConfigFromCloud(silent=false){
     if(d.dryRooms){
       dryRooms=d.dryRooms;
       S('wg_dry_rooms',dryRooms);
-      // Re-render support rooms if visible
       if(document.getElementById('support-rooms-grid')) renderSupportRooms();
+    }
+
+    if(d.alertThresholds){
+      alertThresholds=d.alertThresholds;
+      S('wg_alert_thresholds',alertThresholds);
     }
 
     if(!silent) console.log('[Config] Pulled from cloud, synced by',d.syncedBy);
@@ -5134,18 +5165,207 @@ const T1_PENDING_KEY = 'wg_t1_pending'; // tracks sustained deviations before fi
 function getAlertLog(){ return L(ALERT_LOG_KEY,[]); }
 function saveAlertLog(log){ S(ALERT_LOG_KEY, log); }
 
-// Maxx OS v1.4 phase thresholds — derived from MAXX_PHASES
-// T2 = inner band (log only), T1 = outer band (Slack alert after 15 min)
+// ══════════════════════════════════════════════
+// BLUEPRINT PAGE
+// ══════════════════════════════════════════════
+
+function renderBlueprint(){
+  renderBlueprintGlobal();
+  renderBlueprintPhases();
+}
+
+function renderBlueprintGlobal(){
+  const wrap = document.getElementById('blueprint-global-controls');
+  if(!wrap) return;
+  const gl = alertThresholds._global || DEFAULT_THRESHOLDS._global;
+
+  function numInput(id, val, label, onchange, unit=''){
+    return `<div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${label}</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input type="number" id="${id}" value="${val}" step="1"
+          style="width:70px;font-size:13px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-family:var(--mono)"
+          onchange="${onchange}"/>
+        ${unit?`<span style="font-size:11px;color:var(--text3)">${unit}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  wrap.innerHTML = `
+    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||60, '🔴 Dew Point ceiling (T1)',
+      "alertThresholds._global.dewPoint={t1:parseFloat(this.value)||60};saveAlertThresholds();showBlueprint_status()", '°F')}
+    ${numInput('gl-soilec-t1', gl.soilEC?.t1||10, '🔴 Soil EC ceiling (T1)',
+      "alertThresholds._global.soilEC={t1:parseFloat(this.value)||10};saveAlertThresholds();showBlueprint_status()", 'mS')}
+    ${numInput('gl-moisture-t1', gl.soilMoisture?.t1||10, '🔴 Soil moisture floor (T1)',
+      "alertThresholds._global.soilMoisture={t1:parseFloat(this.value)||10};saveAlertThresholds();showBlueprint_status()", '%')}
+    ${numInput('gl-sustain', gl.sustainMin||15, '⏱ T1 sustain time',
+      "alertThresholds._global.sustainMin=parseInt(this.value)||15;saveAlertThresholds();showBlueprint_status()", 'min')}
+  `;
+}
+
+function renderBlueprintPhases(){
+  const grid = document.getElementById('blueprint-phases-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+
+  MAXX_PHASES.forEach(phase => {
+    const ov = alertThresholds[phase.id] || {};
+    const tTemp = ov.temp || PHASE_THRESHOLD_DEFAULTS.temp;
+    const tRH   = ov.rh   || PHASE_THRESHOLD_DEFAULTS.rh;
+    const tCO2  = ov.co2  || PHASE_THRESHOLD_DEFAULTS.co2;
+    const tVPD  = ov.vpd  || PHASE_THRESHOLD_DEFAULTS.vpd;
+    const ecr   = getECRainbow((phase.start + phase.end) >> 1);
+    const isX3  = phase.id === 'X3';
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cssText = `border-left:3px solid ${ecr?ecr.color:'var(--border)'};position:relative`;
+
+    function setpointCell(label, val, unit){
+      if(val===null||val===undefined) return `<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">${label}</div><div style="font-family:var(--mono);font-size:12px;color:var(--text3)">—</div></div>`;
+      return `<div style="background:var(--bg3);border-radius:var(--r);padding:8px;text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">${label}</div><div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)">${val}${unit}</div></div>`;
+    }
+
+    function threshRow(label, paramKey, spread2, spread1, step, unit, phaseId){
+      const amber2 = spread2, red1 = spread1;
+      return `<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text2)">${label}</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:10px;color:var(--amber);white-space:nowrap">🟡 ±</span>
+          <input type="number" value="${amber2}" step="${step}" min="0"
+            style="width:56px;font-size:12px;padding:3px 6px;border-radius:var(--r);border:1px solid var(--amber-dim);background:var(--amber-bg);color:var(--amber);font-family:var(--mono);text-align:center"
+            onchange="setBlueprintThresh('${phaseId}','${paramKey}','t2',parseFloat(this.value));showBlueprint_status()"/>
+          <span style="font-size:10px;color:var(--text3)">${unit}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:10px;color:var(--red);white-space:nowrap">🔴 ±</span>
+          <input type="number" value="${red1}" step="${step}" min="0"
+            style="width:56px;font-size:12px;padding:3px 6px;border-radius:var(--r);border:1px solid var(--red-dim);background:var(--red-bg);color:var(--red);font-family:var(--mono);text-align:center"
+            onchange="setBlueprintThresh('${phaseId}','${paramKey}','t1',parseFloat(this.value));showBlueprint_status()"/>
+          <span style="font-size:10px;color:var(--text3)">${unit}</span>
+        </div>
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:15px;font-weight:700;color:var(--text)">${phase.name}</span>
+            <span style="font-family:var(--mono);font-size:11px;padding:2px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text3)">Days ${phase.start}–${phase.end}</span>
+            ${ecr?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)"><span style="width:8px;height:8px;border-radius:50%;background:${ecr.color};display:inline-block"></span>${ecr.name} EC ${ecr.ecMin||''}–${ecr.ecMax||''}</span>`:''}
+          </div>
+          ${phase.shotNote?`<div style="font-size:11px;color:var(--text2);margin-top:5px;line-height:1.4;font-style:italic">${phase.shotNote}</div>`:''}
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <span style="font-size:10px;padding:2px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);color:var(--green);font-family:var(--mono)">💡 ${phase.light}%</span>
+        </div>
+      </div>
+
+      <!-- Setpoints grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:5px;margin-bottom:12px">
+        ${setpointCell('Temp Day', phase.dayTemp, '°F')}
+        ${setpointCell('Temp Night', phase.nightTemp, '°F')}
+        ${setpointCell('RH Day', phase.rh, '%')}
+        ${setpointCell('RH Night', phase.nightRH||phase.rh, '%')}
+        ${setpointCell('CO₂', phase.co2, ' ppm')}
+        ${setpointCell('VPD', phase.vpdMin!=null?phase.vpdMin+'–'+phase.vpdMax:null, ' kPa')}
+        ${setpointCell('VWC', phase.vwcMin!=null?phase.vwcMin+'–'+phase.vwcMax:null, '%')}
+        ${setpointCell('Sub EC', phase.subECMin!=null?phase.subECMin+'–'+phase.subECMax:null, ' mS')}
+        ${phase.dryback!=null?setpointCell('Dryback', '~'+phase.dryback, '%'):''}
+      </div>
+
+      <!-- Alert threshold controls -->
+      ${!isX3 ? `<div style="margin-top:4px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
+          <span>Alert spreads from setpoint</span>
+          <span style="font-weight:400;color:var(--text3)">🟡 amber (log) &nbsp; 🔴 red (Slack)</span>
+        </div>
+        ${threshRow('Temp', 'temp', tTemp.t2, tTemp.t1, 0.5, '°F', phase.id)}
+        ${threshRow('RH', 'rh', tRH.t2, tRH.t1, 1, '%', phase.id)}
+        ${threshRow('CO₂', 'co2', tCO2.t2, tCO2.t1, 25, 'ppm', phase.id)}
+        ${phase.vpdMin!=null ? threshRow('VPD', 'vpd', tVPD.t2, tVPD.t1, 0.05, 'kPa', phase.id) : ''}
+        <div style="margin-top:6px;font-size:10px;color:var(--text3)">
+          Setpoints: Temp ${phase.dayTemp}°F · RH ${phase.rh}% · CO₂ ${phase.co2}ppm${phase.vpdMin!=null?' · VPD '+phase.vpdMin+'–'+phase.vpdMax+' kPa':''}
+        </div>
+      </div>` : `<div style="font-size:11px;color:var(--text3);padding:6px 0">Harvest prep phase — no alerts active</div>`}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function setBlueprintThresh(phaseId, param, tier, val){
+  if(!alertThresholds[phaseId]) alertThresholds[phaseId] = {};
+  if(!alertThresholds[phaseId][param]) alertThresholds[phaseId][param] = {...PHASE_THRESHOLD_DEFAULTS[param]};
+  alertThresholds[phaseId][param][tier] = val;
+  saveAlertThresholds();
+}
+
+function resetAlertThresholds(){
+  if(!confirm('Reset all alert thresholds to defaults?')) return;
+  alertThresholds = {...DEFAULT_THRESHOLDS};
+  S('wg_alert_thresholds', alertThresholds);
+  pushConfigToCloud(true);
+  renderBlueprint();
+  showBlueprint_status('Reset to defaults');
+}
+
+function showBlueprint_status(msg){
+  const el = document.getElementById('blueprint-save-status');
+  if(!el) return;
+  el.textContent = msg || '✓ Saved & synced';
+  el.style.color = 'var(--green)';
+  setTimeout(()=>{ el.textContent=''; }, 2500);
+}
+
+// ── ALERT THRESHOLD OVERRIDES ──────────────────────────────────
+// Stored in localStorage 'wg_alert_thresholds'
+// Shape: { [phaseId]: { temp:{t2:4,t1:10}, rh:{t2:7,t1:15}, co2:{t2:150,t1:300}, vpd:{t2:0.2,t1:0.4} },
+//           _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 } }
+// These are SPREADS from the setpoint — e.g. temp t2:4 means ±4°F from setpoint = amber
+const DEFAULT_THRESHOLDS = {
+  _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 }
+};
+// Per-phase defaults (applied when no override exists)
+const PHASE_THRESHOLD_DEFAULTS = {
+  temp: {t2:4,  t1:10},
+  rh:   {t2:7,  t1:15},
+  co2:  {t2:150,t1:300},
+  vpd:  {t2:0.2,t1:0.4},
+};
+let alertThresholds = L('wg_alert_thresholds', DEFAULT_THRESHOLDS);
+
+function getThresholdsForPhase(phaseId){
+  return alertThresholds[phaseId] || {};
+}
+function getGlobalThresholds(){
+  return alertThresholds._global || DEFAULT_THRESHOLDS._global;
+}
+function saveAlertThresholds(){
+  S('wg_alert_thresholds', alertThresholds);
+  pushConfigToCloud(true);
+}
+
+// Maxx OS v1.4 phase thresholds — uses lead overrides if set, else defaults
+// T2 = amber (inner band / log only), T1 = red (outer band / Slack after sustain)
 function getGuardrailsForPhase(phaseId){
   const p = MAXX_PHASES.find(x=>x.id===phaseId);
   if(!p) return null;
+  const ov = getThresholdsForPhase(phaseId);
+  const gl = getGlobalThresholds();
+  const tTemp = ov.temp || PHASE_THRESHOLD_DEFAULTS.temp;
+  const tRH   = ov.rh   || PHASE_THRESHOLD_DEFAULTS.rh;
+  const tCO2  = ov.co2  || PHASE_THRESHOLD_DEFAULTS.co2;
+  const tVPD  = ov.vpd  || PHASE_THRESHOLD_DEFAULTS.vpd;
   return {
-    temp:  { setpoint:p.dayTemp, t2Low:p.dayTemp-4,  t2High:p.dayTemp+4,  t1Low:p.dayTemp-10, t1High:p.dayTemp+10 },
-    rh:    { setpoint:p.rh,      t2Low:p.rh-7,       t2High:p.rh+7,       t1Low:p.rh-15,      t1High:p.rh+15 },
-    co2:   { setpoint:p.co2,     t2Low:p.co2-150,    t2High:p.co2+150,    t1Low:p.co2-300,    t1High:p.co2+300 },
-    soilEC:     { t1High:10 },
-    soilMoisture: { t1Low:10 },
-    dewPoint:   { t1High:60 }, // hard ceiling, always T1
+    temp:  { setpoint:p.dayTemp, t2Low:p.dayTemp-tTemp.t2, t2High:p.dayTemp+tTemp.t2, t1Low:p.dayTemp-tTemp.t1, t1High:p.dayTemp+tTemp.t1 },
+    rh:    { setpoint:p.rh,      t2Low:p.rh-tRH.t2,        t2High:p.rh+tRH.t2,        t1Low:p.rh-tRH.t1,        t1High:p.rh+tRH.t1 },
+    co2:   { setpoint:p.co2,     t2Low:p.co2-tCO2.t2,      t2High:p.co2+tCO2.t2,      t1Low:p.co2-tCO2.t1,      t1High:p.co2+tCO2.t1 },
+    vpd:   p.vpdMin!=null ? { setpoint:(p.vpdMin+p.vpdMax)/2, t2Low:p.vpdMin-tVPD.t2, t2High:p.vpdMax+tVPD.t2, t1Low:p.vpdMin-tVPD.t1, t1High:p.vpdMax+tVPD.t1 } : null,
+    soilEC:       { t1High: gl.soilEC?.t1  || 10 },
+    soilMoisture: { t1Low:  gl.soilMoisture?.t1 || 10 },
+    dewPoint:     { t1High: gl.dewPoint?.t1 || 60 },
   };
 }
 
@@ -5196,6 +5416,7 @@ function evaluateRoom(roomName, sensors, phaseId){
   check('temp',        sensors.temp,         g.temp,         'Temp',     '°F');
   check('rh',          sensors.humidity,      g.rh,           'RH',       '%');
   check('co2',         sensors.co2,           g.co2,          'CO₂',      'ppm');
+  if(g.vpd&&sensors.vpd!=null) check('vpd', sensors.vpd, g.vpd, 'VPD', ' kPa');
   check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
   check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
 
@@ -5212,7 +5433,8 @@ function runGuardrails(){
   const now = Date.now();
   const pending = L(T1_PENDING_KEY, {}); // {key: firstSeenTimestamp}
   const log = getAlertLog();
-  const T1_SUSTAIN_MS = 15 * 60 * 1000; // 15 minutes
+  const sustainMin = (getGlobalThresholds().sustainMin || 15);
+  const T1_SUSTAIN_MS = sustainMin * 60 * 1000; // lead-configurable, default 15 min
   const newT1s = [];
 
   rooms.forEach(room=>{
