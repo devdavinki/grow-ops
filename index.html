@@ -3479,7 +3479,7 @@ function renderChores(){
 }
 
 // ══════════════════════════════════════════════
-// MAXX OS v1.3 PHASES + EC RAINBOW
+// MAXX OS v1.4 PHASES + EC RAINBOW
 // ══════════════════════════════════════════════
 const MAXX_PHASES=[
   {id:'F1', name:'F1 Foundation',  start:1,  end:4,  light:70, co2:900,  dayTemp:80,nightTemp:75,rh:78,ecMin:1.9,ecMax:2.0},
@@ -3531,7 +3531,7 @@ let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 // ── GROWLINK LIVE DATA ──────────────────────────────────────────
 // Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
 let growlinkData = L('wg_growlink_rooms', {});
-let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{note:''},'Dry Room 2':{note:''}});
+let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{note:'',order:[],takedowns:{}},'Dry Room 2':{note:'',order:[],takedowns:{}}});
 
 // Map Growlink room names → dashboard room names
 const GROWLINK_ROOM_MAP = {
@@ -4249,6 +4249,85 @@ function addCustomTask() {
 // Assignment is stored in dryRooms[key].batches = ['batch name', ...]
 // If no assignment is set, returns ALL unassigned harvest batches
 // (leads can then assign them to specific dry rooms).
+// ── DRY ROOM ORDERING + TAKEDOWN APPROVAL ─────────────────────
+
+function moveDryRoom(dryKey, roomTag, dir){
+  if(!dryRooms[dryKey]) dryRooms[dryKey]={note:'',order:[],takedowns:{}};
+  const dr=dryRooms[dryKey];
+  if(!dr.order) dr.order=[];
+  // Build current ordered list from rendered groups
+  const batches=getDryRoomBatches(dryKey);
+  const byRoom={};
+  batches.forEach(b=>{
+    const rk=b.roomTag||'Unknown';
+    if(!byRoom[rk]) byRoom[rk]={roomTag:rk,harvestDate:b.harvestDate};
+    if(b.harvestDate&&(!byRoom[rk].harvestDate||b.harvestDate<byRoom[rk].harvestDate))
+      byRoom[rk].harvestDate=b.harvestDate;
+  });
+  const groups=Object.values(byRoom).sort((a,b)=>{
+    const ia=dr.order.indexOf(a.roomTag);
+    const ib=dr.order.indexOf(b.roomTag);
+    if(ia!==-1&&ib!==-1) return ia-ib;
+    if(ia!==-1) return -1;
+    if(ib!==-1) return 1;
+    return (a.harvestDate||'')<(b.harvestDate||'')?-1:1;
+  });
+  const tags=groups.map(g=>g.roomTag);
+  const idx=tags.indexOf(roomTag);
+  if(idx===-1) return;
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=tags.length) return;
+  [tags[idx],tags[newIdx]]=[tags[newIdx],tags[idx]];
+  dr.order=tags;
+  S('wg_dry_rooms',dryRooms);
+  pushConfigToCloud(true);
+  renderSupportRooms();
+}
+
+function submitDryTakedown(dryKey, roomTag){
+  const who=loggedInMember?loggedInMember.name:'Unknown';
+  if(!dryRooms[dryKey]) dryRooms[dryKey]={note:'',order:[],takedowns:{}};
+  if(!dryRooms[dryKey].takedowns) dryRooms[dryKey].takedowns={};
+  const tdKey=dryKey+'|'+roomTag;
+  dryRooms[dryKey].takedowns[tdKey]={
+    dryKey, roomTag,
+    submittedBy:who,
+    submittedAt:fmtTime(),
+    approved:false,
+    approvedBy:'',
+    approvedAt:'',
+  };
+  S('wg_dry_rooms',dryRooms);
+  pushConfigToCloud(true);
+  renderSupportRooms();
+}
+
+function approveDryTakedown(dryKey, roomTag){
+  const who=loggedInMember?loggedInMember.name:'Unknown';
+  if(!dryRooms[dryKey]?.takedowns) return;
+  const tdKey=dryKey+'|'+roomTag;
+  const td=dryRooms[dryKey].takedowns[tdKey];
+  if(!td||td.approved) return;
+  if(td.submittedBy===who){
+    alert('A different team member must approve the takedown.');
+    return;
+  }
+  td.approved=true;
+  td.approvedBy=who;
+  td.approvedAt=fmtTime();
+  S('wg_dry_rooms',dryRooms);
+  pushConfigToCloud(true);
+  // Log to sheet
+  postToSheet('Dry_Takedowns',[dateToIso(TODAY),fmtTime(),dryKey,roomTag,td.submittedBy,who]);
+  // Log to today's log
+  todayLog.push({id:Date.now(),roomId:dryKey,taskId:'dry_takedown',
+    taskName:'Dry takedown — '+dryKey+' Room '+roomTag.replace(/[^0-9]/g,''),
+    who,notes:'Submitted by '+td.submittedBy,pct:'',time:fmtTime(),status:'done'});
+  S('wg_log_'+dateToIso(TODAY),todayLog);
+  renderTodayLog();
+  renderSupportRooms();
+}
+
 function getDryRoomBatches(dryKey){
   const harvests = metrcData.harvests || [];
   if(!harvests.length) return [];
@@ -4334,49 +4413,100 @@ function renderSupportRooms(){
     // Dry room — METRC-populated drying inventory
     const isDry=key==='Dry Room 1'||key==='Dry Room 2';
     if(isDry){
-      const dr=dryRooms[key]||{note:''};
+      const dr=dryRooms[key]||{note:'',order:[],takedowns:{}};
+      if(!dr.order) dr.order=[];
+      if(!dr.takedowns) dr.takedowns={};
       const assignDiv=document.createElement('div');
       assignDiv.style.cssText='border-top:1px solid var(--border);padding:8px 0 2px;margin-top:8px';
 
-      // Get METRC harvest batches assigned to this dry room
       const batches=getDryRoomBatches(key);
-
       let html='<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Drying</div>';
 
       if(batches.length){
-        // Group batches by source room tag
+        // Group by source room tag
         const byRoom={};
         batches.forEach(b=>{
           const rk=b.roomTag||'Unknown';
           if(!byRoom[rk]) byRoom[rk]={roomTag:rk,strains:[],totalPlants:0,harvestDate:b.harvestDate};
           byRoom[rk].strains.push({strain:b.strain,plants:b.plants});
           byRoom[rk].totalPlants+=b.plants;
-          // Use earliest harvest date for the room group
           if(b.harvestDate&&(!byRoom[rk].harvestDate||b.harvestDate<byRoom[rk].harvestDate))
             byRoom[rk].harvestDate=b.harvestDate;
         });
-        Object.values(byRoom).forEach(group=>{
+
+        // Apply lead-defined order; unordered rooms go to end sorted by harvest date
+        const ordered = Object.values(byRoom);
+        ordered.sort((a,b)=>{
+          const ia=dr.order.indexOf(a.roomTag);
+          const ib=dr.order.indexOf(b.roomTag);
+          if(ia!==-1&&ib!==-1) return ia-ib;
+          if(ia!==-1) return -1;
+          if(ib!==-1) return 1;
+          return (a.harvestDate||'') < (b.harvestDate||'') ? -1 : 1;
+        });
+
+        ordered.forEach((group,idx)=>{
           const hDate=group.harvestDate?new Date(group.harvestDate+' 00:00:00'):null;
           const daysDrying=hDate?Math.floor((TODAY-hDate)/(1000*60*60*24)):null;
           const TARGET_DAYS=14;
           const pct=daysDrying!==null?Math.min(100,Math.round(daysDrying/TARGET_DAYS*100)):0;
           const daysLeft=daysDrying!==null?TARGET_DAYS-daysDrying:null;
           const barColor=daysDrying===null?'var(--text3)':daysDrying>=TARGET_DAYS?'var(--green)':daysDrying>=TARGET_DAYS-2?'var(--amber)':'var(--blue)';
-          const daysLabel=daysDrying===null?'':daysDrying>=TARGET_DAYS?'Ready to process':'Day '+daysDrying+' · '+Math.max(0,daysLeft)+'d to go';
+          const daysLabel=daysDrying===null?'':daysDrying>=TARGET_DAYS?'✓ Ready':'Day '+daysDrying+' · '+Math.max(0,daysLeft)+'d left';
 
-          html+=`<div style="background:var(--bg3);border-radius:var(--r);padding:7px 8px;margin-bottom:6px;border:1px solid var(--border)">`;
-          // Room header row
-          html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span style="font-size:12px;font-weight:700;color:var(--text)">Room ${group.roomTag.replace(/[^0-9]/g,'')}</span>
-            <span style="font-size:11px;font-family:var(--mono);color:var(--text2)">${group.totalPlants} plants</span>
-          </div>`;
+          const tdKey=key+'|'+group.roomTag;
+          const td=dr.takedowns[tdKey]||null;
+          const who=loggedInMember?loggedInMember.name:'';
+          const isFirst=idx===0;
+
+          // Takedown status
+          let tdHtml='';
+          if(td&&td.approved){
+            tdHtml=`<div style="margin-top:6px;padding:4px 8px;border-radius:var(--r);background:var(--green-bg);border:1px solid var(--green-dim);font-size:11px;color:var(--green)">✓ Taken down · ${td.approvedBy} · ${td.approvedAt}</div>`;
+          } else if(td&&td.submittedBy){
+            // Pending approval — show for everyone, approve button only for different person
+            const canApprove = who && who!==td.submittedBy;
+            tdHtml=`<div style="margin-top:6px;padding:5px 8px;border-radius:var(--r);background:var(--bg2);border:1px solid var(--amber-dim||var(--border2));font-size:11px">
+              <div style="color:var(--amber);font-weight:600;margin-bottom:3px">⏳ Takedown submitted by ${td.submittedBy}</div>
+              ${canApprove
+                ?`<button onclick="event.stopPropagation();approveDryTakedown('${key}','${group.roomTag}')"
+                    class="btn-primary" style="font-size:11px;padding:4px 12px;width:100%">Approve takedown</button>`
+                :`<div style="font-size:10px;color:var(--text3)">Waiting for a different team member to approve</div>`}
+            </div>`;
+          } else if(daysDrying!==null&&daysDrying>=TARGET_DAYS-2){
+            tdHtml=`<button onclick="event.stopPropagation();submitDryTakedown('${key}','${group.roomTag}')"
+              style="margin-top:6px;width:100%;font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">
+              Mark ready to take down
+            </button>`;
+          }
+
+          // Reorder arrows — leads only, skip if approved
+          const reorderHtml = currentRole==='lead'&&!td?.approved ? `
+            <div style="display:flex;gap:2px;flex-shrink:0">
+              <button onclick="event.stopPropagation();moveDryRoom('${key}','${group.roomTag}',-1)"
+                ${idx===0?'disabled':''} style="font-size:12px;padding:2px 6px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:${idx===0?'var(--border2)':'var(--text3)'};cursor:${idx===0?'default':'pointer'}">↑</button>
+              <button onclick="event.stopPropagation();moveDryRoom('${key}','${group.roomTag}',1)"
+                ${idx>=ordered.length-1?'disabled':''} style="font-size:12px;padding:2px 6px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:${idx>=ordered.length-1?'var(--border2)':'var(--text3)'};cursor:${idx>=ordered.length-1?'default':'pointer'}">↓</button>
+            </div>` : '';
+
+          const borderColor = td?.approved?'var(--green-dim)':isFirst&&!td?.approved?'var(--blue)':'var(--border)';
+
+          html+=`<div style="background:var(--bg3);border-radius:var(--r);padding:7px 8px;margin-bottom:6px;border:1px solid ${borderColor}${isFirst&&!td?.approved?';border-left:3px solid var(--blue)':''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:6px">
+              <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0">
+                ${isFirst&&!td?.approved?'<span style="font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0">Next</span>':''}
+                <span style="font-size:12px;font-weight:700;color:var(--text)">Room ${group.roomTag.replace(/[^0-9]/g,'')}</span>
+              </div>
+              <span style="font-size:11px;font-family:var(--mono);color:var(--text2);flex-shrink:0">${group.totalPlants} plants</span>
+              ${reorderHtml}
+            </div>`;
           // Strains
           group.strains.forEach(s=>{
             html+=`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:2px">
               <span>${s.strain}</span><span style="font-family:var(--mono);color:var(--text3)">${s.plants}p</span>
             </div>`;
           });
-          // Days drying progress
+          // Progress bar
           if(daysDrying!==null){
             html+=`<div style="margin-top:6px">
               <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
@@ -4388,13 +4518,12 @@ function renderSupportRooms(){
               </div>
             </div>`;
           }
-          html+='</div>';
+          html+=tdHtml+'</div>';
         });
       } else {
         html+=`<div style="font-size:12px;color:var(--text3)">No harvests in this dry room — upload METRC harvests file to populate.</div>`;
       }
 
-      // Lead notes field (no assignment needed — Location field drives everything)
       if(currentRole==='lead'){
         html+=`<input id="dr-note-${key.replace(/ /g,'_')}" value="${dr.note||''}" placeholder="Notes (optional)"
           style="width:100%;box-sizing:border-box;font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-top:6px"
@@ -5005,7 +5134,7 @@ const T1_PENDING_KEY = 'wg_t1_pending'; // tracks sustained deviations before fi
 function getAlertLog(){ return L(ALERT_LOG_KEY,[]); }
 function saveAlertLog(log){ S(ALERT_LOG_KEY, log); }
 
-// Maxx OS phase thresholds — derived from MAXX_PHASES
+// Maxx OS v1.4 phase thresholds — derived from MAXX_PHASES
 // T2 = inner band (log only), T1 = outer band (Slack alert after 15 min)
 function getGuardrailsForPhase(phaseId){
   const p = MAXX_PHASES.find(x=>x.id===phaseId);
