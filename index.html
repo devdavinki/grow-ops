@@ -1258,6 +1258,20 @@ function setRole(role){
 function renderRooms(){
   const grid=document.getElementById('rooms-grid');
   grid.innerHTML='';
+
+  // Pre-build METRC location maps once — O(n) instead of O(n×11) per render
+  const _flowerByLoc={}, _vegByLoc={};
+  (metrcData?.flowering||[]).forEach(r=>{
+    const loc=r['Location']||r['LocationName']||'';
+    if(!_flowerByLoc[loc]) _flowerByLoc[loc]=[];
+    _flowerByLoc[loc].push(r);
+  });
+  (metrcData?.vegetative||[]).forEach(r=>{
+    const loc=r['Location']||r['LocationName']||'';
+    if(!_vegByLoc[loc]) _vegByLoc[loc]=[];
+    _vegByLoc[loc].push(r);
+  });
+
   rooms.forEach((room,i)=>{
     const d=calcDates(room);
     const fd=flowerDay(room);
@@ -1411,19 +1425,14 @@ function renderRooms(){
         </div>`;
       })()}
       ${(()=>{
-        // METRC strain breakdown for this room
+        // METRC strain breakdown — use pre-built location maps
         const metrcRoomName=room.name.replace('Room ','Grow Room ');
-        const flowerRows=(metrcData&&metrcData.flowering)||[];
-        const vegRows=(metrcData&&metrcData.vegetative)||[];
         const stage_=getStage(room);
         const isVegRoom=stage_==='veg'||(!room.flipDate&&room.launchDate);
-        // Try flowering first; fall back to veg (e.g. recently flipped rooms not yet in METRC flower)
-        let sourceRows=isVegRoom?vegRows:flowerRows;
-        let roomPlants=sourceRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+        let roomPlants=isVegRoom?(_vegByLoc[metrcRoomName]||[]):(_flowerByLoc[metrcRoomName]||[]);
         let usingVegFallback=false;
         if(!roomPlants.length&&!isVegRoom){
-          // Fallback: check veg file (plant may not have moved to flower in METRC yet)
-          roomPlants=vegRows.filter(r=>(r['Location']||'')=== metrcRoomName);
+          roomPlants=_vegByLoc[metrcRoomName]||[];
           if(roomPlants.length) usingVegFallback=true;
         }
         if(!roomPlants.length) return '';
@@ -1451,7 +1460,8 @@ function renderRooms(){
     card.addEventListener('click',()=>openRoomModal(room));
     grid.appendChild(card);
   });
-  try{renderSupportRooms();}catch(e){}
+  // Defer support rooms render so flower cards paint first
+  setTimeout(()=>{try{renderSupportRooms();}catch(e){}},0);
 }
 
 // ══════════════════════════════════════════════
@@ -3589,6 +3599,8 @@ async function pullGrowlinkFromCloud(silent=false){
     const age=json.data.pushedAt?Math.round((Date.now()-new Date(json.data.pushedAt).getTime())/60000):null;
     if(!silent) console.log('Growlink pulled:',Object.keys(growlinkData).length,'rooms, pushed',age,'min ago');
     renderRooms();
+    // Also update support rooms directly in case Rooms page isn't active
+    setTimeout(()=>{try{renderSupportRooms();}catch(e){}},0);
   }catch(e){ if(!silent) console.warn('Growlink pull failed:',e); }
 }
 
