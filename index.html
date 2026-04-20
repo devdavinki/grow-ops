@@ -4614,84 +4614,85 @@ function expandGrowlinkRoom(room) {
 // ══════════════════════════════════════════════════════════════════
 const SENSOR_POSITION_MAP = {
   // ── Room 1 (2 tables, T1B not installed)
-  '6584831a-6e85-449a-a415-0326a1623572': {table:1, pos:'F'},  // T1F #20008314
+  '6584831a-6e85-449a-a415-0326a1623572': {table:2, pos:'F'},  // T2F #20008772
   '570d72c8-88b3-42fd-bca3-aa84ef15d946': {table:2, pos:'B'},  // T2B #20008097
-  '7760ff95-74bd-4f5c-9c98-dbed335db8a0': {table:2, pos:'F'},  // T2F #20008772
+  '7760ff95-74bd-4f5c-9c98-dbed335db8a0': {table:1, pos:'F'},  // T1F #20008314
 
   // ── Room 2 (3 tables)
-  '0471a067-5098-42c0-812a-8c748be553cd': {table:1, pos:'B'},  // T1B #20008092
-  '941d8ffa-cc2b-4a49-b3ca-d3192930f530': {table:1, pos:'F'},  // T1F #20008088
+  '0471a067-5098-42c0-812a-8c748be553cd': {table:2, pos:'F'},  // T2F #20008517
+  '941d8ffa-cc2b-4a49-b3ca-d3192930f530': {table:1, pos:'B'},  // T1B #20008092
   'a98d09c6-96ce-4972-bdf6-31841b009ce7': {table:2, pos:'B'},  // T2B #20008770
-  'd0018236-23e1-490d-8b11-7455b7992f73': {table:2, pos:'F'},  // T2F #20008517
-  'cfdb5929-8edc-4ec3-8bf4-230cdf4bf1ed': {table:3, pos:'B'},  // T3B #20008078
+  'd0018236-23e1-490d-8b11-7455b7992f73': {table:3, pos:'B'},  // T3B #20008078
+  'cfdb5929-8edc-4ec3-8bf4-230cdf4bf1ed': {table:1, pos:'F'},  // T1F #20008088
   'bae2e5c6-7125-4487-875a-4f95c659ab34': {table:3, pos:'F'},  // T3F #20008311
 
   // ── Room 3 (3 tables)
-  'c4cdeb61-7301-4604-a7e3-7eb0546706a0': {table:1, pos:'B'},  // T1B #20008751
-  '0ab51917-732b-4e42-85f7-da0cd8ba685e': {table:1, pos:'F'},  // T1F #20008752
-  'f455714f-20b7-4d1c-b2ea-8f5879bd1e9f': {table:2, pos:'B'},  // T2B #20008755
-  'e0aecaee-6031-492d-b914-ae5821a7b50f': {table:2, pos:'F'},  // T2F #20008754
-  '7d096035-3704-429b-818f-753f843495b0': {table:3, pos:'B'},  // T3B #20008087
-  'da6e070c-5917-4f64-886f-aae4936f329d': {table:3, pos:'F'},  // T3F #20008086
+  'c4cdeb61-7301-4604-a7e3-7eb0546706a0': {table:2, pos:'F'},  // T2F #20008754
+  '0ab51917-732b-4e42-85f7-da0cd8ba685e': {table:3, pos:'B'},  // T3B #20008087
+  'f455714f-20b7-4d1c-b2ea-8f5879bd1e9f': {table:1, pos:'F'},  // T1F #20008752
+  'e0aecaee-6031-492d-b914-ae5821a7b50f': {table:3, pos:'F'},  // T3F #20008086
+  '7d096035-3704-429b-818f-753f843495b0': {table:1, pos:'B'},  // T1B #20008751
+  'da6e070c-5917-4f64-886f-aae4936f329d': {table:2, pos:'B'},  // T2B #20008755
 
   // ── Room 4 (3 tables)
   'd4f19a45-2a4d-4b5f-955c-c06c4a05561d': {table:1, pos:'B'},  // T1B #20008762
-  '1f1882c3-b008-49f0-90af-26cd9dfc2c73': {table:1, pos:'F'},  // T1F #20008093
-  'fcea3903-dad4-4cb7-a14f-760b72081130': {table:2, pos:'B'},  // T2B #20008760
-  '91cddb96-803e-43ae-b93d-855d66b3d939': {table:2, pos:'F'},  // T2F #20008761
-  'eb43155f-791b-4205-98a4-85b7efba7684': {table:3, pos:'B'},  // T3B #20008768
-  '2e958337-e257-4304-ae70-a61c19763ea4': {table:3, pos:'F'},  // T3F #20008769
+  '1f1882c3-b008-49f0-90af-26cd9dfc2c73': {table:2, pos:'B'},  // T2B #20008760
+  'fcea3903-dad4-4cb7-a14f-760b72081130': {table:1, pos:'F'},  // T1F #20008093
+  '91cddb96-803e-43ae-b93d-855d66b3d939': {table:3, pos:'B'},  // T3B #20008768
+  'eb43155f-791b-4205-98a4-85b7efba7684': {table:3, pos:'F'},  // T3F #20008769
+  '2e958337-e257-4304-ae70-a61c19763ea4': {table:2, pos:'F'},  // T2F #20008761
 
   // ── Room 5 (3 tables)
   'f21e58a4-292b-484d-a7bb-ed87fd5e4a94': {table:1, pos:'B'},  // T1B #20008767
-  '7aa5df79-6688-4088-975b-0c80a781573d': {table:1, pos:'F'},  // T1F #20008079
-  'f07d2da0-0402-4768-bb15-33e6d3bce17b': {table:2, pos:'B'},  // T2B #20008099
-  '4ebd01b2-e96a-4cba-bd68-3785b9bd4874': {table:2, pos:'F'},  // T2F #20008080
-  '1784cbc6-469d-445c-b6b2-30b8e396a079': {table:3, pos:'B'},  // T3B #20008766
+  '7aa5df79-6688-4088-975b-0c80a781573d': {table:2, pos:'F'},  // T2F #20008080
+  'f07d2da0-0402-4768-bb15-33e6d3bce17b': {table:1, pos:'F'},  // T1F #20008079
+  '4ebd01b2-e96a-4cba-bd68-3785b9bd4874': {table:3, pos:'B'},  // T3B #20008766
+  '1784cbc6-469d-445c-b6b2-30b8e396a079': {table:2, pos:'B'},  // T2B #20008099
   'e14629bb-caf3-4b1e-b91e-0b9df2cb4f68': {table:3, pos:'F'},  // T3F #20008763
 
   // ── Room 6 (2 tables)
-  'd0edfafb-929b-43df-a86a-c63f73995f38': {table:1, pos:'B'},  // T1B #20008307
-  'aea879b3-02b5-44ab-a5ca-e22c1c166d1e': {table:1, pos:'F'},  // T1F #20008316
-  'feaee787-e436-4a2d-8fb3-d957fc41b2f3': {table:2, pos:'B'},  // T2B #20008100
-  '117bc27b-4a35-4712-bdb2-5fa91ce3101c': {table:2, pos:'F'},  // T2F #20008765
+  'd0edfafb-929b-43df-a86a-c63f73995f38': {table:2, pos:'F'},  // T2F #20008765
+  'aea879b3-02b5-44ab-a5ca-e22c1c166d1e': {table:2, pos:'B'},  // T2B #20008100
+  'feaee787-e436-4a2d-8fb3-d957fc41b2f3': {table:1, pos:'B'},  // T1B #20008307
+  '117bc27b-4a35-4712-bdb2-5fa91ce3101c': {table:1, pos:'F'},  // T1F #20008316
 
   // ── Room 7 (3 tables)
-  'ed59a59f-a78b-47cd-a64e-1dd166d4ed91': {table:1, pos:'B'},  // T1B #20008304
-  'd602277d-1cd5-4377-8624-05e2b8575383': {table:1, pos:'F'},  // T1F #20008308
+  'ed59a59f-a78b-47cd-a64e-1dd166d4ed91': {table:1, pos:'F'},  // T1F #20008308
+  'd602277d-1cd5-4377-8624-05e2b8575383': {table:2, pos:'F'},  // T2F #20008753
   '044ecbdd-9491-402b-a9f7-e903fcc742ef': {table:2, pos:'B'},  // T2B #20008756
-  'c2ce6a13-7236-488f-9500-575c161439a7': {table:2, pos:'F'},  // T2F #20008753
-  '3c8953e2-0c19-4f77-a3bb-8c11b90e4c56': {table:3, pos:'B'},  // T3B #20008295
-  'aa2e29d8-f97a-49b6-86b0-97698e2e8654': {table:3, pos:'F'},  // T3F #20008299
+  'c2ce6a13-7236-488f-9500-575c161439a7': {table:1, pos:'B'},  // T1B #20008304
+  '3c8953e2-0c19-4f77-a3bb-8c11b90e4c56': {table:3, pos:'F'},  // T3F #20008299
+  'aa2e29d8-f97a-49b6-86b0-97698e2e8654': {table:3, pos:'B'},  // T3B #20008295
 
   // ── Room 8 (3 tables, T3B not installed)
-  'a79e8538-dffc-43c1-b520-abeb3065fff3': {table:1, pos:'B'},  // T1B #20008773
-  '4c8e2de3-12bf-4d3b-aa25-3d4ffaf50c45': {table:1, pos:'F'},  // T1F #20008771
+  'a79e8538-dffc-43c1-b520-abeb3065fff3': {table:1, pos:'F'},  // T1F #20008771
+  '4c8e2de3-12bf-4d3b-aa25-3d4ffaf50c45': {table:1, pos:'B'},  // T1B #20008773
   '85910a39-19c1-47d0-868d-d08a68622364': {table:2, pos:'B'},  // T2B #20008757
-  '0086f966-327e-4475-a3d6-789db77fb909': {table:2, pos:'F'},  // T2F #20008305
-  '204b330a-23cf-43bc-9a0b-be03c5fb87d5': {table:3, pos:'F'},  // T3F #20008294 (T3B not installed)
+  '0086f966-327e-4475-a3d6-789db77fb909': {table:3, pos:'F'},  // T3F #20008294
+  '204b330a-23cf-43bc-9a0b-be03c5fb87d5': {table:2, pos:'F'},  // T2F #20008305
 
   // ── Room 9 (2 tables)
-  '6ca0e992-61f9-463c-8488-d284723f91af': {table:1, pos:'B'},  // T1B #20008313
-  'b9a35ae9-8f4c-4151-aa01-aa942d1d1859': {table:1, pos:'F'},  // T1F #20008296
+  '6ca0e992-61f9-463c-8488-d284723f91af': {table:2, pos:'F'},  // T2F #20008312
+  'b9a35ae9-8f4c-4151-aa01-aa942d1d1859': {table:1, pos:'B'},  // T1B #20008313
   '2abc5883-9538-4ef5-864b-dc6424c511b5': {table:2, pos:'B'},  // T2B #20008750
-  'b3c6b84f-30a8-4398-a551-a382fdd740c9': {table:2, pos:'F'},  // T2F #20008312
+  'b3c6b84f-30a8-4398-a551-a382fdd740c9': {table:1, pos:'F'},  // T1F #20008296
 
   // ── Room 10 (3 tables)
-  '859a7e21-529c-4b0f-8b4e-17a038fe0e6b': {table:1, pos:'B'},  // T1B #20008082
-  'afa88020-efd0-4cfd-b1b3-1a89cad8cf8e': {table:1, pos:'F'},  // T1F #20008091
-  'd715458d-f756-4a2c-b36b-c37130c2c9b0': {table:2, pos:'B'},  // T2B #20008764
-  '21f5b539-9505-43d6-85c3-a711b683a2ee': {table:2, pos:'F'},  // T2F #20008083
-  '8f5e994a-0b04-458f-a3e6-20b645e510b2': {table:3, pos:'B'},  // T3B #20008096
-  '2360065d-4119-492d-a3ac-08538d5551b6': {table:3, pos:'F'},  // T3F #20008085
+  '859a7e21-529c-4b0f-8b4e-17a038fe0e6b': {table:3, pos:'B'},  // T3B #20008096
+  'afa88020-efd0-4cfd-b1b3-1a89cad8cf8e': {table:2, pos:'B'},  // T2B #20008764
+  'd715458d-f756-4a2c-b36b-c37130c2c9b0': {table:1, pos:'B'},  // T1B #20008082
+  '21f5b539-9505-43d6-85c3-a711b683a2ee': {table:3, pos:'F'},  // T3F #20008085
+  '8f5e994a-0b04-458f-a3e6-20b645e510b2': {table:2, pos:'F'},  // T2F #20008083
+  '2360065d-4119-492d-a3ac-08538d5551b6': {table:1, pos:'F'},  // T1F #20008091
 
   // ── Room 11 (3 tables)
   '94963e1c-ee30-4053-ad5a-1975689ade31': {table:1, pos:'B'},  // T1B #20008081
-  'c4210b30-81dc-4c72-b276-1294dd955bf6': {table:1, pos:'F'},  // T1F #20008090
+  'c4210b30-81dc-4c72-b276-1294dd955bf6': {table:2, pos:'F'},  // T2F #20008098
   '42044a23-9868-4aef-a330-d239f4dfb959': {table:2, pos:'B'},  // T2B #20008089
-  '4068feba-d1c0-4fcb-9506-a632701d2d61': {table:2, pos:'F'},  // T2F #20008098
-  '7834220e-0ab8-47e2-b2fb-cc6d348c1207': {table:3, pos:'B'},  // T3B #20008094
+  '4068feba-d1c0-4fcb-9506-a632701d2d61': {table:3, pos:'B'},  // T3B #20008094
+  '7834220e-0ab8-47e2-b2fb-cc6d348c1207': {table:1, pos:'F'},  // T1F #20008090
   'a9e1b674-3174-40b4-b71d-4b3a5ba1d013': {table:3, pos:'F'},  // T3F #20008095
+
 };
 
 function parseTableSensors(rawSensors, tableCount) {
@@ -4723,8 +4724,7 @@ function parseTableSensors(rawSensors, tableCount) {
       }
     });
   }
-  console.log('[parseTableSensors] triplets:', triplets.length, 'mapped:', mapped,
-    'uuids:', triplets.map(t=>t.uuid ? t.uuid.slice(0,8) : 'null').join(','));
+
 
   // Fallback: array-order assignment with generic labels if no UUID map hit
   if (mapped === 0) {
@@ -4880,8 +4880,8 @@ function openRoomModal(room) {
             Table ${tNum} <span style="font-size:10px;font-weight:400;color:var(--text3)">· ${tNum==='1'?'Right side':tNum===String(tableCount)?'Left side':'Center'}</span>
           </div>
           <div style="display:flex;gap:6px">
-            ${probeCard(tables[tNum].F,'Front','→ aisle')}
-            ${probeCard(tables[tNum].B,'Back','→ wall')}
+            ${probeCard(tables[tNum].F,'Front','')}
+            ${probeCard(tables[tNum].B,'Back','')}
           </div>
         </div>`).join('')}
     </div>`;
