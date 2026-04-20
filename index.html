@@ -4419,16 +4419,22 @@ function renderSupportRooms(){
       const stale=age!==null&&age>15;
       const dp=(gl.temp&&gl.humidity)?(()=>{const tc=(gl.temp-32)*5/9;const a=17.27,b=237.7;const alpha=(a*tc)/(b+tc)+Math.log(gl.humidity/100);return((b*alpha)/(a-alpha))*9/5+32;})():null;
       function ev(v,ok,unit,dec=1){if(v==null)return'<span style="color:var(--text3)">—</span>';const col=stale?'var(--text2)':ok?'var(--green)':'var(--amber)';return`<div class="env-num" style="color:${col}">${typeof v==='number'?v.toFixed(dec):v}<span class="env-unit">${unit}</span></div>`;}
+      // Use alertThresholds for dry rooms, generic ranges for veg/mother
+      const _isDryCard = key==='Dry Room 1'||key==='Dry Room 2';
+      const _dryOv = _isDryCard ? (alertThresholds[key]||{}) : null;
+      const _dryTempSp=60, _dryRhSp=55, _dryCo2Sp=500;
+      function _tempOk(v){ if(_isDryCard&&_dryOv.temp){const sp=_dryTempSp,t2=_dryOv.temp.t2||3;return Math.abs(v-sp)<=t2;}return v>=72&&v<=84; }
+      function _rhOk(v){   if(_isDryCard&&_dryOv.rh  ){const sp=_dryRhSp,  t2=_dryOv.rh.t2  ||8;return Math.abs(v-sp)<=t2;}return v>=40&&v<=70; }
+      function _co2Ok(v){  if(_isDryCard&&_dryOv.co2 ){const sp=_dryCo2Sp, t2=_dryOv.co2.t2 ||100;return Math.abs(v-sp)<=t2;}return v>=400&&v<=1600; }
       const row1=[
-        `<div class="env-cell"><div class="env-lbl">Temp</div>${ev(gl.temp,gl.temp>=72&&gl.temp<=84,'°F')}</div>`,
-        `<div class="env-cell"><div class="env-lbl">RH</div>${ev(gl.humidity,gl.humidity>=40&&gl.humidity<=70,'%')}</div>`,
-        `<div class="env-cell"><div class="env-lbl">CO₂</div>${ev(gl.co2,gl.co2>=400&&gl.co2<=1600,'ppm',0)}</div>`,
-        `<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`,
+        `<div class="env-cell"><div class="env-lbl">Temp</div>${ev(gl.temp,_tempOk(gl.temp),'°F')}</div>`,
+        `<div class="env-cell"><div class="env-lbl">RH</div>${ev(gl.humidity,_rhOk(gl.humidity),'%')}</div>`,
+        `<div class="env-cell"><div class="env-lbl">CO₂</div>${ev(gl.co2,_co2Ok(gl.co2),'ppm',0)}</div>`,
+        !_isDryCard?`<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`:'',
         dp!=null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div>${ev(dp,dp<65,'°F')}</div>`:'',
       ].filter(Boolean).join('');
-      // Soil sensors on Veg/Mother/Dry rooms are controller bleed from adjacent flower rooms
-      // Only show soil data for rooms that actually have substrate (Veg has rockwool, Mother has soil)
-      const _showSoil = (key==='Veg Room'||key==='Mother Room');
+      // Soil sensors on all support rooms are controller bleed from adjacent flower rooms — don't show
+      const _showSoil = false;
       const soilCount=_showSoil?[gl.soilMoisture,gl.soilEC,gl.soilTemp].filter(v=>v!=null).length:0;
       const row2=soilCount?[
         gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div>${ev(gl.soilMoisture,gl.soilMoisture>=40&&gl.soilMoisture<=85,'%')}</div>`:'',
@@ -5014,6 +5020,8 @@ function renderSupplies() {
 
 async function pushConfigToCloud(silent=false){
   if(!gsUrl) return;
+  // Stamp local edit time so cloud pull knows which is newer
+  S('wg_rooms_edited_at', Date.now());
   // Gather today logs for last 7 days
   const todayLogs={};
   for(let i=0;i<7;i++){
@@ -5066,18 +5074,27 @@ async function pullConfigFromCloud(silent=false){
     if(!json.ok||!json.data) return false;
     const d=json.data;
 
-    // Rooms — only overwrite if cloud has more recent flip dates
+    // Rooms — cloud wins, but respect intentional clears.
+    // A cleared field (empty string) that was explicitly saved must not be overwritten
+    // by an older cloud value. We track the cloud's syncedAt timestamp vs local edit time.
     if(d.rooms&&d.rooms.length){
       const cloudRooms=d.rooms;
+      // If local was saved MORE RECENTLY than cloud, local wins for any field the lead cleared
+      const cloudSyncedAt=d.syncedAt?new Date(d.syncedAt).getTime():0;
+      const localEditAt=L('wg_rooms_edited_at',0);
+      const localIsNewer=localEditAt>cloudSyncedAt;
       rooms=rooms.map((local,i)=>{
         const cloud=cloudRooms.find(r=>r.id===local.id);
         if(!cloud) return local;
-        // Cloud wins for flip/launch dates and notes — lead-set data
+        // If local was edited after the cloud sync, trust local for every field
+        // (this covers intentional clears — empty string beats old cloud value)
+        if(localIsNewer) return local;
+        // Otherwise cloud wins, but only replace with cloud value if cloud has something
         return{...local,
-          flipDate:cloud.flipDate||local.flipDate,
-          launchDate:cloud.launchDate||local.launchDate,
-          strain:cloud.strain||local.strain,
-          note:cloud.note||local.note,
+          flipDate:   cloud.flipDate   !== undefined ? cloud.flipDate   : local.flipDate,
+          launchDate: cloud.launchDate !== undefined ? cloud.launchDate : local.launchDate,
+          strain:     cloud.strain     !== undefined ? cloud.strain     : local.strain,
+          note:       cloud.note       !== undefined ? cloud.note       : local.note,
         };
       });
       S('wg_rooms_v2',rooms);
