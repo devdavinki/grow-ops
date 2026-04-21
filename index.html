@@ -680,6 +680,7 @@ button { cursor: pointer; }
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Today's submissions</div>
           <button onclick="pullRoomChecksFromCloud().then(()=>{renderTodayCheckSubmissions();renderRooms();})" style="font-size:11px;padding:3px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻ Pull from cloud</button>
+          <button onclick="debugRoomChecksPull()" style="font-size:11px;padding:3px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--amber);cursor:pointer">🔍 Debug pull</button>
         </div>
         <div id="rc-today-list" style="display:grid;gap:6px"></div>
       </div>
@@ -3698,6 +3699,34 @@ async function pullWeightsFromCloud(){
       S('wg_trim_weights',trimWeights);
     }
   }catch(e){console.warn('Weight pull failed:',e);}
+}
+
+async function debugRoomChecksPull(){
+  if(!gsUrl){ alert('No Apps Script URL set'); return; }
+  try{
+    const res = await fetch(gsUrl+'?action=getSheet&sheet=Runoff_Form&t='+Date.now());
+    const json = await res.json();
+    const todayIso = dateToIso(TODAY);
+    console.log('=== ROOM CHECKS DEBUG ===');
+    console.log('Today ISO:', todayIso);
+    console.log('Response ok:', json.ok, '| Row count:', json.rows?.length);
+    if(json.rows && json.rows.length){
+      console.log('Row 0 (header check):', JSON.stringify(json.rows[0]));
+      console.log('Row 1 raw:', JSON.stringify(json.rows[1]));
+      console.log('Row 0 col0 type:', typeof json.rows[0][0], '| value:', json.rows[0][0]);
+      if(json.rows[1]) console.log('Row 1 col0 type:', typeof json.rows[1][0], '| value:', json.rows[1][0]);
+      // Show last 3 rows
+      const last3 = json.rows.slice(-3);
+      last3.forEach((r,i)=>console.log('Recent row '+(json.rows.length-3+i)+':', JSON.stringify(r)));
+    }
+    // Show what's in localStorage
+    const stored = L('wg_check_subs_'+todayIso, []);
+    console.log('localStorage subs for today:', stored.length, JSON.stringify(stored.slice(0,2)));
+    alert('Debug logged to console (F12). Rows: '+(json.rows?.length||0)+', today='+todayIso);
+  } catch(e){
+    console.error('Debug fetch error:', e);
+    alert('Fetch failed: '+e.message);
+  }
 }
 
 async function pullRoomChecksFromCloud(silent=false){
