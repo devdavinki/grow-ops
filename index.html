@@ -3350,6 +3350,8 @@ function saveWeight(itemId,field,value){
   trimWeights[itemId][field]=value?parseFloat(value):null;
   S('wg_trim_weights',trimWeights);
   renderTrimQueue();
+  renderPrerollPriority();
+  pushWeightsToCloud();  // sync purplTHC to cloud immediately
 }
 
 function renderPrerollPriority(){
@@ -4737,7 +4739,12 @@ function renderSupportRooms(){
         `<div class="env-cell"><div class="env-lbl">RH</div>${ev(gl.humidity,_rhOk(gl.humidity),'%')}</div>`,
         `<div class="env-cell"><div class="env-lbl">CO₂</div>${ev(gl.co2,_co2Ok(gl.co2),'ppm',0)}</div>`,
         !_isDryCard?`<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`:'',
-        dp!=null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div>${ev(dp,dp<65,'°F')}</div>`:'',
+        dp!=null?(()=>{
+          const _dpCeil2=(typeof getGlobalThresholds==='function')?getGlobalThresholds().dewPoint?.t1||60:60;
+          const _dpSpread2=Math.max(0,_dpCeil2-dp).toFixed(1);
+          const _dpCls2=dp>=_dpCeil2?'alert':dp>=(_dpCeil2-3)?'warn':'ok';
+          return`<div class="env-cell"><div class="env-lbl">DP Spread</div>${ev(_dpSpread2,_dpCls2==='ok','°F')}</div>`;
+        })():'',
       ].filter(Boolean).join('');
       // Soil sensors on all support rooms are controller bleed from adjacent flower rooms — don't show
       const _showSoil = false;
@@ -5645,9 +5652,9 @@ function renderBlueprintGlobal(){
   }
 
   wrap.innerHTML = `
-    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||60, '🔴 Dew Point ceiling (°F)',
+    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||60, '🔴 DP Spread ceiling — alert when spread < this (°F)',
       "alertThresholds._global.dewPoint={t1:parseFloat(this.value)||60};saveAlertThresholds();showBlueprint_status()", '°F')}
-    <div style="font-size:10px;color:var(--text3);padding:6px 0 0 2px">Card shows spread = ceiling − actual DP. Green = safe margin, amber = close, red = exceeded.</div>
+    <div style="font-size:10px;color:var(--text3);padding:6px 0 0 2px">Spread = ceiling − actual dew point. Set ceiling to your safe DP limit (e.g. 60°F). Card turns amber when spread &lt;3°F, red when DP exceeds ceiling. T1 Slack alert fires after sustain timer.</div>
     ${numInput('gl-soilec-t1', gl.soilEC?.t1||10, '🔴 Soil EC ceiling (T1)',
       "alertThresholds._global.soilEC={t1:parseFloat(this.value)||10};saveAlertThresholds();showBlueprint_status()", 'mS')}
     ${numInput('gl-moisture-t1', gl.soilMoisture?.t1||10, '🔴 Soil moisture floor (T1)',
