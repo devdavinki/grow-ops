@@ -20,7 +20,7 @@
   --green: #1e7e34;
   --green-dim: #d4edda;
   --green-bg: #eaf4ec;
-  --amber: #b45309;
+  --amber: #1d6fa4;
   --amber-dim: #fef3cd;
   --amber-bg: #fffbeb;
   --red: #c0392b;
@@ -3804,6 +3804,7 @@ const PHASE_THRESHOLD_DEFAULTS = {
   rh:   {t2:7,  t1:15},
   co2:  {t2:150,t1:300},
   vpd:  {t2:0.2,t1:0.4},
+  vwc:  {t2:5,  t1:10},  // spread from phase vwcMin/vwcMax
 };
 let alertThresholds = L('wg_alert_thresholds', DEFAULT_THRESHOLDS);
 
@@ -5097,7 +5098,11 @@ function openRoomModal(room) {
   const tRH  =phase?[phase.rh-7,phase.rh+7]:[45,75];
   const tCO2 =phase?[phase.co2-150,phase.co2+150]:[400,1600];
   const tVPD =phase?[phase.vpdMin||0.8,phase.vpdMax||1.6]:[0.6,1.8];
-  const tVWC =phase?[phase.vwcMin||40,phase.vwcMax||80]:[40,80];
+  const _vwcOv=phase?(getThresholdsForPhase(phase.id)?.vwc||PHASE_THRESHOLD_DEFAULTS.vwc):null;
+  const tVWC =phase?[
+    (phase.vwcMin||40)-(_vwcOv?.t2||5),
+    (phase.vwcMax||80)+(_vwcOv?.t2||5)
+  ]:[40,80];
   const tEC  =phase?[phase.subECMin||1.5,phase.subECMax||5.5]:[1.5,5.5];
 
   function sc(v,mn,mx){return(!stale&&v!=null)?(v>=mn&&v<=mx?'var(--green)':'var(--amber)'):'var(--text2)';}
@@ -5673,6 +5678,7 @@ function renderBlueprintPhases(){
     const tRH   = ov.rh   || PHASE_THRESHOLD_DEFAULTS.rh;
     const tCO2  = ov.co2  || PHASE_THRESHOLD_DEFAULTS.co2;
     const tVPD  = ov.vpd  || PHASE_THRESHOLD_DEFAULTS.vpd;
+    const tVWC  = ov.vwc  || PHASE_THRESHOLD_DEFAULTS.vwc;
     const ecr   = getECRainbow((phase.start + phase.end) >> 1);
     const isX3  = phase.id === 'X3';
 
@@ -5745,6 +5751,7 @@ function renderBlueprintPhases(){
         ${threshRow('RH', 'rh', tRH.t2, tRH.t1, 1, '%', phase.id)}
         ${threshRow('CO₂', 'co2', tCO2.t2, tCO2.t1, 25, 'ppm', phase.id)}
         ${phase.vpdMin!=null ? threshRow('VPD', 'vpd', tVPD.t2, tVPD.t1, 0.05, 'kPa', phase.id) : ''}
+        ${phase.vwcMin!=null ? threshRow('VWC', 'vwc', tVWC.t2, tVWC.t1, 1, '%', phase.id) : ''}
         <div style="margin-top:6px;font-size:10px;color:var(--text3)">
           Setpoints: Temp ${phase.dayTemp}°F · RH ${phase.rh}% · CO₂ ${phase.co2}ppm${phase.vpdMin!=null?' · VPD '+phase.vpdMin+'–'+phase.vpdMax+' kPa':''}
         </div>
@@ -5884,6 +5891,7 @@ function getGuardrailsForPhase(phaseId){
   const tRH   = ov.rh   || PHASE_THRESHOLD_DEFAULTS.rh;
   const tCO2  = ov.co2  || PHASE_THRESHOLD_DEFAULTS.co2;
   const tVPD  = ov.vpd  || PHASE_THRESHOLD_DEFAULTS.vpd;
+  const tVWC2 = ov.vwc  || PHASE_THRESHOLD_DEFAULTS.vwc;
   return {
     temp:  { setpoint:p.dayTemp, t2Low:p.dayTemp-tTemp.t2, t2High:p.dayTemp+tTemp.t2, t1Low:p.dayTemp-tTemp.t1, t1High:p.dayTemp+tTemp.t1 },
     rh:    { setpoint:p.rh,      t2Low:p.rh-tRH.t2,        t2High:p.rh+tRH.t2,        t1Low:p.rh-tRH.t1,        t1High:p.rh+tRH.t1 },
@@ -5891,6 +5899,7 @@ function getGuardrailsForPhase(phaseId){
     vpd:   p.vpdMin!=null ? { setpoint:(p.vpdMin+p.vpdMax)/2, t2Low:p.vpdMin-tVPD.t2, t2High:p.vpdMax+tVPD.t2, t1Low:p.vpdMin-tVPD.t1, t1High:p.vpdMax+tVPD.t1 } : null,
     soilEC:       { t1High: gl.soilEC?.t1  || 10 },
     soilMoisture: { t1Low:  gl.soilMoisture?.t1 || 10 },
+    vwc: p.vwcMin!=null ? { t2Low:p.vwcMin-tVWC2.t2, t2High:p.vwcMax+tVWC2.t2, t1Low:p.vwcMin-tVWC2.t1, t1High:p.vwcMax+tVWC2.t1 } : null,
     dewPoint:     { t1Low: gl.dewPoint?.t1 || 3 },  // floor: alert when temp-dp spread < this
   };
 }
