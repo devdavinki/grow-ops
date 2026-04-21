@@ -677,7 +677,10 @@ button { cursor: pointer; }
 
       <!-- TODAY'S SUBMISSIONS -->
       <div style="margin-top:20px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Today's submissions</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Today's submissions</div>
+          <button onclick="pullRoomChecksFromCloud().then(()=>{renderTodayCheckSubmissions();renderRooms();})" style="font-size:11px;padding:3px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻ Pull from cloud</button>
+        </div>
         <div id="rc-today-list" style="display:grid;gap:6px"></div>
       </div>
     </div>
@@ -3516,6 +3519,7 @@ function showPage(page){
   if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
   if(page==='checks'){
+    pullRoomChecksFromCloud(true).then(()=>{renderTodayCheckSubmissions();renderRooms();}).catch(()=>{});
     // Initialize date field and today's submissions on tab open
     const rcDate=document.getElementById('rc-date');
     if(rcDate&&!rcDate.value) rcDate.value=dateToIso(TODAY);
@@ -3531,7 +3535,7 @@ function showPage(page){
   }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
-  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
+  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);pullRoomChecksFromCloud(true).then(()=>renderRooms()).catch(()=>{});}
   if(page==='daily-review'){renderDailyReview();}
   if(page==='blueprint'){renderBlueprint();}
   if(page==='supplies'){renderSupplies();}
@@ -3694,6 +3698,68 @@ async function pullWeightsFromCloud(){
       S('wg_trim_weights',trimWeights);
     }
   }catch(e){console.warn('Weight pull failed:',e);}
+}
+
+async function pullRoomChecksFromCloud(silent=false){
+  if(!gsUrl) return;
+  try{
+    const res = await fetch(gsUrl+'?action=getSheet&sheet=Runoff_Form&t='+Date.now());
+    const json = await res.json();
+    if(!json.ok || !json.rows || json.rows.length < 2) return;
+    const rows = json.rows;
+    // Row 0 may or may not be a header — detect by checking if first cell looks like a date
+    const todayIso = dateToIso(TODAY);
+    const isHeader = row => typeof row[0] === 'string' && row[0].toLowerCase().includes('date');
+    const dataRows = isHeader(rows[0]) ? rows.slice(1) : rows;
+    // Parse each row: Date, Time, Who, Room, RH, RoomTemp, LeafTemp, Dewpoint, PPFD,
+    //                 T1EC, T1pH, T1Vol, T2EC, T2pH, T2Vol, T3EC, T3pH, T3Vol
+    const todaySubs = [];
+    dataRows.forEach(row => {
+      // Normalize date — Google Sheets may return a Date object or ISO string
+      let rowDate = row[0];
+      if(rowDate instanceof Date) rowDate = dateToIso(rowDate);
+      else if(typeof rowDate === 'string') rowDate = rowDate.split('T')[0].trim();
+      else if(typeof rowDate === 'number') {
+        // Sheets serial date
+        const d = new Date((rowDate - 25569) * 86400 * 1000);
+        rowDate = dateToIso(d);
+      }
+      if(rowDate !== todayIso) return;
+      const room  = (row[3]||'').toString().trim().toUpperCase().replace(/\s+/g,'');
+      if(!room) return;
+      const sub = {
+        room,
+        who:  (row[2]||'').toString().trim(),
+        time: (row[1]||'').toString().trim(),
+        rh:   row[4] !== '' ? row[4] : '',
+        temp: row[5] !== '' ? row[5] : '',
+        leaf: row[6] !== '' ? row[6] : '',
+        dew:  row[7] !== '' ? row[7] : '',
+        ppfd: row[8] !== '' ? row[8] : '',
+        tables: {
+          1: { ec: row[9]||'',  ph: row[10]||'', vol: row[11]||'' },
+          2: { ec: row[12]||'', ph: row[13]||'', vol: row[14]||'' },
+          3: { ec: row[15]||'', ph: row[16]||'', vol: row[17]||'' },
+        },
+        fromCloud: true
+      };
+      todaySubs.push(sub);
+    });
+    if(!todaySubs.length) return;
+    // Merge with any local submissions — keep cloud rows that aren't already present
+    // (match on room+time to avoid dupes)
+    const existing = L('wg_check_subs_'+todayIso, []);
+    const existingKeys = new Set(existing.map(s => s.room+'|'+s.time));
+    const merged = [...existing];
+    todaySubs.forEach(s => {
+      if(!existingKeys.has(s.room+'|'+s.time)) merged.push(s);
+    });
+    S('wg_check_subs_'+todayIso, merged);
+    if(!silent) { renderTodayCheckSubmissions(); renderRooms(); }
+    if(!silent) console.log('Room checks pulled:', todaySubs.length, 'rows for today');
+  } catch(e) {
+    if(!silent) console.warn('pullRoomChecksFromCloud failed:', e);
+  }
 }
 
 function submitWeightForVerification(itemId){
