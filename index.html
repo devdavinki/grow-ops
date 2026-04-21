@@ -3192,6 +3192,7 @@ function moveTrimItem(id,dir){
   [trimQueue[idx],trimQueue[swap]]=[trimQueue[swap],trimQueue[idx]];
   S('wg_trim_queue',trimQueue);
   renderTrimQueue();
+  pushMetrcToCloud();
   // Keep METRC harvests tab in sync if visible
   const harvestsEl=document.getElementById('metrc-sub-harvests');
   if(harvestsEl&&harvestsEl.style.display!=='none') renderMetrcHarvests();
@@ -3203,23 +3204,29 @@ function updateTrimItemPriority(id, priority) {
   const item = trimQueue.find(q => q.id === id);
   if (item) {
     item.priority = priority;
-    // Sync to metrcHarvestPriority if fromMetrc
+    // Sync to metrcHarvestPriority for persistence across METRC re-uploads
     if (item.harvestBatch) {
       metrcHarvestPriority[item.harvestBatch] = priority;
       S(METRC_KEYS.harvestPriority, metrcHarvestPriority);
     }
-    // Re-sort: priority first, then date
-    const priOrder = {high:0,normal:1,low:2};
-    trimQueue.sort((a,b)=>{
-      const pa=priOrder[a.priority||'normal'];
-      const pb=priOrder[b.priority||'normal'];
-      if(pa!==pb) return pa-pb;
-      return new Date(a.harvestDate||0)-new Date(b.harvestDate||0);
-    });
+    // Don't re-sort — preserve manual ordering set by leads
     S('wg_trim_queue', trimQueue);
   }
   renderTrimQueue();
+  pushMetrcToCloud();
 }
+function toggleMachineTrimmed(id){
+  trimQueue=L('wg_trim_queue',[]);
+  const item=trimQueue.find(i=>i.id===id);
+  if(!item)return;
+  item.machineTrimmed=!item.machineTrimmed;
+  item.machineTrimmedBy=item.machineTrimmed?(loggedInMember?loggedInMember.name:'Unknown'):'';
+  item.machineTrimmedAt=item.machineTrimmed?fmtTime():'';
+  S('wg_trim_queue',trimQueue);
+  renderTrimQueue();
+  pushMetrcToCloud();
+}
+
 function renderTrimQueue(){
   trimQueue=L('wg_trim_queue',[]);
   const list=document.getElementById('trim-queue-list');
@@ -3269,6 +3276,10 @@ function renderTrimQueue(){
             ${w.trim?`<span style="font-size:11px;padding:1px 7px;background:var(--bg3);color:var(--text3);border-radius:var(--r)">Trim: ${w.trim}g</span>`:''}
           </div>`:''}
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
+            ${item.machineTrimmed
+              ?`<span style="font-size:11px;padding:2px 8px;border-radius:var(--r);background:var(--green-bg);border:1px solid var(--green-dim);color:var(--green);font-weight:600">✓ Machine trimmed${item.machineTrimmedBy?' · '+item.machineTrimmedBy:''}</span>`
+              :(isLead||currentRole==='postprod')?`<button onclick="toggleMachineTrimmed('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--blue);background:none;color:var(--blue);cursor:pointer">🔪 Mark machine trimmed</button>`:''
+            }
             ${item.status==='pending'?`<button onclick="markTrimInProgress('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">▶ Start</button>`:''}
             ${item.status==='trimming'?`<button onclick="markTrimDone('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">✓ Done</button>`:''}
             ${isLead?`<select onchange="updateTrimItemPriority('${item.id}',this.value)" style="font-size:11px;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
@@ -4058,17 +4069,17 @@ function syncHarvestsToTrimQueue(rows){
     trimQueue.push(item);
     added++;
   });
-  // Sort: priority first, then OLDEST first (ascending date)
-  const priOrder={high:0,normal:1,low:2};
-  trimQueue.sort((a,b)=>{
-    const pa=priOrder[a.priority||'normal'];
-    const pb=priOrder[b.priority||'normal'];
-    if(pa!==pb) return pa-pb;
-    // Parse dates — use batch name date as most reliable
+  // Only sort the newly added items by date — existing items keep their position
+  // New items append at bottom sorted by harvest date
+  const existingIds = new Set(trimQueue.filter(i=>i.addedDate!==dateToIso(TODAY)||(added===0)).map(i=>i.id));
+  const newItems = trimQueue.filter(i=>!existingIds.has(i.id));
+  const oldItems = trimQueue.filter(i=>existingIds.has(i.id));
+  newItems.sort((a,b)=>{
     const da=parseBatchDate(a.harvestBatch||a.strain)||new Date(a.harvestDate||0);
     const db=parseBatchDate(b.harvestBatch||b.strain)||new Date(b.harvestDate||0);
-    return da-db; // ascending = oldest first
+    return da-db;
   });
+  trimQueue = [...oldItems, ...newItems];
   S('wg_trim_queue',trimQueue);
   console.log('Synced '+added+' harvests. First item:', trimQueue[0]?.strain, trimQueue[0]?.harvestDate);
 }
@@ -4650,8 +4661,8 @@ function approveDryTakedown(dryKey, roomTag){
   if(dryRooms[dryKey]?.order){
     dryRooms[dryKey].order=dryRooms[dryKey].order.filter(t=>t!==roomTag);
   }
-  // Clean up takedown record
-  delete dryRooms[dryKey].takedowns[tdKey];
+  // Keep takedown record as approved — used to suppress re-show of takedown button
+  // (already removed from order list above)
   S('wg_dry_rooms',dryRooms);
   pushConfigToCloud(true);
   // Log to sheet
