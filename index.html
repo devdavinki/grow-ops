@@ -1468,6 +1468,42 @@ function renderRooms(){
         </div>`;
       })()}
       ${(()=>{
+        // Manual room check readings strip — from today's room check submissions
+        const rcKey = 'R' + room.name.replace('Room ','');
+        const subs = L('wg_check_subs_' + dateToIso(TODAY), []);
+        const sub = subs.filter(s => s.room === rcKey).slice(-1)[0];
+        if(!sub) return '';
+        const fv = v => (v !== undefined && v !== null && v !== '');
+        const envCells = [
+          fv(sub.temp) ? `<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.temp).toFixed(1)}<span class="env-unit">°F</span></div></div>` : '',
+          fv(sub.rh)   ? `<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.rh).toFixed(1)}<span class="env-unit">%</span></div></div>` : '',
+          fv(sub.leaf) ? `<div class="env-cell"><div class="env-lbl">Leaf T</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.leaf).toFixed(1)}<span class="env-unit">°F</span></div></div>` : '',
+          fv(sub.dew)  ? `<div class="env-cell"><div class="env-lbl">Dewpoint</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.dew).toFixed(1)}<span class="env-unit">°F</span></div></div>` : '',
+          fv(sub.ppfd) ? `<div class="env-cell"><div class="env-lbl">PPFD</div><div class="env-num" style="color:var(--text2)">${Math.round(sub.ppfd)}<span class="env-unit">μmol</span></div></div>` : '',
+        ].filter(Boolean);
+        let runoffHTML = '';
+        if(sub.tables) {
+          const runoffCells = Object.keys(sub.tables).sort().map(t => {
+            const td = sub.tables[t];
+            const parts = [];
+            if(fv(td.ec))  parts.push('EC ' + td.ec);
+            if(fv(td.ph))  parts.push('pH ' + parseFloat(td.ph).toFixed(1));
+            if(fv(td.vol)) parts.push(td.vol + 'mL');
+            if(!parts.length) return '';
+            return `<div class="env-cell"><div class="env-lbl">T${t} Runoff</div><div style="font-size:11px;font-family:var(--mono);color:var(--text2);line-height:1.5">${parts.join(' · ')}</div></div>`;
+          }).filter(Boolean);
+          if(runoffCells.length) runoffHTML = `<div class="env-grid" style="grid-template-columns:repeat(${runoffCells.length},1fr);margin-top:4px">${runoffCells.join('')}</div>`;
+        }
+        if(!envCells.length && !runoffHTML) return '';
+        return `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;display:flex;justify-content:space-between">
+            <span>Manual · Room Checks</span><span style="font-family:var(--mono);color:var(--text3)">${sub.time||''}</span>
+          </div>
+          ${envCells.length ? `<div class="env-grid" style="grid-template-columns:repeat(${envCells.length},1fr);margin-bottom:4px">${envCells.join('')}</div>` : ''}
+          ${runoffHTML}
+        </div>`;
+      })()}
+      ${(()=>{
         // METRC strain breakdown — use pre-built location maps
         const metrcRoomName=room.name.replace('Room ','Grow Room ');
         const stage_=getStage(room);
