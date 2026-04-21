@@ -531,18 +531,6 @@ button { cursor: pointer; }
       </div>
     </div>
 
-    <!-- MORNING ATTENTION SUB-PAGE -->
-    <div id="checks-sub-morning" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div>
-          <div class="section-title">Morning attention list</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px">Probes with highest overnight dryback — check and water in order. Tap to mark done.</div>
-        </div>
-        <button onclick="renderMorningAttention()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻ Refresh</button>
-      </div>
-      <div id="morning-attention-list"></div>
-    </div>
-
   </div>
 
   <!-- MOTHER GEN MODAL -->
@@ -702,6 +690,18 @@ button { cursor: pointer; }
         <span id="check-refresh-note" style="font-size:11px;color:var(--text3);width:100%"></span>
       </div>
       <div class="grid-2" id="checks-grid"></div>
+    </div>
+
+    <!-- MORNING ATTENTION SUB-PAGE -->
+    <div id="checks-sub-morning" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="section-title">Morning attention list</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Probes with highest overnight dryback — check and water in order. Tap to mark done.</div>
+        </div>
+        <button onclick="renderMorningAttention()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻ Refresh</button>
+      </div>
+      <div id="morning-attention-list"></div>
     </div>
   </div>
 
