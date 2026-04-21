@@ -2124,6 +2124,17 @@ function showChecksTab(tab, btn){
   if(btn) btn.classList.add('active');
   if(tab==='history') loadChecks();
   if(tab==='submit') renderTodayCheckSubmissions();
+  if(tab==='morning'){
+    const _fr=Object.values(growlinkData||{})[0];
+    const _age=_fr?.fetchedAt?(Date.now()-new Date(_fr.fetchedAt).getTime())/60000:999;
+    if(_age>10){
+      document.getElementById('morning-attention-list').innerHTML=
+        '<div style="text-align:center;padding:24px;color:var(--text3)">Pulling Growlink data…</div>';
+      pullGrowlinkFromCloud(true).then(()=>renderMorningAttention()).catch(()=>renderMorningAttention());
+    } else {
+      renderMorningAttention();
+    }
+  }
 }
 
 function rcLoadTables(){
@@ -3455,7 +3466,14 @@ function showPage(page){
     const rcDate=document.getElementById('rc-date');
     if(rcDate&&!rcDate.value) rcDate.value=dateToIso(TODAY);
     renderTodayCheckSubmissions();
-    renderMorningAttention();
+    // Pre-load Growlink data so morning tab is ready when opened
+    const _firstRoom = Object.values(growlinkData||{})[0];
+    const _glAge = _firstRoom?.fetchedAt ? (Date.now()-new Date(_firstRoom.fetchedAt).getTime())/60000 : 999;
+    if(_glAge > 10){
+      pullGrowlinkFromCloud(true).then(()=>renderMorningAttention()).catch(()=>{});
+    } else {
+      renderMorningAttention();
+    }
   }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
@@ -3859,6 +3877,9 @@ async function pullGrowlinkFromCloud(silent=false){
     renderRooms();
     // Also update support rooms directly in case Rooms page isn't active
     setTimeout(()=>{try{renderSupportRooms();}catch(e){}},0);
+    // Refresh morning attention list if it's visible
+    const _morningEl=document.getElementById('checks-sub-morning');
+    if(_morningEl&&_morningEl.style.display!=='none') setTimeout(()=>renderMorningAttention(),0);
   }catch(e){ if(!silent) console.warn('Growlink pull failed:',e); }
 }
 
