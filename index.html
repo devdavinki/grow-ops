@@ -3725,7 +3725,11 @@ async function pullRoomChecksFromCloud(silent=false){
         rowDate = dateToIso(d);
       }
       if(rowDate !== todayIso) return;
-      const room  = (row[3]||'').toString().trim().toUpperCase().replace(/\s+/g,'');
+      // Normalize room to R1/R2/R11 format regardless of what the sheet contains
+      // Sheet may have: "R1", "r1", "Room 1", "ROOM1", "room 1", "Grow Room 1"
+      const rawRoom = (row[3]||'').toString().trim();
+      const roomNum = rawRoom.match(/\d+/);
+      const room = roomNum ? 'R' + roomNum[0] : rawRoom.toUpperCase().replace(/\s+/g,'');
       if(!room) return;
       const sub = {
         room,
