@@ -1450,10 +1450,10 @@ function renderRooms(){
           dp!==null?(()=>{
             const gl2=getGlobalThresholds();
             const dpCeil=gl2.dewPoint?.t1||60;
-            const dpSpread=Math.max(0,dpCeil-dp).toFixed(1);
-            const dpCol=stale?'':'';
-            const dpClass=stale?'':(dp>=dpCeil?'alert':dp>=(dpCeil-3)?'warn':'ok');
-            return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${dpClass}">${dpSpread}<span class="env-unit">°F</span></div></div>`;
+            const dpSpread=(dpCeil-dp);
+            const dpSpreadStr=(dpSpread>=0?'+':'')+dpSpread.toFixed(1);
+            const dpClass=stale?'':(dpSpread<=0?'alert':dpSpread<=3?'warn':'ok');
+            return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${dpClass}">${dpSpreadStr}<span class="env-unit">°F</span></div></div>`;
           })():'',
         ].filter(Boolean).join('');
         const row2=[
@@ -4741,9 +4741,10 @@ function renderSupportRooms(){
         !_isDryCard?`<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`:'',
         dp!=null?(()=>{
           const _dpCeil2=(typeof getGlobalThresholds==='function')?getGlobalThresholds().dewPoint?.t1||60:60;
-          const _dpSpread2=Math.max(0,_dpCeil2-dp).toFixed(1);
-          const _dpCls2=dp>=_dpCeil2?'alert':dp>=(_dpCeil2-3)?'warn':'ok';
-          return`<div class="env-cell"><div class="env-lbl">DP Spread</div>${ev(_dpSpread2,_dpCls2==='ok','°F')}</div>`;
+          const _dpSpread2=(_dpCeil2-dp);
+          const _dpSpread2Str=(_dpSpread2>=0?'+':'')+_dpSpread2.toFixed(1);
+          const _dpCls2=_dpSpread2<=0?'alert':_dpSpread2<=3?'warn':'ok';
+          return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${stale?'':_dpCls2}">${_dpSpread2Str}<span class="env-unit">°F</span></div></div>`;
         })():'',
       ].filter(Boolean).join('');
       // Soil sensors on all support rooms are controller bleed from adjacent flower rooms — don't show
