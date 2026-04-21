@@ -530,6 +530,18 @@ button { cursor: pointer; }
       </div>
     </div>
 
+    <!-- MORNING ATTENTION SUB-PAGE -->
+    <div id="checks-sub-morning" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="section-title">Morning attention list</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Probes with highest overnight dryback — check and water in order. Tap to mark done.</div>
+        </div>
+        <button onclick="renderMorningAttention()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻ Refresh</button>
+      </div>
+      <div id="morning-attention-list"></div>
+    </div>
+
   </div>
 
   <!-- MOTHER GEN MODAL -->
@@ -606,6 +618,7 @@ button { cursor: pointer; }
     <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
       <button class="nav-tab active" id="checks-subtab-submit" onclick="showChecksTab('submit',this)" style="font-size:12px">Submit check</button>
       <button class="nav-tab" id="checks-subtab-history" onclick="showChecksTab('history',this)" style="font-size:12px">View history</button>
+      <button class="nav-tab" id="checks-subtab-morning" onclick="showChecksTab('morning',this)" style="font-size:12px">🌅 Morning</button>
     </div>
 
     <!-- SUBMIT FORM -->
@@ -2106,6 +2119,7 @@ const RC_TABLE_COUNTS = {R1:2,R2:3,R3:3,R4:3,R5:3,R6:2,R7:3,R8:3,R9:2,R10:3,R11:
 function showChecksTab(tab, btn){
   document.getElementById('checks-sub-submit').style.display = tab==='submit'?'block':'none';
   document.getElementById('checks-sub-history').style.display = tab==='history'?'block':'none';
+  document.getElementById('checks-sub-morning').style.display = tab==='morning'?'block':'none';
   document.querySelectorAll('#page-checks .nav-tab').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   if(tab==='history') loadChecks();
@@ -2305,6 +2319,168 @@ async function loadChecks(){
     note.textContent='Could not load. Check URL.';
     renderChecks({});
   }
+}
+
+// ══════════════════════════════════════════════
+// MORNING ATTENTION LIST
+// Reads live Growlink dryback from all flower rooms,
+// sorts by highest overnight dryback, shows as a task list.
+// Completions stored in localStorage keyed by today's date.
+// ══════════════════════════════════════════════
+
+function getMorningKey(){
+  return 'wg_morning_'+dateToIso(TODAY);
+}
+
+function renderMorningAttention(){
+  const wrap = document.getElementById('morning-attention-list');
+  if(!wrap) return;
+
+  // Build probe list from all flower room Growlink data
+  const probes = [];
+  rooms.forEach(room => {
+    const gl = getGrowlinkForRoom(room.name);
+    if(!gl || !gl.rawSensors) return;
+    const roomNum = parseInt((room.name.match(/\d+/)||[])[0]);
+    if(!roomNum) return;
+    const tableCount = [1,6,9].includes(roomNum) ? 2 : 3;
+    const tables = parseTableSensors(gl.rawSensors, tableCount);
+    Object.entries(tables).forEach(([tNum, sides]) => {
+      Object.entries(sides).forEach(([pos, data]) => {
+        if(!data || data.dryback == null) return;
+        probes.push({
+          room: room.name,
+          roomNum,
+          table: parseInt(tNum),
+          pos,            // 'F' or 'B'
+          vwc: data.vwc,
+          ec: data.ec,
+          dryback: data.dryback,
+          peak: data.peak,
+          id: `${room.name}_T${tNum}_${pos}`,
+        });
+      });
+    });
+  });
+
+  if(!probes.length){
+    wrap.innerHTML = `<div class="card" style="text-align:center;padding:24px;color:var(--text3)">
+      <div style="font-size:24px;margin-bottom:8px">💧</div>
+      <div>No Growlink dryback data available. Pull Growlink data first.</div>
+      <button onclick="pullGrowlinkFromCloud().then(renderMorningAttention)" style="margin-top:12px;font-size:12px;padding:6px 14px;border-radius:var(--r);border:1px solid var(--border2);background:none;cursor:pointer;color:var(--text2)">Pull Growlink data</button>
+    </div>`;
+    return;
+  }
+
+  // Sort by dryback descending (driest first)
+  probes.sort((a,b) => b.dryback - a.dryback);
+
+  // Load today's completions
+  const done = L(getMorningKey(), {});
+
+  // Split into pending and completed
+  const pending = probes.filter(p => !done[p.id]);
+  const completed = probes.filter(p => done[p.id]);
+
+  const posLabel = pos => pos === 'F' ? 'Front' : pos === 'B' ? 'Back' : pos;
+  const dbColor = db => db > 25 ? 'var(--red)' : db > 15 ? 'var(--amber)' : 'var(--green)';
+  const vwcColor = vwc => (vwc != null && vwc < 35) ? 'var(--red)' : (vwc != null && vwc < 50) ? 'var(--amber)' : 'var(--text)';
+
+  function probeRow(p, isDone){
+    const who = isDone ? (done[p.id]?.who || '') : '';
+    const time = isDone ? (done[p.id]?.time || '') : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
+        background:${isDone ? 'var(--bg3)' : 'var(--surface)'};
+        border:1px solid ${isDone ? 'var(--border)' : (p.dryback > 25 ? 'var(--red-dim)' : p.dryback > 15 ? 'var(--amber-dim)' : 'var(--border2)')};
+        opacity:${isDone ? '0.55' : '1'};margin-bottom:6px">
+      <!-- Checkbox -->
+      <div onclick="${isDone ? '' : `completeMorningProbe('${p.id}')`}"
+        style="width:22px;height:22px;border-radius:50%;border:2px solid ${isDone ? 'var(--green)' : 'var(--border2)'};
+          background:${isDone ? 'var(--green)' : 'none'};display:flex;align-items:center;justify-content:center;
+          cursor:${isDone ? 'default' : 'pointer'};flex-shrink:0;color:#fff;font-size:12px">
+        ${isDone ? '✓' : ''}
+      </div>
+      <!-- Room + table info -->
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:${isDone ? 'var(--text3)' : 'var(--text)'}">
+          ${p.room} · Table ${p.table} ${posLabel(p.pos)}
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:3px">
+          <span style="font-size:11px;font-family:var(--mono)">
+            <span style="color:var(--text3)">VWC </span>
+            <span style="color:${isDone ? 'var(--text3)' : vwcColor(p.vwc)};font-weight:600">${p.vwc != null ? p.vwc.toFixed(1) + '%' : '—'}</span>
+          </span>
+          <span style="font-size:11px;font-family:var(--mono)">
+            <span style="color:var(--text3)">EC </span>
+            <span style="color:${isDone ? 'var(--text3)' : 'var(--text)'};font-weight:600">${p.ec != null ? p.ec.toFixed(2) : '—'}</span>
+          </span>
+          <span style="font-size:11px;font-family:var(--mono)">
+            <span style="color:var(--text3)">Dryback </span>
+            <span style="color:${isDone ? 'var(--text3)' : dbColor(p.dryback)};font-weight:700">${p.dryback.toFixed(1)}%</span>
+          </span>
+          ${p.peak != null ? `<span style="font-size:10px;color:var(--text3)">pk ${p.peak.toFixed(1)}%</span>` : ''}
+        </div>
+      </div>
+      <!-- Done by / or action -->
+      ${isDone
+        ? `<div style="font-size:10px;color:var(--text3);text-align:right;flex-shrink:0">${who}<br>${time}</div>`
+        : `<button onclick="completeMorningProbe('${p.id}')"
+            style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green-dim);
+              background:var(--green-bg);color:var(--green);cursor:pointer;flex-shrink:0;font-weight:600">
+            Done ✓
+          </button>`}
+    </div>`;
+  }
+
+  let html = '';
+
+  if(!pending.length && !completed.length){
+    html = `<div class="card" style="text-align:center;padding:24px;color:var(--text3)">No dryback data found in sensor readings.</div>`;
+  } else {
+    // Pending section
+    if(pending.length){
+      html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">
+        Needs attention · ${pending.length} probe${pending.length>1?'s':''}</div>`;
+      html += pending.map(p => probeRow(p, false)).join('');
+    } else {
+      html += `<div style="text-align:center;padding:20px;color:var(--green);font-weight:600;font-size:14px;margin-bottom:12px">
+        ✓ All probes checked for today</div>`;
+    }
+
+    // Completed section
+    if(completed.length){
+      html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-top:16px;margin-bottom:8px">
+        Completed today · ${completed.length}</div>`;
+      html += completed.map(p => probeRow(p, true)).join('');
+    }
+  }
+
+  wrap.innerHTML = `<div style="margin-bottom:6px;font-size:11px;color:var(--text3)">
+    ${probes.length} probes · data from ${gl_ago()} ago
+    ${completed.length ? ` · <button onclick="clearMorningCompletions()" style="font-size:10px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Clear completions</button>` : ''}
+  </div>` + html;
+}
+
+function gl_ago(){
+  // Get approximate age of growlink data
+  const r = Object.values(growlinkData)[0];
+  if(!r || !r.fetchedAt) return '?';
+  const mins = Math.round((Date.now() - new Date(r.fetchedAt).getTime()) / 60000);
+  return mins + 'm';
+}
+
+function completeMorningProbe(probeId){
+  const done = L(getMorningKey(), {});
+  const who = loggedInMember ? loggedInMember.name : 'Unknown';
+  done[probeId] = { who, time: fmtTime(), completedAt: new Date().toISOString() };
+  S(getMorningKey(), done);
+  renderMorningAttention();
+}
+
+function clearMorningCompletions(){
+  if(!confirm('Clear all completions for today?')) return;
+  S(getMorningKey(), {});
+  renderMorningAttention();
 }
 
 function renderChecks(latest){
@@ -3279,6 +3455,7 @@ function showPage(page){
     const rcDate=document.getElementById('rc-date');
     if(rcDate&&!rcDate.value) rcDate.value=dateToIso(TODAY);
     renderTodayCheckSubmissions();
+    renderMorningAttention();
   }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
