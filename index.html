@@ -1447,13 +1447,10 @@ function renderRooms(){
           gl.humidity!=null?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
           gl.co2!=null?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':(co2Ok?'ok':'warn')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
           gl.vpd!=null?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':(vpdOk?'ok':'warn')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
-          dp!==null?(()=>{
-            const gl2=getGlobalThresholds();
-            const dpCeil=gl2.dewPoint?.t1||60;
-            const dpSpread=(dpCeil-dp);
-            const dpSpreadStr=(dpSpread>=0?'+':'')+dpSpread.toFixed(1);
-            const dpClass=stale?'':(dpSpread<=0?'alert':dpSpread<=3?'warn':'ok');
-            return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${dpClass}">${dpSpreadStr}<span class="env-unit">°F</span></div></div>`;
+          (dp!==null&&gl.temp!=null)?(()=>{
+            const dpSpread=gl.temp-dp;
+            const dpClass=stale?'':(dpSpread<2?'alert':dpSpread<4?'warn':'ok');
+            return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${dpClass}">${dpSpread.toFixed(1)}<span class="env-unit">°F</span></div></div>`;
           })():'',
         ].filter(Boolean).join('');
         const row2=[
@@ -2351,7 +2348,7 @@ function renderMorningAttention(){
 
   // Build probe list from all flower room Growlink data
   const probes = [];
-  rooms.forEach(room => {
+  rooms.filter(r=>r.tier!=='Support').forEach(room => {
     const gl = getGrowlinkForRoom(room.name);
     if(!gl || !gl.rawSensors) return;
     const roomNum = parseInt((room.name.match(/\d+/)||[])[0]);
@@ -3502,7 +3499,7 @@ function showPage(page){
     // Show pre-roll sub-tab for leads only
     const prerollBtn=document.getElementById('preroll-subtab-btn');
     if(prerollBtn) prerollBtn.style.display=currentRole==='lead'?'':'none';
-    pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();});
+    pullMetrcFromCloud(true);pullWeightsFromCloud().then(()=>{renderTrimQueue();renderWeightCards();renderPrerollPriority();});
   }
 }
 
@@ -3796,10 +3793,10 @@ function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||
 // ── ALERT THRESHOLD OVERRIDES ──────────────────────────────────
 // Stored in localStorage 'wg_alert_thresholds'
 // Shape: { [phaseId]: { temp:{t2:4,t1:10}, rh:{t2:7,t1:15}, co2:{t2:150,t1:300}, vpd:{t2:0.2,t1:0.4} },
-//           _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 } }
+//           _global: { dewPoint:{t1:3}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 } }
 // These are SPREADS from the setpoint — e.g. temp t2:4 means ±4°F from setpoint = amber
 const DEFAULT_THRESHOLDS = {
-  _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 }
+  _global: { dewPoint:{t1:3}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 }
 };
 // Per-phase defaults (applied when no override exists)
 const PHASE_THRESHOLD_DEFAULTS = {
@@ -4741,10 +4738,10 @@ function renderSupportRooms(){
         !_isDryCard?`<div class="env-cell"><div class="env-lbl">VPD</div>${ev(gl.vpd,gl.vpd>=0.6&&gl.vpd<=1.8,'kPa',2)}</div>`:'',
         dp!=null?(()=>{
           const _dpCeil2=(typeof getGlobalThresholds==='function')?getGlobalThresholds().dewPoint?.t1||60:60;
-          const _dpSpread2=(_dpCeil2-dp);
-          const _dpSpread2Str=(_dpSpread2>=0?'+':'')+_dpSpread2.toFixed(1);
-          const _dpCls2=_dpSpread2<=0?'alert':_dpSpread2<=3?'warn':'ok';
-          return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${stale?'':_dpCls2}">${_dpSpread2Str}<span class="env-unit">°F</span></div></div>`;
+          const _dpSpread2=gl.temp!=null?gl.temp-dp:null;
+          if(_dpSpread2===null) return '';
+          const _dpCls2=_dpSpread2<2?'alert':_dpSpread2<4?'warn':'ok';
+          return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${stale?'':_dpCls2}">${_dpSpread2.toFixed(1)}<span class="env-unit">°F</span></div></div>`;
         })():'',
       ].filter(Boolean).join('');
       // Soil sensors on all support rooms are controller bleed from adjacent flower rooms — don't show
@@ -5653,7 +5650,7 @@ function renderBlueprintGlobal(){
   }
 
   wrap.innerHTML = `
-    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||60, '🔴 DP Spread ceiling — alert when spread < this (°F)',
+    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||3, '🔴 DP Spread minimum — T1 alert when temp−DP below (°F)',
       "alertThresholds._global.dewPoint={t1:parseFloat(this.value)||60};saveAlertThresholds();showBlueprint_status()", '°F')}
     <div style="font-size:10px;color:var(--text3);padding:6px 0 0 2px">Spread = ceiling − actual dew point. Set ceiling to your safe DP limit (e.g. 60°F). Card turns amber when spread &lt;3°F, red when DP exceeds ceiling. T1 Slack alert fires after sustain timer.</div>
     ${numInput('gl-soilec-t1', gl.soilEC?.t1||10, '🔴 Soil EC ceiling (T1)',
@@ -5894,7 +5891,7 @@ function getGuardrailsForPhase(phaseId){
     vpd:   p.vpdMin!=null ? { setpoint:(p.vpdMin+p.vpdMax)/2, t2Low:p.vpdMin-tVPD.t2, t2High:p.vpdMax+tVPD.t2, t1Low:p.vpdMin-tVPD.t1, t1High:p.vpdMax+tVPD.t1 } : null,
     soilEC:       { t1High: gl.soilEC?.t1  || 10 },
     soilMoisture: { t1Low:  gl.soilMoisture?.t1 || 10 },
-    dewPoint:     { t1High: gl.dewPoint?.t1 || 60 },
+    dewPoint:     { t1Low: gl.dewPoint?.t1 || 3 },  // floor: alert when temp-dp spread < this
   };
 }
 
@@ -5949,9 +5946,12 @@ function evaluateRoom(roomName, sensors, phaseId){
   check('soilEC',      sensors.soilEC,        g.soilEC,       'Soil EC',  '');
   check('soilMoisture',sensors.soilMoisture,  g.soilMoisture, 'Moisture', '%');
 
-  // Dew point hard ceiling
+  // Dew point spread (temp - dewpoint) — alert when too low (PM risk)
   const dp = calcDewPoint(sensors.temp, sensors.humidity);
-  if(dp!==null) check('dewPoint', dp, g.dewPoint, 'Dew point', '°F');
+  if(dp!==null && sensors.temp!=null){
+    const dpSpreadVal = sensors.temp - dp;
+    check('dewPoint', dpSpreadVal, g.dewPoint, 'DP Spread', '°F');
+  }
 
   return issues;
 }
