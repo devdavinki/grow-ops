@@ -3588,6 +3588,35 @@ const MAXX_PHASES=[
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
+// ── ALERT THRESHOLD OVERRIDES ──────────────────────────────────
+// Stored in localStorage 'wg_alert_thresholds'
+// Shape: { [phaseId]: { temp:{t2:4,t1:10}, rh:{t2:7,t1:15}, co2:{t2:150,t1:300}, vpd:{t2:0.2,t1:0.4} },
+//           _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 } }
+// These are SPREADS from the setpoint — e.g. temp t2:4 means ±4°F from setpoint = amber
+const DEFAULT_THRESHOLDS = {
+  _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 }
+};
+// Per-phase defaults (applied when no override exists)
+const PHASE_THRESHOLD_DEFAULTS = {
+  temp: {t2:4,  t1:10},
+  rh:   {t2:7,  t1:15},
+  co2:  {t2:150,t1:300},
+  vpd:  {t2:0.2,t1:0.4},
+};
+let alertThresholds = L('wg_alert_thresholds', DEFAULT_THRESHOLDS);
+
+function getThresholdsForPhase(phaseId){
+  return alertThresholds[phaseId] || {};
+}
+function getGlobalThresholds(){
+  return alertThresholds._global || DEFAULT_THRESHOLDS._global;
+}
+function saveAlertThresholds(){
+  S('wg_alert_thresholds', alertThresholds);
+  pushConfigToCloud(true);
+}
+
+
 const EC_RAINBOW=[
   {name:'Red',    start:1,  end:7,  ecMin:1.9,ecMax:2.0,color:'#c0392b'},
   {name:'Orange', start:8,  end:14, ecMin:2.0,ecMax:2.1,color:'#c05621'},
@@ -5624,33 +5653,6 @@ function showBlueprint_status(msg){
   setTimeout(()=>{ el.textContent=''; }, 2500);
 }
 
-// ── ALERT THRESHOLD OVERRIDES ──────────────────────────────────
-// Stored in localStorage 'wg_alert_thresholds'
-// Shape: { [phaseId]: { temp:{t2:4,t1:10}, rh:{t2:7,t1:15}, co2:{t2:150,t1:300}, vpd:{t2:0.2,t1:0.4} },
-//           _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 } }
-// These are SPREADS from the setpoint — e.g. temp t2:4 means ±4°F from setpoint = amber
-const DEFAULT_THRESHOLDS = {
-  _global: { dewPoint:{t1:60}, soilEC:{t1:10}, soilMoisture:{t1:10}, sustainMin:15 }
-};
-// Per-phase defaults (applied when no override exists)
-const PHASE_THRESHOLD_DEFAULTS = {
-  temp: {t2:4,  t1:10},
-  rh:   {t2:7,  t1:15},
-  co2:  {t2:150,t1:300},
-  vpd:  {t2:0.2,t1:0.4},
-};
-let alertThresholds = L('wg_alert_thresholds', DEFAULT_THRESHOLDS);
-
-function getThresholdsForPhase(phaseId){
-  return alertThresholds[phaseId] || {};
-}
-function getGlobalThresholds(){
-  return alertThresholds._global || DEFAULT_THRESHOLDS._global;
-}
-function saveAlertThresholds(){
-  S('wg_alert_thresholds', alertThresholds);
-  pushConfigToCloud(true);
-}
 
 // Maxx OS v1.4 phase thresholds — uses lead overrides if set, else defaults
 // T2 = amber (inner band / log only), T1 = red (outer band / Slack after sustain)
