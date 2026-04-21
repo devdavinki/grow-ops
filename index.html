@@ -2360,15 +2360,15 @@ function renderMorningAttention(){
     const tables = parseTableSensors(gl.rawSensors, tableCount);
     Object.entries(tables).forEach(([tNum, sides]) => {
       Object.entries(sides).forEach(([pos, data]) => {
-        if(!data || data.dryback == null) return;
+        if(!data) return;
         probes.push({
           room: room.name,
           roomNum,
           table: parseInt(tNum),
-          pos,            // 'F' or 'B'
+          pos,
           vwc: data.vwc,
           ec: data.ec,
-          dryback: data.dryback,
+          dryback: data.dryback,  // may be null if no peak history yet
           peak: data.peak,
           id: `${room.name}_T${tNum}_${pos}`,
         });
@@ -2376,8 +2376,7 @@ function renderMorningAttention(){
     });
   });
 
-  console.log('[Morning] rooms scanned:', rooms.length, 'probes found:', probes.length,
-    'sample:', probes.slice(0,2).map(p=>p.room+' T'+p.table+p.pos+' db='+p.dryback));
+
   if(!probes.length){
     wrap.innerHTML = `<div class="card" style="text-align:center;padding:24px;color:var(--text3)">
       <div style="font-size:24px;margin-bottom:8px">💧</div>
@@ -2387,8 +2386,13 @@ function renderMorningAttention(){
     return;
   }
 
-  // Sort by dryback descending (driest first)
-  probes.sort((a,b) => b.dryback - a.dryback);
+  // Sort by dryback descending (driest first), nulls last
+  probes.sort((a,b) => {
+    if(a.dryback == null && b.dryback == null) return 0;
+    if(a.dryback == null) return 1;
+    if(b.dryback == null) return -1;
+    return b.dryback - a.dryback;
+  });
 
   // Load today's completions
   const done = L(getMorningKey(), {});
@@ -2406,7 +2410,7 @@ function renderMorningAttention(){
     const time = isDone ? (done[p.id]?.time || '') : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
         background:${isDone ? 'var(--bg3)' : 'var(--surface)'};
-        border:1px solid ${isDone ? 'var(--border)' : (p.dryback > 25 ? 'var(--red-dim)' : p.dryback > 15 ? 'var(--amber-dim)' : 'var(--border2)')};
+        border:1px solid ${isDone ? 'var(--border)' : (p.dryback == null ? 'var(--border2)' : p.dryback > 25 ? 'var(--red-dim)' : p.dryback > 15 ? 'var(--amber-dim)' : 'var(--border2)')};
         opacity:${isDone ? '0.55' : '1'};margin-bottom:6px">
       <!-- Checkbox -->
       <div onclick="${isDone ? '' : `completeMorningProbe('${p.id}')`}"
@@ -2431,7 +2435,7 @@ function renderMorningAttention(){
           </span>
           <span style="font-size:11px;font-family:var(--mono)">
             <span style="color:var(--text3)">Dryback </span>
-            <span style="color:${isDone ? 'var(--text3)' : dbColor(p.dryback)};font-weight:700">${p.dryback.toFixed(1)}%</span>
+            <span style="color:${isDone ? 'var(--text3)' : (p.dryback!=null?dbColor(p.dryback):'var(--text3)')};font-weight:${p.dryback!=null?'700':'400'}">${p.dryback!=null?p.dryback.toFixed(1)+'%':'—'}</span>
           </span>
           ${p.peak != null ? `<span style="font-size:10px;color:var(--text3)">pk ${p.peak.toFixed(1)}%</span>` : ''}
         </div>
