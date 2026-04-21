@@ -1159,6 +1159,15 @@ function getStage(room){
   return'harvest';
 }
 
+// Phase-based care reminders — fired on specific flower days
+function phaseReminders(room){
+  const fd=flowerDay(room);
+  if(!fd) return [];
+  const reminders=[];
+  if(fd===29) reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
+  return reminders;
+}
+
 function flipNudge(room){
   const launch=isoToDate(room.launchDate);
   if(!launch||room.flipDate)return null;
@@ -1339,7 +1348,11 @@ function renderRooms(){
     }
 
     // flip nudge
+    const phaseRem=phaseReminders(room);
     let nudgeHTML='';
+    if(phaseRem&&phaseRem.length){
+      nudgeHTML+=phaseRem.map(r=>`<div style="background:var(--blue-dim);border:1px solid var(--blue);border-radius:var(--r);padding:6px 10px;margin-top:6px;font-size:11px;color:var(--blue);display:flex;gap:6px;align-items:flex-start"><span>${r.icon}</span><span>${r.text}</span></div>`).join('');
+    }
     if(nudges&&nudges.length){
       nudgeHTML=`<div class="flip-nudge" style="font-size:10px">
         Flip timing: ${nudges.slice(0,3).map(n=>`<span style="margin-right:8px;color:${n.good?'var(--green)':'var(--text3)'}">${n.label} → harvest ${n.dow} ${n.harvest}${n.good?' ✓':''}</span>`).join('')}
@@ -1387,10 +1400,22 @@ function renderRooms(){
         if(!gl) return '';
         const age=gl.fetchedAt?Math.round((Date.now()-new Date(gl.fetchedAt).getTime())/60000):null;
         const stale=age!==null&&age>15;
-        const tempOk=gl.temp&&gl.temp>=78&&gl.temp<=84;
-        const rhOk=gl.humidity&&gl.humidity>=55&&gl.humidity<=80;
-        const co2Ok=gl.co2&&gl.co2>=900&&gl.co2<=1500;
-        const vpdOk=gl.vpd&&gl.vpd>=0.8&&gl.vpd<=1.6;
+        // Use phase guardrails for color coding if available
+        const _fd=flowerDay(room);
+        const _phase=_fd?getPhaseForDay(_fd):null;
+        const _g=_phase?getGuardrailsForPhase(_phase.id):null;
+        const tempOk=_g?
+          (gl.temp>=_g.temp.t2Low&&gl.temp<=_g.temp.t2High):
+          (gl.temp&&gl.temp>=78&&gl.temp<=84);
+        const rhOk=_g?
+          (gl.humidity>=_g.rh.t2Low&&gl.humidity<=_g.rh.t2High):
+          (gl.humidity&&gl.humidity>=55&&gl.humidity<=80);
+        const co2Ok=_g?
+          (gl.co2>=_g.co2.t2Low&&gl.co2<=_g.co2.t2High):
+          (gl.co2&&gl.co2>=900&&gl.co2<=1500);
+        const vpdOk=_g&&_g.vpd?
+          (gl.vpd>=_g.vpd.t2Low&&gl.vpd<=_g.vpd.t2High):
+          (gl.vpd&&gl.vpd>=0.8&&gl.vpd<=1.6);
         const soilECOk=gl.soilEC&&gl.soilEC>=1.5&&gl.soilEC<=4.5;
         const soilMoistOk=gl.soilMoisture&&gl.soilMoisture>=50&&gl.soilMoisture<=80;
         // Calculate dew point from temp + RH (Magnus formula)
@@ -1408,7 +1433,14 @@ function renderRooms(){
           gl.humidity!==undefined?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
           gl.co2!==undefined?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':(co2Ok?'ok':'warn')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
           gl.vpd!==undefined?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':(vpdOk?'ok':'warn')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
-          dp!==null?`<div class="env-cell"><div class="env-lbl">Dew Pt</div><div class="env-num ${stale?'':(dpOk?'ok':'alert')}">${dp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
+          dp!==null?(()=>{
+            const gl2=getGlobalThresholds();
+            const dpCeil=gl2.dewPoint?.t1||60;
+            const dpSpread=Math.max(0,dpCeil-dp).toFixed(1);
+            const dpCol=stale?'':'';
+            const dpClass=stale?'':(dp>=dpCeil?'alert':dp>=(dpCeil-3)?'warn':'ok');
+            return`<div class="env-cell"><div class="env-lbl">DP Spread</div><div class="env-num ${dpClass}">${dpSpread}<span class="env-unit">°F</span></div></div>`;
+          })():'',
         ].filter(Boolean).join('');
         const row2=[
           gl.soilMoisture!=null?`<div class="env-cell"><div class="env-lbl">VWC</div><div class="env-num ${stale?'':(soilMoistOk?'ok':'warn')}">${gl.soilMoisture.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
@@ -1746,16 +1778,31 @@ function renderCloneTracker(){
   if(!cloneSessions.length){
     list.innerHTML=`<div class="empty-state">No sessions logged this week.</div>`;
   } else {
-    list.innerHTML=[...cloneSessions].reverse().map(s=>`
-      <div class="log-entry">
-        <div class="log-status" style="background:var(--green)"></div>
-        <div class="log-info">
+    // Show newest first — map with real index so edit works correctly
+    list.innerHTML=[...cloneSessions].map((s,i)=>({s,i})).reverse().map(({s,i})=>`
+      <div class="log-entry" style="align-items:flex-start">
+        <div class="log-status" style="background:var(--green);margin-top:4px"></div>
+        <div class="log-info" style="flex:1">
           <div class="log-title">${s.count} clones — ${s.strain}${s.motherTag?` <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:6px">mother …${s.motherTag}</span>`:''}</div>
-          <div class="log-meta">${s.who} · ${s.date}</div>
+          <div class="log-meta">${s.who} · ${s.date} · ${s.time}</div>
         </div>
-        <div class="log-time">${s.time}</div>
+        ${(loggedInMember?.role==='lead'||loggedInMember?.name===s.who)?`<button onclick="editCloneSession(${i})" style="font-size:10px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer;flex-shrink:0;margin-top:2px">Edit</button>`:''}
       </div>`).join('');
   }
+}
+
+function editCloneSession(idx){
+  const s=cloneSessions[idx];
+  if(!s) return;
+  const newCount=prompt('Edit clone count:',s.count);
+  if(newCount===null) return;
+  const newStrain=prompt('Edit strain:',s.strain);
+  if(newStrain===null) return;
+  const newNote=prompt('Edit note (optional):',s.note||'');
+  cloneSessions[idx]={...s,count:parseInt(newCount)||s.count,strain:newStrain.trim()||s.strain,note:newNote};
+  S(getWeekKey(),cloneSessions);
+  renderCloneTracker();
+  pushConfigDebounced();
 }
 
 // ══════════════════════════════════════════════
@@ -2824,11 +2871,11 @@ function renderSettings(){
         ${room.paired?'<span class="tag tag-teal" style="font-size:9px">paired</span>':''}
       </div>
       <label>Strain</label>
-      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
+      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
       <label>Launch date (plants in)</label>
-      <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
+      <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
       <label>Flip date (day 1 of flower)</label>
-      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);renderRooms();pushConfigDebounced()"/>
+      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
       <label>Note</label>
       <input value="${room.note||''}" placeholder="e.g. Harvested Fri" onchange="rooms[${i}].note=this.value;S('wg_rooms_v2',rooms)"/>
       ${d.harvestDate?`<div class="calc-row">
@@ -3574,6 +3621,11 @@ let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 // Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
 let growlinkData = L('wg_growlink_rooms', {});
 let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{note:'',order:[],takedowns:{}},'Dry Room 2':{note:'',order:[],takedowns:{}}});
+// Clear any runoff sheet links accidentally saved in dry room notes
+if(dryRooms['Dry Room 2']?.note && dryRooms['Dry Room 2'].note.includes('http')){
+  dryRooms['Dry Room 2'].note='';
+  S('wg_dry_rooms',dryRooms);
+}
 
 // Map Growlink room names → dashboard room names
 const GROWLINK_ROOM_MAP = {
@@ -4324,6 +4376,7 @@ function moveDryRoom(dryKey, roomTag, dir){
   [tags[idx],tags[newIdx]]=[tags[newIdx],tags[idx]];
   dr.order=tags;
   S('wg_dry_rooms',dryRooms);
+  S('wg_rooms_edited_at',Date.now());
   pushConfigToCloud(true);
   renderSupportRooms();
 }
@@ -4342,6 +4395,7 @@ function submitDryTakedown(dryKey, roomTag){
     approvedAt:'',
   };
   S('wg_dry_rooms',dryRooms);
+  S('wg_rooms_edited_at',Date.now());
   pushConfigToCloud(true);
   renderSupportRooms();
 }
@@ -4359,10 +4413,17 @@ function approveDryTakedown(dryKey, roomTag){
   td.approved=true;
   td.approvedBy=who;
   td.approvedAt=fmtTime();
+  // Remove room from order list so it disappears from the card
+  if(dryRooms[dryKey]?.order){
+    dryRooms[dryKey].order=dryRooms[dryKey].order.filter(t=>t!==roomTag);
+  }
+  // Clean up takedown record
+  delete dryRooms[dryKey].takedowns[tdKey];
   S('wg_dry_rooms',dryRooms);
   pushConfigToCloud(true);
   // Log to sheet
   postToSheet('Dry_Takedowns',[dateToIso(TODAY),fmtTime(),dryKey,roomTag,td.submittedBy,who]);
+  S('wg_rooms_edited_at',Date.now());
   // Log to today's log
   todayLog.push({id:Date.now(),roomId:dryKey,taskId:'dry_takedown',
     taskName:'Dry takedown — '+dryKey+' Room '+roomTag.replace(/[^0-9]/g,''),
@@ -4577,7 +4638,7 @@ function renderSupportRooms(){
       if(currentRole==='lead'){
         html+=`<input id="dr-note-${key.replace(/ /g,'_')}" value="${dr.note||''}" placeholder="Notes (optional)"
           style="width:100%;box-sizing:border-box;font-size:11px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);color:var(--text);margin-top:6px"
-          oninput="dryRooms['${key}'].note=this.value;S('wg_dry_rooms',dryRooms);pushConfigToCloud(true)" />`;
+          oninput="dryRooms['${key}'].note=this.value;S('wg_dry_rooms',dryRooms);S('wg_rooms_edited_at',Date.now());pushConfigToCloud(true)" />`;
       } else if(dr.note){
         html+=`<div style="font-size:11px;color:var(--text2);margin-top:4px">${dr.note}</div>`;
       }
@@ -5271,8 +5332,13 @@ async function pullConfigFromCloud(silent=false){
     }
 
     if(d.dryRooms){
-      dryRooms=d.dryRooms;
-      S('wg_dry_rooms',dryRooms);
+      // Only accept cloud dryRooms if cloud is newer than our last local edit
+      const cloudSyncedAt2=d.syncedAt?new Date(d.syncedAt).getTime():0;
+      const localEditAt2=L('wg_rooms_edited_at',0);
+      if(cloudSyncedAt2>=localEditAt2){
+        dryRooms=d.dryRooms;
+        S('wg_dry_rooms',dryRooms);
+      }
       if(document.getElementById('support-rooms-grid')) renderSupportRooms();
     }
 
@@ -5336,8 +5402,9 @@ function renderBlueprintGlobal(){
   }
 
   wrap.innerHTML = `
-    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||60, '🔴 Dew Point ceiling (T1)',
+    ${numInput('gl-dewpoint-t1', gl.dewPoint?.t1||60, '🔴 Dew Point ceiling (°F)',
       "alertThresholds._global.dewPoint={t1:parseFloat(this.value)||60};saveAlertThresholds();showBlueprint_status()", '°F')}
+    <div style="font-size:10px;color:var(--text3);padding:6px 0 0 2px">Card shows spread = ceiling − actual DP. Green = safe margin, amber = close, red = exceeded.</div>
     ${numInput('gl-soilec-t1', gl.soilEC?.t1||10, '🔴 Soil EC ceiling (T1)',
       "alertThresholds._global.soilEC={t1:parseFloat(this.value)||10};saveAlertThresholds();showBlueprint_status()", 'mS')}
     ${numInput('gl-moisture-t1', gl.soilMoisture?.t1||10, '🔴 Soil moisture floor (T1)',
