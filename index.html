@@ -2376,6 +2376,8 @@ function renderMorningAttention(){
     });
   });
 
+  console.log('[Morning] rooms scanned:', rooms.length, 'probes found:', probes.length,
+    'sample:', probes.slice(0,2).map(p=>p.room+' T'+p.table+p.pos+' db='+p.dryback));
   if(!probes.length){
     wrap.innerHTML = `<div class="card" style="text-align:center;padding:24px;color:var(--text3)">
       <div style="font-size:24px;margin-bottom:8px">💧</div>
