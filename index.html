@@ -3736,47 +3736,90 @@ async function pullRoomChecksFromCloud(silent=false){
     const json = await res.json();
     if(!json.ok || !json.rows || json.rows.length < 2) return;
     const rows = json.rows;
-    // Row 0 may or may not be a header — detect by checking if first cell looks like a date
     const todayIso = dateToIso(TODAY);
-    const isHeader = row => typeof row[0] === 'string' && row[0].toLowerCase().includes('date');
-    const dataRows = isHeader(rows[0]) ? rows.slice(1) : rows;
-    // Parse each row: Date, Time, Who, Room, RH, RoomTemp, LeafTemp, Dewpoint, PPFD,
-    //                 T1EC, T1pH, T1Vol, T2EC, T2pH, T2Vol, T3EC, T3pH, T3Vol
+
+    // Skip header row — detect by col[0] being the word "Date" or "Timestamp"
+    const isHeader = r => typeof r[0] === 'string' && isNaN(Date.parse(r[0])) === false
+      ? false : typeof r[0] === 'string' && /date|time|stamp/i.test(r[0]);
+    const dataRows = (typeof rows[0][0] === 'string' && /date|time|stamp/i.test(rows[0][0]))
+      ? rows.slice(1) : rows;
+
+    // The standalone form schema changed — detect by checking if col[3] is a name string (new)
+    // or a number (old). Use that to determine column offsets.
+    //
+    // NEW schema (has Timestamp prepended):
+    //   0:Timestamp 1:Date 2:Time 3:Who 4:Room 5:RH 6:RoomTemp 7:LeafTemp 8:Dewpoint 9:PPFD
+    //   10:TableLabel 11:FrontVol 12:FrontEC 13:FrontPH 14:BackVol 15:BackEC 16:BackPH
+    //
+    // OLD schema (no Timestamp):
+    //   0:Date 1:Time 2:Room 3:RH 4:RoomTemp 5:LeafTemp 6:Dewpoint 7:PPFD
+    //   8:TableLabel 9:FrontVol 10:FrontEC 11:FrontPH 12:BackVol 13:BackEC 14:BackPH
+
+    const fmtTime = isoTime => {
+      // isoTime is like "1899-12-30T21:37:00.000Z" — extract HH:MM in local
+      if(!isoTime || typeof isoTime !== 'string') return isoTime||'';
+      const m = isoTime.match(/T(\d{2}):(\d{2})/);
+      if(!m) return isoTime;
+      // Convert UTC hours to local (subtract UTC offset in hours)
+      let h = parseInt(m[1]), mn = parseInt(m[2]);
+      // Sheets time serials are UTC — convert to local
+      const offset = new Date().getTimezoneOffset(); // minutes behind UTC (positive = behind)
+      const totalMin = h*60 + mn - offset;
+      const lh = ((Math.floor(totalMin/60)) % 24 + 24) % 24;
+      const lm = ((totalMin % 60) + 60) % 60;
+      const ampm = lh >= 12 ? 'PM' : 'AM';
+      const dh = lh % 12 || 12;
+      return dh + ':' + String(lm).padStart(2,'0') + ' ' + ampm;
+    };
+
     const todaySubs = [];
     dataRows.forEach(row => {
-      // Normalize date — Google Sheets may return a Date object or ISO string
-      let rowDate = row[0];
-      if(rowDate instanceof Date) rowDate = dateToIso(rowDate);
-      else if(typeof rowDate === 'string') rowDate = rowDate.split('T')[0].trim();
-      else if(typeof rowDate === 'number') {
-        // Sheets serial date
-        const d = new Date((rowDate - 25569) * 86400 * 1000);
-        rowDate = dateToIso(d);
-      }
+      // Detect schema version: new rows have col[3] as a name string, old have a number
+      const isNew = typeof row[3] === 'string' && isNaN(parseFloat(row[3])) && row[3].trim() !== '';
+      const dateCol  = isNew ? 1 : 0;
+      const timeCol  = isNew ? 2 : 1;
+      const whoCol   = isNew ? 3 : -1;
+      const roomCol  = isNew ? 4 : 2;
+      const rhCol    = isNew ? 5 : 3;
+      const tempCol  = isNew ? 6 : 4;
+      const leafCol  = isNew ? 7 : 5;
+      const dewCol   = isNew ? 8 : 6;
+      const ppfdCol  = isNew ? 9 : 7;
+      const fVolCol  = isNew ? 11 : 9;
+      const fEcCol   = isNew ? 12 : 10;
+      const fPhCol   = isNew ? 13 : 11;
+      const bVolCol  = isNew ? 14 : 12;
+      const bEcCol   = isNew ? 15 : 13;
+      const bPhCol   = isNew ? 16 : 14;
+
+      // Parse date — ISO string from JSON, split on T to get date part
+      let rowDate = (row[dateCol]||'').toString().split('T')[0].trim();
       if(rowDate !== todayIso) return;
-      // Normalize room to R1/R2/R11 format regardless of what the sheet contains
-      // Sheet may have: "R1", "r1", "Room 1", "ROOM1", "room 1", "Grow Room 1"
-      const rawRoom = (row[3]||'').toString().trim();
-      const roomNum = rawRoom.match(/\d+/);
-      const room = roomNum ? 'R' + roomNum[0] : rawRoom.toUpperCase().replace(/\s+/g,'');
-      if(!room) return;
-      const sub = {
+
+      // Normalize room to R1..R11
+      const rawRoom = (row[roomCol]||'').toString().trim();
+      const roomMatch = rawRoom.match(/\d+/);
+      const room = roomMatch ? 'R' + roomMatch[0] : rawRoom.toUpperCase().replace(/\s+/g,'');
+      if(!room || !/^R\d+$/.test(room)) return;
+
+      const g = (col) => { const v = row[col]; return (v !== undefined && v !== null && v !== '') ? v : ''; };
+
+      todaySubs.push({
         room,
-        who:  (row[2]||'').toString().trim(),
-        time: (row[1]||'').toString().trim(),
-        rh:   row[4] !== '' ? row[4] : '',
-        temp: row[5] !== '' ? row[5] : '',
-        leaf: row[6] !== '' ? row[6] : '',
-        dew:  row[7] !== '' ? row[7] : '',
-        ppfd: row[8] !== '' ? row[8] : '',
+        who:  whoCol >= 0 ? (row[whoCol]||'').toString().trim() : 'Form',
+        time: fmtTime(g(timeCol)),
+        rh:   g(rhCol),
+        temp: g(tempCol),
+        leaf: g(leafCol),
+        dew:  g(dewCol),
+        ppfd: g(ppfdCol),
         tables: {
-          1: { ec: row[9]||'',  ph: row[10]||'', vol: row[11]||'' },
-          2: { ec: row[12]||'', ph: row[13]||'', vol: row[14]||'' },
-          3: { ec: row[15]||'', ph: row[16]||'', vol: row[17]||'' },
+          1: { vol: g(fVolCol), ec: g(fEcCol), ph: g(fPhCol) },
+          2: { vol: g(bVolCol), ec: g(bEcCol), ph: g(bPhCol) },
+          3: { vol: '', ec: '', ph: '' },
         },
         fromCloud: true
-      };
-      todaySubs.push(sub);
+      });
     });
     if(!todaySubs.length) return;
     // Merge with any local submissions — keep cloud rows that aren't already present
