@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Westside Growers — Grow Ops</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1442,10 +1443,10 @@ function renderRooms(){
         })();
         const dpOk=dp!==null&&dp<60;
         const row1=[
-          gl.temp!==undefined?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':(tempOk?'ok':'warn')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
-          gl.humidity!==undefined?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
-          gl.co2!==undefined?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':(co2Ok?'ok':'warn')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
-          gl.vpd!==undefined?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':(vpdOk?'ok':'warn')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
+          gl.temp!=null?`<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num ${stale?'':(tempOk?'ok':'warn')}">${gl.temp.toFixed(1)}<span class="env-unit">°F</span></div></div>`:'',
+          gl.humidity!=null?`<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num ${stale?'':(rhOk?'ok':'warn')}">${gl.humidity.toFixed(1)}<span class="env-unit">%</span></div></div>`:'',
+          gl.co2!=null?`<div class="env-cell"><div class="env-lbl">CO₂</div><div class="env-num ${stale?'':(co2Ok?'ok':'warn')}">${Math.round(gl.co2)}<span class="env-unit">ppm</span></div></div>`:'',
+          gl.vpd!=null?`<div class="env-cell"><div class="env-lbl">VPD</div><div class="env-num ${stale?'':(vpdOk?'ok':'warn')}">${gl.vpd.toFixed(2)}<span class="env-unit">kPa</span></div></div>`:'',
           dp!==null?(()=>{
             const gl2=getGlobalThresholds();
             const dpCeil=gl2.dewPoint?.t1||60;
@@ -5013,15 +5014,25 @@ function parseTableSensors(rawSensors, tableCount) {
   }
 
 
-  // Fallback: array-order assignment with generic labels if no UUID map hit
+  // Fallback: array-order assignment only if NO UUIDs matched at all
+  // If some matched (partial map), keep what was mapped — don't override with wrong array order
   if (mapped === 0) {
     const positions=[];
     for (let t=1; t<=tableCount; t++) { positions.push({table:t,pos:'B'}); positions.push({table:t,pos:'F'}); }
-    // Reset tables for fallback
     for (let t=1; t<=tableCount; t++) tables[t]={B:null,F:null};
     triplets.forEach((triplet,i) => {
       if (i < positions.length) { const {table,pos} = positions[i]; tables[table][pos] = triplet; }
     });
+  }
+  // If partial match, fill remaining empty slots from unmatched triplets in order
+  if (mapped > 0 && mapped < triplets.length) {
+    const unmapped = triplets.filter(t => !t.uuid || !SENSOR_POSITION_MAP[t.uuid]);
+    let ui = 0;
+    for (let t=1; t<=tableCount && ui<unmapped.length; t++) {
+      if (!tables[t].B && !tables[t].F) { tables[t].B = unmapped[ui++]; if(ui<unmapped.length) tables[t].F = unmapped[ui++]; }
+      else if (!tables[t].B) tables[t].B = unmapped[ui++];
+      else if (!tables[t].F) tables[t].F = unmapped[ui++];
+    }
   }
   return tables;
 }
