@@ -5241,6 +5241,13 @@ function parseTableSensors(rawSensors, tableCount) {
 function openRoomModal(room) {
   const roomName = room.name || room.key;
   const gl = growlinkData[roomName] || getGrowlinkForRoom(roomName);
+  // Debug: log raw sensor UUIDs for this room to console
+  if (gl && gl.rawSensors) {
+    const soilSensors = gl.rawSensors.filter(s=>(s.Name||'').toLowerCase()==='soilmoisture');
+    console.log('['+roomName+'] soil sensor UUIDs:', soilSensors.map(s=>({id:s.Id, vwc:s.Value, mapped:s.Id?!!SENSOR_POSITION_MAP[s.Id]:false})));
+  } else if (gl && gl._soil) {
+    console.log('['+roomName+'] _soil (compressed, UUIDs at index 5):', gl._soil.map(s=>({sId:s[5], vwc:s[0], mapped:s[5]?!!SENSOR_POSITION_MAP[s[5]]:false})));
+  }
   const fd = typeof flowerDay==='function' ? flowerDay(room) : null;
   const phase = fd&&fd>=1 ? getPhaseForDay(fd) : null;
   const ecr   = fd&&fd>=1 ? getECRainbow(fd)   : null;
