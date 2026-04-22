@@ -4938,89 +4938,209 @@ function expandGrowlinkRoom(room) {
 // pos 'F' = Front (aisle side), 'B' = Back (wall side)
 // ══════════════════════════════════════════════════════════════════
 const SENSOR_POSITION_MAP = {
+  // Complete UUID map for all 3 sensor types per probe (vwc/temp/ec)
+  // Built from auditGrowlinkSensors() output — each physical probe has 3 unique UUIDs
+  // UUID-aware parsing eliminates order-dependence and cross-room bleed entirely
+
   // ── Room 1 (2 tables, T1B not installed)
-  '6584831a-6e85-449a-a415-0326a1623572': {table:2, pos:'F'},  // T2F #20008772
-  '570d72c8-88b3-42fd-bca3-aa84ef15d946': {table:2, pos:'B'},  // T2B #20008097
-  '7760ff95-74bd-4f5c-9c98-dbed335db8a0': {table:1, pos:'F'},  // T1F #20008314
+  '7760ff95-74bd-4f5c-9c98-dbed335db8a0': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008314
+  '2022624b-156d-459c-8061-3942192dfcf4': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '2466d34b-9d78-4732-85f6-c40da2f7497c': {table:1,pos:'F',type:'ec'},   // T1F EC
+  '6584831a-6e85-449a-a415-0326a1623572': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008772
+  'db52cb89-004c-49cc-b96b-da1511d3825b': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  '89df526c-25af-4bb0-9e10-11d525c4e983': {table:2,pos:'F',type:'ec'},   // T2F EC
+  '570d72c8-88b3-42fd-bca3-aa84ef15d946': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008097
+  'db4078a0-2f62-4cd7-a6c8-73576593ab09': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '516abcb1-3352-4ac3-97fe-301955491c11': {table:2,pos:'B',type:'ec'},   // T2B EC
 
   // ── Room 2 (3 tables)
-  '0471a067-5098-42c0-812a-8c748be553cd': {table:2, pos:'F'},  // T2F #20008517
-  '941d8ffa-cc2b-4a49-b3ca-d3192930f530': {table:1, pos:'B'},  // T1B #20008092
-  'a98d09c6-96ce-4972-bdf6-31841b009ce7': {table:2, pos:'B'},  // T2B #20008770
-  'd0018236-23e1-490d-8b11-7455b7992f73': {table:3, pos:'B'},  // T3B #20008078
-  'cfdb5929-8edc-4ec3-8bf4-230cdf4bf1ed': {table:1, pos:'F'},  // T1F #20008088
-  'bae2e5c6-7125-4487-875a-4f95c659ab34': {table:3, pos:'F'},  // T3F #20008311
+  '0471a067-5098-42c0-812a-8c748be553cd': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008517
+  'f7f6d3b9-36cc-4d61-a72a-e3afb5078f29': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  'fd48d1cb-997a-4497-a623-f91d9251de53': {table:2,pos:'F',type:'ec'},   // T2F EC
+  '941d8ffa-cc2b-4a49-b3ca-d3192930f530': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008092
+  'acfea937-f4f4-4ced-8d95-46bb9e5f2d33': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  'bd045629-fc32-40e4-bade-f67399c3fe5e': {table:1,pos:'B',type:'ec'},   // T1B EC
+  'a98d09c6-96ce-4972-bdf6-31841b009ce7': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008770
+  '5125c69e-cd54-45ee-baad-bbb69fbd800b': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  'f40a0001-fa28-4817-99eb-f18862a8ffc2': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'd0018236-23e1-490d-8b11-7455b7992f73': {table:3,pos:'B',type:'vwc'},  // T3B VWC #20008078
+  '985c7dc8-c865-4227-b153-2668370b5e4c': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  '6e0fc7ab-7e5b-424e-871a-de97b7106dd8': {table:3,pos:'B',type:'ec'},   // T3B EC
+  'cfdb5929-8edc-4ec3-8bf4-230cdf4bf1ed': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008088
+  'a1a21dca-f86c-4e13-b65d-87e5acdcdaf6': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  'e5a87f94-bf38-4f75-8f1a-8fdb6d35b157': {table:1,pos:'F',type:'ec'},   // T1F EC
+  'bae2e5c6-7125-4487-875a-4f95c659ab34': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008311
+  '795bf680-4c49-4f97-9149-4e389bbebe48': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  '037c2f5a-7126-4b89-9956-1e5605b6553b': {table:3,pos:'F',type:'ec'},   // T3F EC
 
   // ── Room 3 (3 tables)
-  'c4cdeb61-7301-4604-a7e3-7eb0546706a0': {table:2, pos:'F'},  // T2F #20008754
-  '0ab51917-732b-4e42-85f7-da0cd8ba685e': {table:3, pos:'B'},  // T3B #20008087
-  'f455714f-20b7-4d1c-b2ea-8f5879bd1e9f': {table:1, pos:'F'},  // T1F #20008752
-  'e0aecaee-6031-492d-b914-ae5821a7b50f': {table:3, pos:'F'},  // T3F #20008086
-  '7d096035-3704-429b-818f-753f843495b0': {table:1, pos:'B'},  // T1B #20008751
-  'da6e070c-5917-4f64-886f-aae4936f329d': {table:2, pos:'B'},  // T2B #20008755
+  'c4cdeb61-7301-4604-a7e3-7eb0546706a0': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008754
+  'eeff218c-cac0-43c2-a354-ffe68c448ce9': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  'ee48b00e-7a50-42f0-9735-5b8b719e2fa5': {table:2,pos:'F',type:'ec'},   // T2F EC
+  '0ab51917-732b-4e42-85f7-da0cd8ba685e': {table:3,pos:'B',type:'vwc'},  // T3B VWC #20008087
+  'd33745f2-d407-4a1a-9c7c-2d881c101bb0': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  '5cd10e13-ace7-4078-9b52-905059582b92': {table:3,pos:'B',type:'ec'},   // T3B EC
+  'f455714f-20b7-4d1c-b2ea-8f5879bd1e9f': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008752
+  'f300de45-0e48-4207-b5c1-41443c8f0d4d': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '3a714e3c-b60f-41bf-a836-c9ac3642beb2': {table:1,pos:'F',type:'ec'},   // T1F EC
+  'e0aecaee-6031-492d-b914-ae5821a7b50f': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008086
+  '3a222897-5ec3-4afe-ae3f-db862130421f': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  '1c5531f7-f330-479c-a742-447506f66102': {table:3,pos:'F',type:'ec'},   // T3F EC
+  '7d096035-3704-429b-818f-753f843495b0': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008751
+  '6dab4264-d8eb-41e2-8528-55196795ba0e': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  'a3acb5c8-0a49-4661-b10a-45f3c3b601ed': {table:1,pos:'B',type:'ec'},   // T1B EC
+  'da6e070c-5917-4f64-886f-aae4936f329d': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008755
+  '4695d6d5-0374-467c-b8cd-f2237a93ef7d': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '6bdd27c2-f8c7-457d-aa84-2ebce3865bbb': {table:2,pos:'B',type:'ec'},   // T2B EC
 
   // ── Room 4 (3 tables)
-  'd4f19a45-2a4d-4b5f-955c-c06c4a05561d': {table:1, pos:'B'},  // T1B #20008762
-  '1f1882c3-b008-49f0-90af-26cd9dfc2c73': {table:2, pos:'B'},  // T2B #20008760
-  'fcea3903-dad4-4cb7-a14f-760b72081130': {table:1, pos:'F'},  // T1F #20008093
-  '91cddb96-803e-43ae-b93d-855d66b3d939': {table:3, pos:'B'},  // T3B #20008768
-  'eb43155f-791b-4205-98a4-85b7efba7684': {table:3, pos:'F'},  // T3F #20008769
-  '2e958337-e257-4304-ae70-a61c19763ea4': {table:2, pos:'F'},  // T2F #20008761
+  'd4f19a45-2a4d-4b5f-955c-c06c4a05561d': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008762
+  'f1a642ca-c7ca-44a1-90be-42c71a303138': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  '77de7b17-d35b-40ff-bb75-87f90d62b060': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '1f1882c3-b008-49f0-90af-26cd9dfc2c73': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008760
+  '0453e627-7e27-48c4-a340-202df61430a7': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '21398126-8e80-448d-ae6c-f878d3dfa7e6': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'fcea3903-dad4-4cb7-a14f-760b72081130': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008093
+  '60086415-3303-4840-b991-ca6f3116ca1f': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '1d8e9078-2b22-4793-90cd-cbf90ede2aa7': {table:1,pos:'F',type:'ec'},   // T1F EC
+  '91cddb96-803e-43ae-b93d-855d66b3d939': {table:3,pos:'B',type:'vwc'},  // T3B VWC #20008768
+  '62f85d62-c8d9-43ff-abab-ee674424da36': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  '1fff675c-3036-4e82-aa9a-dace93716b34': {table:3,pos:'B',type:'ec'},   // T3B EC
+  'eb43155f-791b-4205-98a4-85b7efba7684': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008769
+  '52da29c9-918f-4001-9912-4bd89e2fd2b7': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  'b33a59ed-9e76-4cf4-b1eb-1ca4536bbf14': {table:3,pos:'F',type:'ec'},   // T3F EC
+  '2e958337-e257-4304-ae70-a61c19763ea4': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008761
+  'e90cac2c-4267-4634-8a24-c1d9f8d5417d': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  'd6d26ccd-57fe-4439-82d0-443f665d350b': {table:2,pos:'F',type:'ec'},   // T2F EC
 
   // ── Room 5 (3 tables)
-  'f21e58a4-292b-484d-a7bb-ed87fd5e4a94': {table:1, pos:'B'},  // T1B #20008767
-  '7aa5df79-6688-4088-975b-0c80a781573d': {table:2, pos:'F'},  // T2F #20008080
-  'f07d2da0-0402-4768-bb15-33e6d3bce17b': {table:1, pos:'F'},  // T1F #20008079
-  '4ebd01b2-e96a-4cba-bd68-3785b9bd4874': {table:3, pos:'B'},  // T3B #20008766
-  '1784cbc6-469d-445c-b6b2-30b8e396a079': {table:2, pos:'B'},  // T2B #20008099
-  'e14629bb-caf3-4b1e-b91e-0b9df2cb4f68': {table:3, pos:'F'},  // T3F #20008763
+  'f21e58a4-292b-484d-a7bb-ed87fd5e4a94': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008767
+  '68c94af9-d188-4793-95b8-0f43c6987232': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  'e571ece5-4528-47eb-8fd5-893008d4a60c': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '7aa5df79-6688-4088-975b-0c80a781573d': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008080
+  '7c08e31d-270a-468c-89f9-558cdb84878c': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  'f9b26f19-645b-4404-817f-885e6a5a0d50': {table:2,pos:'F',type:'ec'},   // T2F EC
+  'f07d2da0-0402-4768-bb15-33e6d3bce17b': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008079
+  '41f56353-4e38-4c5f-b46f-91137ed73e58': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '77797ab9-2db1-48dc-9803-41c57ca25461': {table:1,pos:'F',type:'ec'},   // T1F EC
+  '4ebd01b2-e96a-4cba-bd68-3785b9bd4874': {table:3,pos:'B',type:'vwc'},  // T3B VWC #20008766
+  '01469a15-3028-4bef-a952-54578a389bea': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  '633bed23-e85a-4b05-a95f-99654bea1a1e': {table:3,pos:'B',type:'ec'},   // T3B EC
+  '1784cbc6-469d-445c-b6b2-30b8e396a079': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008099
+  'a5bf765f-13cf-45ca-ad62-7da12e0ecdcf': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '17bf047b-0d75-4b5e-bce1-9532b33f4048': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'e14629bb-caf3-4b1e-b91e-0b9df2cb4f68': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008763
+  '5dd16f79-f164-4f0f-b6e3-e948ccd4cbee': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  '8b58c8ee-0f37-45aa-8358-0e29c394444e': {table:3,pos:'F',type:'ec'},   // T3F EC
 
   // ── Room 6 (2 tables)
-  'd0edfafb-929b-43df-a86a-c63f73995f38': {table:2, pos:'F'},  // T2F #20008765
-  'aea879b3-02b5-44ab-a5ca-e22c1c166d1e': {table:2, pos:'B'},  // T2B #20008100
-  'feaee787-e436-4a2d-8fb3-d957fc41b2f3': {table:1, pos:'B'},  // T1B #20008307
-  '117bc27b-4a35-4712-bdb2-5fa91ce3101c': {table:1, pos:'F'},  // T1F #20008316
+  'd0edfafb-929b-43df-a86a-c63f73995f38': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008765
+  'd2f4b34a-5c18-4ccb-b566-204f887771d7': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  '9d1685b0-2350-465a-a915-0f0c4720fd90': {table:2,pos:'F',type:'ec'},   // T2F EC
+  'aea879b3-02b5-44ab-a5ca-e22c1c166d1e': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008100
+  '8e1fddca-6a8f-4aaf-ba16-9a44115b54fd': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '5c7bab64-8b17-47c8-b8c0-acc07d0be2c5': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'feaee787-e436-4a2d-8fb3-d957fc41b2f3': {table:1,pos:'B',type:'vwc'},  // T1B VWC
+  'b9df9362-fd2a-4f71-98ff-616d1384dc03': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  '65a6eae2-cf81-479a-b147-efad750a8679': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '117bc27b-4a35-4712-bdb2-5fa91ce3101c': {table:1,pos:'F',type:'vwc'},  // T1F VWC
+  '058fa41b-151d-453e-a8aa-e2a2917b1a7d': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '9650524d-9936-41e8-8e98-3d065490c48d': {table:1,pos:'F',type:'ec'},   // T1F EC
 
   // ── Room 7 (3 tables)
-  'ed59a59f-a78b-47cd-a64e-1dd166d4ed91': {table:1, pos:'F'},  // T1F #20008308
-  'd602277d-1cd5-4377-8624-05e2b8575383': {table:2, pos:'F'},  // T2F #20008753
-  '044ecbdd-9491-402b-a9f7-e903fcc742ef': {table:2, pos:'B'},  // T2B #20008756
-  'c2ce6a13-7236-488f-9500-575c161439a7': {table:1, pos:'B'},  // T1B #20008304
-  '3c8953e2-0c19-4f77-a3bb-8c11b90e4c56': {table:3, pos:'F'},  // T3F #20008299
-  'aa2e29d8-f97a-49b6-86b0-97698e2e8654': {table:3, pos:'B'},  // T3B #20008295
+  'ed59a59f-a78b-47cd-a64e-1dd166d4ed91': {table:1,pos:'F',type:'vwc'},  // T1F VWC
+  '0299c830-4a98-4826-8800-7eece72f72c0': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '41e2d6b9-f5eb-4c10-b2ec-0de5074a1c1e': {table:1,pos:'F',type:'ec'},   // T1F EC
+  'd602277d-1cd5-4377-8624-05e2b8575383': {table:2,pos:'F',type:'vwc'},  // T2F VWC
+  '9c8ef1e9-2ff8-4e5e-9ede-93a3ca20c65d': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  '2345ecd5-40da-43ee-91e1-2e77982654d0': {table:2,pos:'F',type:'ec'},   // T2F EC
+  '044ecbdd-9491-402b-a9f7-e903fcc742ef': {table:2,pos:'B',type:'vwc'},  // T2B VWC
+  '8db51f6e-221b-414c-a3c9-5e4c653a4342': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '5e840945-d87c-48d7-98db-ccc8f8fe2724': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'c2ce6a13-7236-488f-9500-575c161439a7': {table:1,pos:'B',type:'vwc'},  // T1B VWC
+  'f85e5048-c01c-4f5a-b0c4-58d1312fd340': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  '9f0ccacb-51f1-4967-b26e-44b2d1aa53c9': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '3c8953e2-0c19-4f77-a3bb-8c11b90e4c56': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008299
+  'd00540a6-e588-4664-a19a-ad640a3e57e0': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  '1304cb73-d5f3-4676-baf1-cc63e501f812': {table:3,pos:'F',type:'ec'},   // T3F EC
+  'aa2e29d8-f97a-49b6-86b0-97698e2e8654': {table:3,pos:'B',type:'vwc'},  // T3B VWC #20008295
+  'aa89486f-db42-423c-be77-177c09967fbe': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  '774a366b-6f06-408d-988f-b14b7bb8b3f0': {table:3,pos:'B',type:'ec'},   // T3B EC
 
-  // ── Room 8 (3 tables, T3B not installed)
-  'a79e8538-dffc-43c1-b520-abeb3065fff3': {table:1, pos:'F'},  // T1F #20008771
-  '4c8e2de3-12bf-4d3b-aa25-3d4ffaf50c45': {table:1, pos:'B'},  // T1B #20008773
-  '85910a39-19c1-47d0-868d-d08a68622364': {table:2, pos:'B'},  // T2B #20008757
-  '0086f966-327e-4475-a3d6-789db77fb909': {table:3, pos:'F'},  // T3F #20008294
-  '204b330a-23cf-43bc-9a0b-be03c5fb87d5': {table:2, pos:'F'},  // T2F #20008305
+  // ── Room 8 (3 tables, T3B not installed, T3F EC hardware missing)
+  'a79e8538-dffc-43c1-b520-abeb3065fff3': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008771
+  'ed6f3a80-2e00-4f87-ba4d-7990fb46e334': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '1156a47e-5a8d-427c-bc35-e66901ed0f64': {table:1,pos:'F',type:'ec'},   // T1F EC
+  '4c8e2de3-12bf-4d3b-aa25-3d4ffaf50c45': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008773
+  'a7d4d71d-5c20-4fc8-9cab-de8b17ed9bf5': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  'a4207b0b-2b94-4282-8a52-67cfe55e68cf': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '85910a39-19c1-47d0-868d-d08a68622364': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008757
+  'aa15cc8c-c58a-4b66-9106-69b0440b3a20': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  'a41d43e4-b196-4bbf-bf4e-94bc558335d4': {table:2,pos:'B',type:'ec'},   // T2B EC
+  '0086f966-327e-4475-a3d6-789db77fb909': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008294
+  '2e550a36-b6cc-4bbf-a1db-5a7a8925b89b': {table:3,pos:'F',type:'temp'}, // T3F Temp (EC hardware missing)
+  '204b330a-23cf-43bc-9a0b-be03c5fb87d5': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008305
+  'fed2eac1-cfdd-4877-96c1-11bf97c01f34': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  'eb460632-02c1-4979-8d42-07e4bc92d521': {table:2,pos:'F',type:'ec'},   // T2F EC
 
   // ── Room 9 (2 tables)
-  '6ca0e992-61f9-463c-8488-d284723f91af': {table:2, pos:'F'},  // T2F #20008312
-  'b9a35ae9-8f4c-4151-aa01-aa942d1d1859': {table:1, pos:'B'},  // T1B #20008313
-  '2abc5883-9538-4ef5-864b-dc6424c511b5': {table:2, pos:'B'},  // T2B #20008750
-  'b3c6b84f-30a8-4398-a551-a382fdd740c9': {table:1, pos:'F'},  // T1F #20008296
+  '6ca0e992-61f9-463c-8488-d284723f91af': {table:2,pos:'F',type:'vwc'},  // T2F VWC #20008312
+  'a8cf2e61-df9a-41fb-acef-3465adba60fd': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  '3def8b5a-62e6-45de-9d27-dc108b31d5ab': {table:2,pos:'F',type:'ec'},   // T2F EC
+  'b9a35ae9-8f4c-4151-aa01-aa942d1d1859': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008313
+  '32f5c26d-5acd-40b8-8fb7-6d778d2db848': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  '6e99e0f1-d976-4992-83e5-88af98843310': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '2abc5883-9538-4ef5-864b-dc6424c511b5': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008750
+  'c202164a-f24a-4f2c-a9dd-6e2336b9d1a9': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '20dd1b0d-ca45-4307-94ec-fe7c81f07a0c': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'b3c6b84f-30a8-4398-a551-a382fdd740c9': {table:1,pos:'F',type:'vwc'},  // T1F VWC #20008296
+  'c4319a1e-3131-4820-80d6-bf3ff363cc4c': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  '7d137caf-5887-470f-b5e5-6f10bba88bd2': {table:1,pos:'F',type:'ec'},   // T1F EC
 
   // ── Room 10 (3 tables)
-  '859a7e21-529c-4b0f-8b4e-17a038fe0e6b': {table:3, pos:'B'},  // T3B #20008096
-  'afa88020-efd0-4cfd-b1b3-1a89cad8cf8e': {table:2, pos:'B'},  // T2B #20008764
-  'd715458d-f756-4a2c-b36b-c37130c2c9b0': {table:1, pos:'B'},  // T1B #20008082
-  '21f5b539-9505-43d6-85c3-a711b683a2ee': {table:3, pos:'F'},  // T3F #20008085
-  '8f5e994a-0b04-458f-a3e6-20b645e510b2': {table:2, pos:'F'},  // T2F #20008083
-  '2360065d-4119-492d-a3ac-08538d5551b6': {table:1, pos:'F'},  // T1F #20008091
+  '859a7e21-529c-4b0f-8b4e-17a038fe0e6b': {table:3,pos:'B',type:'vwc'},  // T3B VWC #20008096
+  '9f379469-9fb0-4d1a-a574-45c8638a60b5': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  '6c7c8811-3724-4d69-860b-fef74371fb9d': {table:3,pos:'B',type:'ec'},   // T3B EC
+  'afa88020-efd0-4cfd-b1b3-1a89cad8cf8e': {table:2,pos:'B',type:'vwc'},  // T2B VWC #20008764
+  '262833f8-161f-4ce8-b1d4-198830a6cc67': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '4ad41e26-75d9-4f66-a391-378c759d0614': {table:2,pos:'B',type:'ec'},   // T2B EC
+  'd715458d-f756-4a2c-b36b-c37130c2c9b0': {table:1,pos:'B',type:'vwc'},  // T1B VWC #20008082
+  'e9d073fd-056f-4be2-8d91-51a61b04f604': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  'cd194a5c-5239-4c3e-a9cd-212e7f64380f': {table:1,pos:'B',type:'ec'},   // T1B EC
+  '21f5b539-9505-43d6-85c3-a711b683a2ee': {table:3,pos:'F',type:'vwc'},  // T3F VWC #20008085
+  '15334ddd-68b3-4eaa-ba51-f7eb829245e5': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  '62729934-28b7-4907-bb92-88822cac7038': {table:3,pos:'F',type:'ec'},   // T3F EC
+  '8f5e994a-0b04-458f-a3e6-20b645e510b2': {table:2,pos:'F',type:'vwc'},  // T2F VWC
+  '8f0fe80f-3ed6-426a-bd78-7bfc5829c052': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  'd98e77a9-cb45-4187-8803-b01704540d96': {table:2,pos:'F',type:'ec'},   // T2F EC
+  '2360065d-4119-492d-a3ac-08538d5551b6': {table:1,pos:'F',type:'vwc'},  // T1F VWC
+  'b2eefcb1-7263-4aa9-ae1e-0c01ef6e373f': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  'b75d9c78-6f49-4282-b828-b76e8b46a5f3': {table:1,pos:'F',type:'ec'},   // T1F EC
 
   // ── Room 11 (3 tables)
-  '94963e1c-ee30-4053-ad5a-1975689ade31': {table:1, pos:'B'},  // T1B #20008081
-  'c4210b30-81dc-4c72-b276-1294dd955bf6': {table:2, pos:'F'},  // T2F #20008098
-  '42044a23-9868-4aef-a330-d239f4dfb959': {table:2, pos:'B'},  // T2B #20008089
-  '4068feba-d1c0-4fcb-9506-a632701d2d61': {table:3, pos:'B'},  // T3B #20008094
-  '7834220e-0ab8-47e2-b2fb-cc6d348c1207': {table:1, pos:'F'},  // T1F #20008090
-  'a9e1b674-3174-40b4-b71d-4b3a5ba1d013': {table:3, pos:'F'},  // T3F #20008095
-
+  '94963e1c-ee30-4053-ad5a-1975689ade31': {table:1,pos:'B',type:'vwc'},  // T1B VWC
+  '935e745c-caee-4915-9903-76d76c195438': {table:1,pos:'B',type:'temp'}, // T1B Temp
+  'cf56eecc-0ef8-41c1-921c-b7a1fd587a5f': {table:1,pos:'B',type:'ec'},   // T1B EC
+  'c4210b30-81dc-4c72-b276-1294dd955bf6': {table:2,pos:'F',type:'vwc'},  // T2F VWC
+  '44adbcc2-a209-4086-872a-8ec1a08c9645': {table:2,pos:'F',type:'temp'}, // T2F Temp
+  '692a6a0a-f5e5-4efb-915c-f90edff4eb94': {table:2,pos:'F',type:'ec'},   // T2F EC
+  '42044a23-9868-4aef-a330-d239f4dfb959': {table:2,pos:'B',type:'vwc'},  // T2B VWC
+  '36f44817-7465-425b-b42a-d9c9f8bfe159': {table:2,pos:'B',type:'temp'}, // T2B Temp
+  '8deeeddd-1a4d-4f9b-ac84-c125792997dc': {table:2,pos:'B',type:'ec'},   // T2B EC
+  '4068feba-d1c0-4fcb-9506-a632701d2d61': {table:3,pos:'B',type:'vwc'},  // T3B VWC
+  'c7750a78-d8ed-4220-a247-17576de80683': {table:3,pos:'B',type:'temp'}, // T3B Temp
+  'f9ba9d55-36f7-47a7-a031-2088e197e694': {table:3,pos:'B',type:'ec'},   // T3B EC
+  '7834220e-0ab8-47e2-b2fb-cc6d348c1207': {table:1,pos:'F',type:'vwc'},  // T1F VWC
+  '6a99ca29-41a4-4e49-840a-455118f5e212': {table:1,pos:'F',type:'temp'}, // T1F Temp
+  'db0903a8-7ba2-4f40-9d25-61ef0f725ac1': {table:1,pos:'F',type:'ec'},   // T1F EC
+  'a9e1b674-3174-40b4-b71d-4b3a5ba1d013': {table:3,pos:'F',type:'vwc'},  // T3F VWC
+  'f8176ca5-adb3-4f51-aa9d-e4100d7fd47e': {table:3,pos:'F',type:'temp'}, // T3F Temp
+  '7762ddca-8ce7-49b5-b657-3960c7e9bbf3': {table:3,pos:'F',type:'ec'},   // T3F EC
 };
 
 function parseTableSensors(rawSensors, tableCount) {
+  // rawSensors arrive pre-cleaned from Apps Script in VWC→Temp→EC order per probe
+  // Build triplets from the stream, then place them using VWC UUID → table/pos
   const triplets = [];
   let cur = null;
   rawSensors.forEach(s => {
@@ -5037,22 +5157,21 @@ function parseTableSensors(rawSensors, tableCount) {
   const tables = {};
   for (let t=1; t<=tableCount; t++) tables[t]={B:null,F:null};
 
-  // Try UUID-based position mapping first (accurate)
+  // UUID-based placement — only VWC UUIDs (type:'vwc') identify probe position
   let mapped = 0;
   if (typeof SENSOR_POSITION_MAP !== 'undefined') {
     triplets.forEach(triplet => {
       if (!triplet.uuid) return;
       const pos = SENSOR_POSITION_MAP[triplet.uuid];
-      if (pos && tables[pos.table] !== undefined) {
+      // Only match VWC type entries (not temp/ec)
+      if (pos && pos.type === 'vwc' && tables[pos.table] !== undefined) {
         tables[pos.table][pos.pos] = triplet;
         mapped++;
       }
     });
   }
 
-
-  // Fallback: array-order assignment only if NO UUIDs matched at all
-  // If some matched (partial map), keep what was mapped — don't override with wrong array order
+  // Fallback: array-order only if nothing mapped at all
   if (mapped === 0) {
     const positions=[];
     for (let t=1; t<=tableCount; t++) { positions.push({table:t,pos:'B'}); positions.push({table:t,pos:'F'}); }
@@ -5060,16 +5179,6 @@ function parseTableSensors(rawSensors, tableCount) {
     triplets.forEach((triplet,i) => {
       if (i < positions.length) { const {table,pos} = positions[i]; tables[table][pos] = triplet; }
     });
-  }
-  // If partial match, fill remaining empty slots from unmatched triplets in order
-  if (mapped > 0 && mapped < triplets.length) {
-    const unmapped = triplets.filter(t => !t.uuid || !SENSOR_POSITION_MAP[t.uuid]);
-    let ui = 0;
-    for (let t=1; t<=tableCount && ui<unmapped.length; t++) {
-      if (!tables[t].B && !tables[t].F) { tables[t].B = unmapped[ui++]; if(ui<unmapped.length) tables[t].F = unmapped[ui++]; }
-      else if (!tables[t].B) tables[t].B = unmapped[ui++];
-      else if (!tables[t].F) tables[t].F = unmapped[ui++];
-    }
   }
   return tables;
 }
