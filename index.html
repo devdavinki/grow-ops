@@ -677,11 +677,7 @@ button { cursor: pointer; }
 
       <!-- TODAY'S SUBMISSIONS -->
       <div style="margin-top:20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)">Today's submissions</div>
-          <button onclick="pullRoomChecksFromCloud().then(()=>{renderTodayCheckSubmissions();renderRooms();})" style="font-size:11px;padding:3px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻ Pull from cloud</button>
-          <button onclick="debugRoomChecksPull()" style="font-size:11px;padding:3px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--amber);cursor:pointer">🔍 Debug pull</button>
-        </div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Today's submissions</div>
         <div id="rc-today-list" style="display:grid;gap:6px"></div>
       </div>
     </div>
@@ -1469,42 +1465,6 @@ function renderRooms(){
           </div>
           <div class="env-grid" style="grid-template-columns:repeat(${row1Count},1fr);margin-bottom:4px">${row1}</div>
           ${row2?`<div class="env-grid" style="grid-template-columns:repeat(${row2.split('env-cell').length-1},1fr)">${row2}</div>`:''}
-        </div>`;
-      })()}
-      ${(()=>{
-        // Manual room check readings strip — from today's room check submissions
-        const rcKey = 'R' + room.name.replace('Room ','');
-        const subs = L('wg_check_subs_' + dateToIso(TODAY), []);
-        const sub = subs.filter(s => s.room === rcKey).slice(-1)[0];
-        if(!sub) return '';
-        const fv = v => (v !== undefined && v !== null && v !== '');
-        const envCells = [
-          fv(sub.temp) ? `<div class="env-cell"><div class="env-lbl">Temp</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.temp).toFixed(1)}<span class="env-unit">°F</span></div></div>` : '',
-          fv(sub.rh)   ? `<div class="env-cell"><div class="env-lbl">RH</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.rh).toFixed(1)}<span class="env-unit">%</span></div></div>` : '',
-          fv(sub.leaf) ? `<div class="env-cell"><div class="env-lbl">Leaf T</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.leaf).toFixed(1)}<span class="env-unit">°F</span></div></div>` : '',
-          fv(sub.dew)  ? `<div class="env-cell"><div class="env-lbl">Dewpoint</div><div class="env-num" style="color:var(--text2)">${parseFloat(sub.dew).toFixed(1)}<span class="env-unit">°F</span></div></div>` : '',
-          fv(sub.ppfd) ? `<div class="env-cell"><div class="env-lbl">PPFD</div><div class="env-num" style="color:var(--text2)">${Math.round(sub.ppfd)}<span class="env-unit">μmol</span></div></div>` : '',
-        ].filter(Boolean);
-        let runoffHTML = '';
-        if(sub.tables) {
-          const runoffCells = Object.keys(sub.tables).sort().map(t => {
-            const td = sub.tables[t];
-            const parts = [];
-            if(fv(td.ec))  parts.push('EC ' + td.ec);
-            if(fv(td.ph))  parts.push('pH ' + parseFloat(td.ph).toFixed(1));
-            if(fv(td.vol)) parts.push(td.vol + 'mL');
-            if(!parts.length) return '';
-            return `<div class="env-cell"><div class="env-lbl">T${t} Runoff</div><div style="font-size:11px;font-family:var(--mono);color:var(--text2);line-height:1.5">${parts.join(' · ')}</div></div>`;
-          }).filter(Boolean);
-          if(runoffCells.length) runoffHTML = `<div class="env-grid" style="grid-template-columns:repeat(${runoffCells.length},1fr);margin-top:4px">${runoffCells.join('')}</div>`;
-        }
-        if(!envCells.length && !runoffHTML) return '';
-        return `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;display:flex;justify-content:space-between">
-            <span>Manual · Room Checks</span><span style="font-family:var(--mono);color:var(--text3)">${sub.time||''}</span>
-          </div>
-          ${envCells.length ? `<div class="env-grid" style="grid-template-columns:repeat(${envCells.length},1fr);margin-bottom:4px">${envCells.join('')}</div>` : ''}
-          ${runoffHTML}
         </div>`;
       })()}
       ${(()=>{
@@ -3520,7 +3480,6 @@ function showPage(page){
   if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
   if(page==='checks'){
-    pullRoomChecksFromCloud(true).then(()=>{renderTodayCheckSubmissions();renderRooms();}).catch(()=>{});
     // Initialize date field and today's submissions on tab open
     const rcDate=document.getElementById('rc-date');
     if(rcDate&&!rcDate.value) rcDate.value=dateToIso(TODAY);
@@ -3536,7 +3495,7 @@ function showPage(page){
   }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
-  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);pullRoomChecksFromCloud(true).then(()=>renderRooms()).catch(()=>{});}
+  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);}
   if(page==='daily-review'){renderDailyReview();}
   if(page==='blueprint'){renderBlueprint();}
   if(page==='supplies'){renderSupplies();}
@@ -3699,143 +3658,6 @@ async function pullWeightsFromCloud(){
       S('wg_trim_weights',trimWeights);
     }
   }catch(e){console.warn('Weight pull failed:',e);}
-}
-
-async function debugRoomChecksPull(){
-  if(!gsUrl){ alert('No Apps Script URL set'); return; }
-  try{
-    const res = await fetch(gsUrl+'?action=getSheet&sheet=Runoff_Form&t='+Date.now());
-    const json = await res.json();
-    const todayIso = dateToIso(TODAY);
-    console.log('=== ROOM CHECKS DEBUG ===');
-    console.log('Today ISO:', todayIso);
-    console.log('Response ok:', json.ok, '| Row count:', json.rows?.length);
-    if(json.rows && json.rows.length){
-      console.log('Row 0 (header check):', JSON.stringify(json.rows[0]));
-      console.log('Row 1 raw:', JSON.stringify(json.rows[1]));
-      console.log('Row 0 col0 type:', typeof json.rows[0][0], '| value:', json.rows[0][0]);
-      if(json.rows[1]) console.log('Row 1 col0 type:', typeof json.rows[1][0], '| value:', json.rows[1][0]);
-      // Show last 3 rows
-      const last3 = json.rows.slice(-3);
-      last3.forEach((r,i)=>console.log('Recent row '+(json.rows.length-3+i)+':', JSON.stringify(r)));
-    }
-    // Show what's in localStorage
-    const stored = L('wg_check_subs_'+todayIso, []);
-    console.log('localStorage subs for today:', stored.length, JSON.stringify(stored.slice(0,2)));
-    alert('Debug logged to console (F12). Rows: '+(json.rows?.length||0)+', today='+todayIso);
-  } catch(e){
-    console.error('Debug fetch error:', e);
-    alert('Fetch failed: '+e.message);
-  }
-}
-
-async function pullRoomChecksFromCloud(silent=false){
-  if(!gsUrl) return;
-  try{
-    const res = await fetch(gsUrl+'?action=getSheet&sheet=Runoff_Form&t='+Date.now());
-    const json = await res.json();
-    if(!json.ok || !json.rows || json.rows.length < 2) return;
-    const rows = json.rows;
-    const todayIso = dateToIso(TODAY);
-
-    // Skip header row — detect by col[0] being the word "Date" or "Timestamp"
-    const isHeader = r => typeof r[0] === 'string' && isNaN(Date.parse(r[0])) === false
-      ? false : typeof r[0] === 'string' && /date|time|stamp/i.test(r[0]);
-    const dataRows = (typeof rows[0][0] === 'string' && /date|time|stamp/i.test(rows[0][0]))
-      ? rows.slice(1) : rows;
-
-    // The standalone form schema changed — detect by checking if col[3] is a name string (new)
-    // or a number (old). Use that to determine column offsets.
-    //
-    // NEW schema (has Timestamp prepended):
-    //   0:Timestamp 1:Date 2:Time 3:Who 4:Room 5:RH 6:RoomTemp 7:LeafTemp 8:Dewpoint 9:PPFD
-    //   10:TableLabel 11:FrontVol 12:FrontEC 13:FrontPH 14:BackVol 15:BackEC 16:BackPH
-    //
-    // OLD schema (no Timestamp):
-    //   0:Date 1:Time 2:Room 3:RH 4:RoomTemp 5:LeafTemp 6:Dewpoint 7:PPFD
-    //   8:TableLabel 9:FrontVol 10:FrontEC 11:FrontPH 12:BackVol 13:BackEC 14:BackPH
-
-    const fmtTime = isoTime => {
-      // isoTime is like "1899-12-30T21:37:00.000Z" — extract HH:MM in local
-      if(!isoTime || typeof isoTime !== 'string') return isoTime||'';
-      const m = isoTime.match(/T(\d{2}):(\d{2})/);
-      if(!m) return isoTime;
-      // Convert UTC hours to local (subtract UTC offset in hours)
-      let h = parseInt(m[1]), mn = parseInt(m[2]);
-      // Sheets time serials are UTC — convert to local
-      const offset = new Date().getTimezoneOffset(); // minutes behind UTC (positive = behind)
-      const totalMin = h*60 + mn - offset;
-      const lh = ((Math.floor(totalMin/60)) % 24 + 24) % 24;
-      const lm = ((totalMin % 60) + 60) % 60;
-      const ampm = lh >= 12 ? 'PM' : 'AM';
-      const dh = lh % 12 || 12;
-      return dh + ':' + String(lm).padStart(2,'0') + ' ' + ampm;
-    };
-
-    const todaySubs = [];
-    dataRows.forEach(row => {
-      // Detect schema version: new rows have col[3] as a name string, old have a number
-      const isNew = typeof row[3] === 'string' && isNaN(parseFloat(row[3])) && row[3].trim() !== '';
-      const dateCol  = isNew ? 1 : 0;
-      const timeCol  = isNew ? 2 : 1;
-      const whoCol   = isNew ? 3 : -1;
-      const roomCol  = isNew ? 4 : 2;
-      const rhCol    = isNew ? 5 : 3;
-      const tempCol  = isNew ? 6 : 4;
-      const leafCol  = isNew ? 7 : 5;
-      const dewCol   = isNew ? 8 : 6;
-      const ppfdCol  = isNew ? 9 : 7;
-      const fVolCol  = isNew ? 11 : 9;
-      const fEcCol   = isNew ? 12 : 10;
-      const fPhCol   = isNew ? 13 : 11;
-      const bVolCol  = isNew ? 14 : 12;
-      const bEcCol   = isNew ? 15 : 13;
-      const bPhCol   = isNew ? 16 : 14;
-
-      // Parse date — ISO string from JSON, split on T to get date part
-      let rowDate = (row[dateCol]||'').toString().split('T')[0].trim();
-      if(rowDate !== todayIso) return;
-
-      // Normalize room to R1..R11
-      const rawRoom = (row[roomCol]||'').toString().trim();
-      const roomMatch = rawRoom.match(/\d+/);
-      const room = roomMatch ? 'R' + roomMatch[0] : rawRoom.toUpperCase().replace(/\s+/g,'');
-      if(!room || !/^R\d+$/.test(room)) return;
-
-      const g = (col) => { const v = row[col]; return (v !== undefined && v !== null && v !== '') ? v : ''; };
-
-      todaySubs.push({
-        room,
-        who:  whoCol >= 0 ? (row[whoCol]||'').toString().trim() : 'Form',
-        time: fmtTime(g(timeCol)),
-        rh:   g(rhCol),
-        temp: g(tempCol),
-        leaf: g(leafCol),
-        dew:  g(dewCol),
-        ppfd: g(ppfdCol),
-        tables: {
-          1: { vol: g(fVolCol), ec: g(fEcCol), ph: g(fPhCol) },
-          2: { vol: g(bVolCol), ec: g(bEcCol), ph: g(bPhCol) },
-          3: { vol: '', ec: '', ph: '' },
-        },
-        fromCloud: true
-      });
-    });
-    if(!todaySubs.length) return;
-    // Merge with any local submissions — keep cloud rows that aren't already present
-    // (match on room+time to avoid dupes)
-    const existing = L('wg_check_subs_'+todayIso, []);
-    const existingKeys = new Set(existing.map(s => s.room+'|'+s.time));
-    const merged = [...existing];
-    todaySubs.forEach(s => {
-      if(!existingKeys.has(s.room+'|'+s.time)) merged.push(s);
-    });
-    S('wg_check_subs_'+todayIso, merged);
-    if(!silent) { renderTodayCheckSubmissions(); renderRooms(); }
-    if(!silent) console.log('Room checks pulled:', todaySubs.length, 'rows for today');
-  } catch(e) {
-    if(!silent) console.warn('pullRoomChecksFromCloud failed:', e);
-  }
 }
 
 function submitWeightForVerification(itemId){
@@ -4042,6 +3864,9 @@ let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 // Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
 let growlinkData = L('wg_growlink_rooms', {});
 let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{note:'',order:[],takedowns:{}},'Dry Room 2':{note:'',order:[],takedowns:{}}});
+// Permanently approved takedowns — keyed by "dryKey|roomTag|harvestDate" so they survive METRC re-uploads
+// Never cleared — once approved, the harvest is gone from the dry room card forever
+let approvedTakedowns = L('wg_approved_takedowns', {});
 // Clear any runoff sheet links accidentally saved in dry room notes
 if(dryRooms['Dry Room 2']?.note && dryRooms['Dry Room 2'].note.includes('http')){
   dryRooms['Dry Room 2'].note='';
@@ -4835,12 +4660,18 @@ function approveDryTakedown(dryKey, roomTag){
   td.approved=true;
   td.approvedBy=who;
   td.approvedAt=fmtTime();
-  // Remove room from order list so it disappears from the card
+  // Remove room from order list
   if(dryRooms[dryKey]?.order){
     dryRooms[dryKey].order=dryRooms[dryKey].order.filter(t=>t!==roomTag);
   }
-  // Keep takedown record as approved — used to suppress re-show of takedown button
-  // (already removed from order list above)
+  // Permanently record this approval so it survives METRC re-uploads
+  // Key includes harvest date so different harvests from the same room aren't blocked
+  const batches = getDryRoomBatches(dryKey);
+  const matchedGroup = batches.find(b => (b.roomTag||'') === roomTag);
+  const harvestDate = matchedGroup ? (matchedGroup.harvestDate||'unknown') : 'unknown';
+  const permKey = dryKey + '|' + roomTag + '|' + harvestDate;
+  approvedTakedowns[permKey] = {approvedBy:who, approvedAt:fmtTime(), date:dateToIso(TODAY)};
+  S('wg_approved_takedowns', approvedTakedowns);
   S('wg_dry_rooms',dryRooms);
   pushConfigToCloud(true);
   // Log to sheet
@@ -4888,12 +4719,17 @@ function getDryRoomBatches(dryKey){
     const harvestDate = bDate ? dateToIso(bDate) : rawDate;
 
     if(!seen[batch]){
-      seen[batch] = {batch, roomTag, strain, plants:0, harvestDate};
+      seen[batch] = {batch, roomTag, strain, plants:0, harvestDate, dryKey};
     }
     seen[batch].plants += plants;
   });
 
-  return Object.values(seen);
+  // Filter out permanently approved takedowns so they never reappear after METRC re-upload
+  const allBatches = Object.values(seen);
+  return allBatches.filter(b => {
+    const permKey = b.dryKey + '|' + (b.roomTag||'') + '|' + (b.harvestDate||'unknown');
+    return !approvedTakedowns[permKey];
+  });
 }
 
 function renderSupportRooms(){
@@ -5241,13 +5077,6 @@ function parseTableSensors(rawSensors, tableCount) {
 function openRoomModal(room) {
   const roomName = room.name || room.key;
   const gl = growlinkData[roomName] || getGrowlinkForRoom(roomName);
-  // Debug: log raw sensor UUIDs for this room to console
-  if (gl && gl.rawSensors) {
-    const soilSensors = gl.rawSensors.filter(s=>(s.Name||'').toLowerCase()==='soilmoisture');
-    console.log('['+roomName+'] soil sensor UUIDs:', soilSensors.map(s=>({id:s.Id, vwc:s.Value, mapped:s.Id?!!SENSOR_POSITION_MAP[s.Id]:false})));
-  } else if (gl && gl._soil) {
-    console.log('['+roomName+'] _soil (compressed, UUIDs at index 5):', gl._soil.map(s=>({sId:s[5], vwc:s[0], mapped:s[5]?!!SENSOR_POSITION_MAP[s[5]]:false})));
-  }
   const fd = typeof flowerDay==='function' ? flowerDay(room) : null;
   const phase = fd&&fd>=1 ? getPhaseForDay(fd) : null;
   const ecr   = fd&&fd>=1 ? getECRainbow(fd)   : null;
