@@ -496,6 +496,41 @@ button { cursor: pointer; }
 
     <!-- MOTHER ROTATION SUB-PAGE -->
     <div id="clone-sub-mothers" style="display:none">
+
+      <!-- ═══════════════════════════════════════════════════════
+           PERPETUAL HARVEST SYSTEM — 10-week conveyor
+           Flip every Sunday · Harvest every Wednesday
+      ═══════════════════════════════════════════════════════ -->
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)">Perpetual Harvest System · v1.0</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">10-room conveyor · Flip Sunday · Harvest Wednesday</div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);text-align:right">
+            <span style="background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:var(--r);font-weight:600">66-day flower</span>
+            <span style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:var(--r);font-weight:600;margin-left:4px">70-day cycle</span>
+          </div>
+        </div>
+        <!-- Weekly rhythm -->
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px">
+          ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>{
+            const isFlip = i===0;
+            const isHarvest = i===3;
+            const isReset = i===4||i===5;
+            const isWork = i===1||i===2;
+            return `<div style="text-align:center;padding:8px 4px;border-radius:var(--r);
+              background:${isFlip?'var(--amber-bg)':isHarvest?'var(--red-bg)':isReset?'var(--blue-bg)':isWork?'var(--bg2)':'var(--bg2)'};
+              border:1px solid ${isFlip?'var(--amber-dim)':isHarvest?'var(--red-dim)':isReset?'var(--blue-dim)':'var(--border)'}">
+              <div style="font-size:9px;font-weight:700;color:${isFlip?'var(--amber)':isHarvest?'var(--red)':isReset?'var(--blue)':'var(--text3)'}">${d}</div>
+              <div style="font-size:9px;color:${isFlip?'var(--amber)':isHarvest?'var(--red)':isReset?'var(--blue)':'var(--text3)'};margin-top:2px">${isFlip?'🔄 FLIP':isHarvest?'✂️ HARVEST':isReset?'🔧 Reset':isWork?'🌿 Plant work':'Rest'}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <!-- 10-week conveyor view -->
+        <div id="perpetual-conveyor" style="overflow-x:auto"></div>
+      </div>
+
       <div class="row mb12">
         <div class="section-title">Mother rotation</div>
         <div style="flex:1"></div>
@@ -708,6 +743,7 @@ button { cursor: pointer; }
           <button id="morning-sort-dryback" onclick="setMorningSort('dryback')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--blue);background:var(--blue-bg);color:var(--blue);cursor:pointer;font-weight:600">Dryback ↓</button>
           <button id="morning-sort-vwc" onclick="setMorningSort('vwc')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">VWC ↑</button>
           <button id="morning-sort-ec" onclick="setMorningSort('ec')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">EC ↓</button>
+          <button id="morning-sort-overnight" onclick="setMorningSort('overnight')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Overnight DB ↓</button>
           <button onclick="renderMorningAttention()" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻</button>
         </div>
       </div>
@@ -1044,6 +1080,7 @@ button { cursor: pointer; }
       <button onclick="closeRoomModal()" style="background:none;border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;padding:5px 12px;border-radius:var(--r)">✕ Close</button>
     </div>
     <div style="padding:14px 16px">
+      <div id="rdm-score-section"></div>
       <div id="rdm-phase-section"></div>
       <div id="rdm-ambient-section"></div>
       <div id="rdm-substrate-section"></div>
@@ -1092,17 +1129,17 @@ function L(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def
 function S(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
 const DEFAULT_ROOMS=[
-  {id:'r1',name:'Room 1',tier:'Small',sqft:280,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Relaunched 4/7'},
-  {id:'r2',name:'Room 2',tier:'Full',sqft:432,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Paired with Room 1'},
-  {id:'r3',name:'Room 3',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-13',flipDate:'2026-03-25',note:''},
-  {id:'r4',name:'Room 4',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-03-05',flipDate:'2026-03-23',note:''},
-  {id:'r5',name:'Room 5',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-02-27',flipDate:'2026-03-05',note:''},
-  {id:'r6',name:'Room 6',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-08',flipDate:'2026-02-08',note:''},
-  {id:'r7',name:'Room 7',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-17',flipDate:'2026-03-30',note:''},
-  {id:'r8',name:'Room 8',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-04-02',flipDate:'2026-04-12',note:'Flipped 4/12'},
-  {id:'r9',name:'Room 9',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-24',flipDate:'2026-03-03',note:''},
-  {id:'r10',name:'Room 10',tier:'Full',sqft:416,paired:false,tall:false,strain:'',launchDate:'2026-02-06',flipDate:'2026-02-06',note:''},
-  {id:'r11',name:'Room 11',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-02-19',flipDate:'2026-02-19',note:''},
+  {id:'r1',tankNumber:5,name:'Room 1',tier:'Small',sqft:280,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Relaunched 4/7'},
+  {id:'r2',tankNumber:4,name:'Room 2',tier:'Full',sqft:432,paired:true,tall:false,strain:'',launchDate:'2026-04-07',flipDate:'',note:'Paired with Room 1'},
+  {id:'r3',tankNumber:3,name:'Room 3',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-13',flipDate:'2026-03-25',note:''},
+  {id:'r4',tankNumber:2,name:'Room 4',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-03-05',flipDate:'2026-03-23',note:''},
+  {id:'r5',tankNumber:1,name:'Room 5',tier:'Full',sqft:432,paired:false,tall:true,strain:'',launchDate:'2026-02-27',flipDate:'2026-03-05',note:''},
+  {id:'r6',tankNumber:9,name:'Room 6',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-08',flipDate:'2026-02-08',note:''},
+  {id:'r7',tankNumber:8,name:'Room 7',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-03-17',flipDate:'2026-03-30',note:''},
+  {id:'r8',tankNumber:7,name:'Room 8',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-04-02',flipDate:'2026-04-12',note:'Flipped 4/12'},
+  {id:'r9',tankNumber:6,name:'Room 9',tier:'Small',sqft:324,paired:false,tall:false,strain:'',launchDate:'2026-02-24',flipDate:'2026-03-03',note:''},
+  {id:'r10',tankNumber:11,name:'Room 10',tier:'Full',sqft:416,paired:false,tall:false,strain:'',launchDate:'2026-02-06',flipDate:'2026-02-06',note:''},
+  {id:'r11',tankNumber:10,name:'Room 11',tier:'Full',sqft:432,paired:false,tall:false,strain:'',launchDate:'2026-02-19',flipDate:'2026-02-19',note:''},
 ];
 
 let rooms = L('wg_rooms_v2', DEFAULT_ROOMS);
@@ -1430,7 +1467,7 @@ function renderRooms(){
     card.innerHTML=`
       <div class="card-head">
         <div>
-          <div class="room-name">${room.name}</div>
+          <div class="room-name">${room.name}${room.tankNumber?` <span style="font-size:10px;font-weight:400;color:var(--text3)">· T${room.tankNumber}</span>`:''}</div>
           <div class="room-meta">${room.tier} · ${room.sqft} sq ft${room.strain?' · '+room.strain:''}</div>
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
@@ -1950,8 +1987,86 @@ function retireMotherGen(id){const g=motherGens.find(g=>g.id===id);if(g){g.retir
 function deleteMotherGen(id){motherGens=motherGens.filter(g=>g.id!==id);S('wg_mother_gens',motherGens);renderMotherRotation();}
 function markGenRun(id){const g=motherGens.find(g=>g.id===id);if(g){g.runsSupplied=(g.runsSupplied||0)+1;S('wg_mother_gens',motherGens);renderMotherRotation();}}
 
+function renderPerpetualConveyor(){
+  const el = document.getElementById('perpetual-conveyor');
+  if(!el) return;
+
+  // Build 10-week schedule from today
+  // System: Flip every Sunday, Harvest every Wednesday (66 days later = Day 66)
+  // Find next Sunday flip and next Wednesday harvest
+  const today = TODAY;
+  const dow = today.getDay(); // 0=Sun
+
+  // Next Sunday (or today if Sunday)
+  const daysToSun = dow===0 ? 0 : 7-dow;
+  const nextFlip = addDays(today, daysToSun);
+
+  // Build schedule: show upcoming flips and harvests for 10 weeks
+  const weeks = [];
+  for(let w=0; w<12; w++){
+    const flipDate = addDays(nextFlip, w*7);
+    // Harvest = 66 days after flip (Day 66)
+    const harvestDate = addDays(flipDate, 65);
+    // Adjust harvest: if Sat push to Mon, if Sun push to Mon
+    let adjHarvest = harvestDate;
+    const hd = adjHarvest.getDay();
+    if(hd===6) adjHarvest = addDays(adjHarvest, 2); // Sat → Mon
+    else if(hd===0) adjHarvest = addDays(adjHarvest, 1); // Sun → Mon
+
+    // Find which room is scheduled for this flip slot
+    const flipStr = dateToIso(flipDate);
+    const matchRoom = rooms.filter(r=>r.tier!=='Support').find(r=>{
+      const d = calcDates(r);
+      if(!d.flip) return false;
+      return dateToIso(d.flip) === flipStr || Math.abs(diffDays(d.flip, flipDate)) <= 3;
+    });
+
+    // Days until flip
+    const daysUntil = diffDays(today, flipDate);
+    const isPast = daysUntil < -3;
+    const isCurrent = Math.abs(daysUntil) <= 3;
+    const harvestDaysUntil = diffDays(today, adjHarvest);
+    const harvestPast = harvestDaysUntil < 0;
+
+    weeks.push({w, flipDate, adjHarvest, matchRoom, daysUntil, isPast, isCurrent, harvestDaysUntil, harvestPast,
+      flipAdj: hd===6||hd===0 ? '(adj)' : ''});
+  }
+
+  // Render as a compact table
+  let html = '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Next 12 weeks — rooms R1+R2 count as one slot</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+  html += '<tr style="border-bottom:1px solid var(--border)">';
+  html += '<th style="padding:4px 8px;text-align:left;color:var(--text3);font-weight:600">Week</th>';
+  html += '<th style="padding:4px 8px;text-align:left;color:var(--amber);font-weight:600">🔄 Flip (Sun)</th>';
+  html += '<th style="padding:4px 8px;text-align:left;color:var(--text3);font-weight:600">Room</th>';
+  html += '<th style="padding:4px 8px;text-align:left;color:var(--red);font-weight:600">✂️ Harvest (Wed)</th>';
+  html += '<th style="padding:4px 8px;text-align:left;color:var(--text3);font-weight:600">Clone cut deadline</th>';
+  html += '</tr>';
+
+  weeks.forEach(({w, flipDate, adjHarvest, matchRoom, daysUntil, isPast, isCurrent, harvestDaysUntil, harvestPast, flipAdj}) => {
+    // Clone cut = 12 weeks before flip (84 days) — mothers need 8wk + 4wk clone pipeline
+    const cloneCut = addDays(flipDate, -84);
+    const cloneCutDays = diffDays(today, cloneCut);
+    const cloneCutLate = cloneCutDays < 0;
+    const cloneCutSoon = cloneCutDays >= 0 && cloneCutDays <= 14;
+    const rowBg = isCurrent ? 'var(--amber-bg)' : isPast ? 'transparent' : 'transparent';
+    const rowOpacity = isPast ? '0.4' : '1';
+    html += `<tr style="border-bottom:1px solid var(--border);background:${rowBg};opacity:${rowOpacity}">`;
+    html += `<td style="padding:5px 8px;color:var(--text3);font-weight:${isCurrent?'700':'400'}">W${w+1}${isCurrent?' ◀ now':''}</td>`;
+    html += `<td style="padding:5px 8px;font-family:var(--mono);color:${isCurrent?'var(--amber)':'var(--text2)'};font-weight:${isCurrent?'700':'400'}">${fmtShort(flipDate)}${daysUntil===0?' (today)':daysUntil>0?' (in '+daysUntil+'d)':''}</td>`;
+    html += `<td style="padding:5px 8px;color:${matchRoom?'var(--green)':'var(--text3)'}">${matchRoom?matchRoom.name:'—'}</td>`;
+    html += `<td style="padding:5px 8px;font-family:var(--mono);color:${harvestPast?'var(--text3)':'var(--red)'};font-weight:${harvestDaysUntil>=0&&harvestDaysUntil<=7?'700':'400'}">${fmtShort(adjHarvest)}${flipAdj?' '+flipAdj:''}${harvestDaysUntil===0?' ← TODAY':harvestDaysUntil>0&&harvestDaysUntil<=7?' ('+harvestDaysUntil+'d)':''}</td>`;
+    html += `<td style="padding:5px 8px;font-family:var(--mono);color:${cloneCutLate?'var(--red)':cloneCutSoon?'var(--amber)':'var(--text3)'};font-size:10px">${fmtShort(cloneCut)}${cloneCutLate?' OVERDUE':cloneCutSoon?' SOON':''}</td>`;
+    html += '</tr>';
+  });
+  html += '</table>';
+  html += '<div style="font-size:10px;color:var(--text3);margin-top:8px">Clone cut = 12 weeks before flip (8wk mother maturity + 4wk clone pipeline). Golden rules: never stack 2 rooms in one week · F1+F2 always one slot · flips drive the system.</div>';
+  el.innerHTML = html;
+}
+
 function renderMotherRotation(){
   motherGens=L('wg_mother_gens',[]);
+  renderPerpetualConveyor();
   const active=motherGens.filter(g=>!g.retired);
   const retired=motherGens.filter(g=>g.retired);
 
@@ -2432,6 +2547,30 @@ function renderMorningAttention(){
   const wrap = document.getElementById('morning-attention-list');
   if(!wrap) return;
 
+  // Load overnight dryback from cached GL_ProbeMetrics (keyed by roomId → probeLabel)
+  const _cachedPM = L('wg_probe_metrics_raw', null);
+  const _overnightDB = {}; // key: r5_T2B → overnight dryback %
+  if(_cachedPM && _cachedPM.length > 1){
+    const _pmHdr = _cachedPM[0].map(h=>String(h).toLowerCase().trim());
+    const _pmRoomCol = _pmHdr.indexOf('room_id');
+    const _pmProbeCol = _pmHdr.indexOf('probe');
+    const _pmOvDbCol  = _pmHdr.indexOf('overnight_dryback_pct');
+    const _pmPeakCol  = _pmHdr.indexOf('day_peak_vwc');
+    const _pmLowCol   = _pmHdr.indexOf('day_low_vwc');
+    const today = new Date().toISOString().split('T')[0];
+    const _pmDateCol  = _pmHdr.indexOf('date');
+    _cachedPM.slice(1).forEach(row => {
+      const d = String(row[_pmDateCol]||'').split('T')[0];
+      if(d !== today) return;
+      const rid    = String(row[_pmRoomCol]||'');
+      const probe  = String(row[_pmProbeCol]||'');
+      const ovDb   = row[_pmOvDbCol]!==''&&row[_pmOvDbCol]!=null ? parseFloat(row[_pmOvDbCol]) : null;
+      const peak   = row[_pmPeakCol]!==''&&row[_pmPeakCol]!=null ? parseFloat(row[_pmPeakCol]) : null;
+      const low    = row[_pmLowCol]!==''&&row[_pmLowCol]!=null  ? parseFloat(row[_pmLowCol])  : null;
+      if(rid && probe) _overnightDB[rid+'_'+probe] = { ovDb, peak, low };
+    });
+  }
+
   // Build probe list from all flower room Growlink data
   const probes = [];
   rooms.filter(r=>r.tier!=='Support').forEach(room => {
@@ -2444,6 +2583,9 @@ function renderMorningAttention(){
     Object.entries(tables).forEach(([tNum, sides]) => {
       Object.entries(sides).forEach(([pos, data]) => {
         if(!data) return;
+        const _roomId = 'r'+roomNum;
+        const _probeKey = _roomId + '_T'+tNum+(pos==='F'?'F':'B');
+        const _pmData = _overnightDB[_probeKey] || null;
         probes.push({
           room: room.name,
           roomNum,
@@ -2451,9 +2593,12 @@ function renderMorningAttention(){
           pos,
           vwc: data.vwc,
           ec: data.ec,
-          dryback: data.dryback,  // may be null if no peak history yet
+          dryback: data.dryback,
           peak: data.peak,
           id: `${room.name}_T${tNum}_${pos}`,
+          overnightDb: _pmData ? _pmData.ovDb : null,
+          overnightPeak: _pmData ? _pmData.peak : null,
+          overnightLow: _pmData ? _pmData.low : null,
         });
       });
     });
@@ -2471,7 +2616,14 @@ function renderMorningAttention(){
 
   // Sort based on morningSortMode
   probes.sort((a,b) => {
-    if(morningSortMode === 'vwc') {
+    if(morningSortMode === 'overnight') {
+      // Sort by overnight dryback — highest (most dry) first, negatives last
+      const aDb = a.overnightDb; const bDb = b.overnightDb;
+      if(aDb==null && bDb==null) return 0;
+      if(aDb==null) return 1; if(bDb==null) return -1;
+      if(aDb<0 && bDb>=0) return 1; if(bDb<0 && aDb>=0) return -1;
+      return bDb - aDb;
+    } else if(morningSortMode === 'vwc') {
       // Lowest VWC first (driest), nulls last
       if(a.vwc == null && b.vwc == null) return 0;
       if(a.vwc == null) return 1;
@@ -2536,6 +2688,11 @@ function renderMorningAttention(){
             <span style="color:${isDone ? 'var(--text3)' : (p.dryback!=null?dbColor(p.dryback):'var(--text3)')};font-weight:${p.dryback!=null?'700':'400'}">${p.dryback!=null?p.dryback.toFixed(1)+'%':'—'}</span>
           </span>
           ${p.peak != null ? `<span style="font-size:10px;color:var(--text3)">pk ${p.peak.toFixed(1)}%</span>` : ''}
+          ${p.overnightDb != null ? `<span style="font-size:11px;font-family:var(--mono);border-left:1px solid var(--border2);padding-left:10px;margin-left:2px">
+            <span style="color:var(--text3)">Overnight DB </span>
+            <span style="font-weight:700;color:${isDone?'var(--text3)':p.overnightDb<0?'var(--blue)':p.overnightDb<8?'var(--amber)':p.overnightDb<=15?'var(--green)':'var(--red)'}">${p.overnightDb.toFixed(1)}%</span>
+            <span style="font-size:9px;color:var(--text3)">${p.overnightDb<0?' wetter overnight':p.overnightDb<8?' shallow':p.overnightDb<=15?' ✓':' too deep'}</span>
+          </span>` : ''}
         </div>
       </div>
       <!-- Done by / or action -->
@@ -3170,6 +3327,8 @@ function renderSettings(){
       <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
       <label>Flip date (day 1 of flower)</label>
       <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
+      <label>Rythm Tank #</label>
+      <input type="number" value="${room.tankNumber||''}" placeholder="e.g. 7" onchange="rooms[${i}].tankNumber=parseInt(this.value)||null;S('wg_rooms_v2',rooms);renderRooms()" style="width:80px"/>
       <label>Note</label>
       <input value="${room.note||''}" placeholder="e.g. Harvested Fri" onchange="rooms[${i}].note=this.value;S('wg_rooms_v2',rooms)"/>
       ${d.harvestDate?`<div class="calc-row">
@@ -4175,8 +4334,65 @@ async function pullGrowlinkFromCloud(silent=false){
     renderRooms();
     // Also update support rooms directly in case Rooms page isn't active
     setTimeout(()=>{try{renderSupportRooms();}catch(e){}},0);
+    // Update 24h dryback averages from GL_History if available
+    setTimeout(()=>{try{updateDryback24h();}catch(e){}},200);
+    // Pre-fetch performance scores in background (leads only) so modal opens instantly
+    setTimeout(()=>{try{prefetchPerfScores();}catch(e){}},500);
 
   }catch(e){ if(!silent) console.warn('Growlink pull failed:',e); }
+}
+
+// Pre-fetch all room performance scores into localStorage cache
+// Fires silently after every Growlink pull — modal opens instantly after
+async function prefetchPerfScores(){
+  if(!gsUrl || currentRole!=='lead') return;
+  try{
+    const json = await fetch(gsUrl+'?action=getScores&t='+Date.now()).then(r=>r.json());
+    if(json.ok && json.data) S('wg_perf_scores', json.data);
+  }catch(e){ /* silent fail — scores will load on demand if this fails */ }
+}
+
+// Calculate 24h average dryback per room from GL_History data
+// GL_History is populated by the Apps Script hourly trigger
+// Falls back gracefully if no history data exists yet
+async function updateDryback24h(){
+  if(!gsUrl) return;
+  try{
+    const res = await fetch(gsUrl+'?action=getSheet&sheet=GL_History&t='+Date.now());
+    const json = await res.json();
+    if(!json.ok || !json.rows || json.rows.length < 2) return;
+    const rows = json.rows;
+    const hdr  = rows[0].map(h=>String(h).toLowerCase().trim());
+    const col  = (name) => hdr.findIndex(h=>h.includes(name));
+    const roomCol = col('room_id');
+    const dbCol   = hdr.findIndex(h=>h==='vwc_avg'); // we derive dryback from VWC peak vs current
+    const tsCol   = col('timestamp');
+    // Use dryback if stored directly, otherwise skip until GL_History has dryback column
+    // For now use the VWC data to estimate: peak VWC in window minus current VWC
+    const cutoff = Date.now() - 24*60*60*1000;
+    const byRoom = {};
+    rows.slice(1).forEach(row=>{
+      const ts = new Date(String(row[tsCol]||'')).getTime();
+      if(isNaN(ts)||ts<cutoff) return;
+      const roomId = String(row[roomCol]||'');
+      if(!roomId) return;
+      // For 24h dryback avg we need a dryback column — use vwc as placeholder
+      // Once GL_History is populated with dryback col this will need updating
+      if(!byRoom[roomId]) byRoom[roomId]=[];
+      const vwc = parseFloat(row[dbCol]);
+      if(!isNaN(vwc)) byRoom[roomId].push(vwc);
+    });
+    // Store 24h avg per room — key by room id
+    // This is VWC avg for now; when dryback col added to GL_History this updates automatically
+    const db24h = {};
+    Object.entries(byRoom).forEach(([roomId, vals])=>{
+      if(!vals.length) return;
+      const peak = Math.max(...vals);
+      const current = vals[vals.length-1];
+      if(peak>0) db24h[roomId] = Math.round(((peak-current)/peak)*1000)/10;
+    });
+    S('wg_gl_dryback_24h', db24h);
+  }catch(e){ console.warn('updateDryback24h failed:',e); }
 }
 
 function getGrowlinkForRoom(roomName){
@@ -4224,16 +4440,49 @@ async function parseMetrcXLSX(file){
 }
 
 function parseMetrcCSV(text){
-  const lines=text.trim().split(/\r?\n/);
+  // Strip BOM if present (Excel/Windows adds this)
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const lines=text.split(/\r?\n/).filter(l=>l.length>0);
   if(!lines.length)return[];
-  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
-  return lines.slice(1).map(line=>{
+
+  // Quote-aware split: treat `delim` as separator only when NOT inside a "quoted" cell.
+  // Same logic works for tab or comma — we just parameterize the separator char.
+  const splitLine=(line,delim)=>{
     const vals=[];let cur='';let inQ=false;
-    for(const ch of line){if(ch==='"'){inQ=!inQ;}else if(ch===','&&!inQ){vals.push(cur.trim());cur='';}else cur+=ch;}
-    vals.push(cur.trim());
-    const row={};headers.forEach((h,i)=>row[h]=(vals[i]||'').replace(/^"|"$/g,''));
+    for(const ch of line){
+      if(ch==='"'){inQ=!inQ;continue;}
+      if(ch===delim&&!inQ){vals.push(cur);cur='';continue;}
+      cur+=ch;
+    }
+    vals.push(cur);
+    return vals.map(v=>v.trim().replace(/^"|"$/g,''));
+  };
+
+  // Delimiter detection: sample up to the first 5 lines. Whichever delimiter
+  // produces the most consistent column count across rows wins.
+  // This beats header-only detection because some files have commas only in
+  // values, or tabs only inside quoted cells, etc.
+  const sample=lines.slice(0,Math.min(5,lines.length));
+  const score=(delim)=>{
+    const counts=sample.map(l=>splitLine(l,delim).length);
+    const first=counts[0];
+    if(first<2) return 0; // need at least 2 columns
+    const consistent=counts.every(c=>c===first);
+    return consistent?first*100:first; // reward consistency
+  };
+  const tabScore=score('\t');
+  const commaScore=score(',');
+  const delim=tabScore>=commaScore?'\t':',';
+  console.log('[METRC parser] delim='+(delim==='\t'?'TAB':'COMMA'),'tabScore='+tabScore,'commaScore='+commaScore,'firstHeader='+JSON.stringify(lines[0].slice(0,80)));
+
+  const headers=splitLine(lines[0],delim);
+  const rows=lines.slice(1).map(line=>{
+    const vals=splitLine(line,delim);
+    const row={};headers.forEach((h,i)=>row[h]=(vals[i]||''));
     return row;
   }).filter(r=>Object.values(r).some(v=>v));
+  console.log('[METRC parser] parsed',rows.length,'rows,',headers.length,'columns');
+  return rows;
 }
 
 async function handleMetrcUpload(type,input){
@@ -4432,7 +4681,7 @@ function renderMetrcMothers(){
     byStrain[strain].cloned+=parseInt(r['Cloned']||0)||0;
   });
   const clonesByStrain={};
-  metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||'';clonesByStrain[s]=(clonesByStrain[s]||0)+(parseInt(r['Plants']||0)||0);});
+  metrcData.immature.forEach(r=>{const s=r['Strain']||r['StrainName']||r['Strain Name']||'';const p=parseInt(r['Plants']||r['Plant Count']||r['PlantCount']||r['# Plants']||r['Count']||0)||0;clonesByStrain[s]=(clonesByStrain[s]||0)+p;});
   const _mq=(document.getElementById('metrc-mother-search')?.value||'').toLowerCase().trim();
   const strains=Object.keys(byStrain).filter(s=>!_mq||s.toLowerCase().includes(_mq)).sort((a,b)=>a.localeCompare(b));
   if(countEl) countEl.textContent=(strains.length!==Object.keys(byStrain).length?strains.length+' of '+Object.keys(byStrain).length:strains.length)+' strains \u00b7 '+rows.length+' mothers';
@@ -5350,6 +5599,7 @@ function parseTableSensors(rawSensors, tableCount) {
 }
 
 function openRoomModal(room) {
+  console.log('[Score] openRoomModal called — currentRole:', currentRole, '| loggedInMember:', loggedInMember&&loggedInMember.name);
   const roomName = room.name || room.key;
   const gl = growlinkData[roomName] || getGrowlinkForRoom(roomName);
   // Debug: log raw sensor UUIDs for this room to console
@@ -5367,12 +5617,48 @@ function openRoomModal(room) {
   document.getElementById('rdm-name').textContent = roomName;
   document.getElementById('rdm-meta').textContent =
     [room.tier!=='Support'?room.tier:null, room.sqft&&room.sqft!=='—'?room.sqft+' sq ft':null,
-     room.strain||null, fd?'Day '+fd:null].filter(Boolean).join(' · ');
+     room.strain||null, fd?'Day '+fd:null,
+     room.tankNumber?'Tank '+room.tankNumber:null].filter(Boolean).join(' · ');
 
+  const scoreEl=document.getElementById('rdm-score-section');
   const phaseEl=document.getElementById('rdm-phase-section');
   const ambEl  =document.getElementById('rdm-ambient-section');
   const subEl  =document.getElementById('rdm-substrate-section');
   const noEl   =document.getElementById('rdm-nodata');
+
+  // Load performance scores for this room (leads only)
+  // Always fetch fresh — prefetch keeps it fast, stale cache causes blank breakdowns
+  if(currentRole==='lead' && scoreEl){
+    const _roomId = room.id || (room.name||'').toLowerCase().replace('flower room ','r').replace('room ','r').replace(' ','');
+    console.log('[Score] openRoomModal roomId resolved:', _roomId, '| room.id:', room.id, '| room.name:', room.name);
+    // Show cached instantly while fresh data loads
+    const _cachedScores = L('wg_perf_scores',{});
+    const _sc = _cachedScores[_roomId];
+    // Always show loading first — prevents stale expanded state flashing
+    scoreEl.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:8px 0">Loading score…</div>`;
+    // Always fetch fresh in background to get latest + ensure breakdown fields present
+    if(gsUrl){
+      fetch(gsUrl+'?action=getScores&t='+Date.now())
+        .then(r=>r.json())
+        .then(json=>{
+          console.log('[Score] fresh fetch:', json.ok, json.error||'');
+          if(json.ok&&json.data){
+            S('wg_perf_scores',json.data);
+            const sc=json.data[_roomId];
+            if(sc) renderRoomScoreSection(scoreEl,sc,_roomId,false);
+            else scoreEl.innerHTML=`<div style="font-size:11px;color:var(--amber);padding:8px 0">No score yet for ${_roomId} — run calculateDailyScores() in Apps Script editor to generate.</div>`;
+          } else {
+            // Keep cached display if fetch fails, show warning
+            const _errMsg=json.error||'Score fetch failed';
+              const _hint=_errMsg.includes('Unknown action')?'Apps Script needs redeployment — Deploy → Manage deployments → New version → Deploy':_errMsg.includes('No score')?'Run calculateDailyScores() in Apps Script to generate':'Check Apps Script logs';
+              if(!_sc) scoreEl.innerHTML=`<div style="font-size:11px;padding:8px 0;line-height:1.6;color:var(--amber)"><b>Score unavailable:</b> `+_errMsg+`<br><span style="color:var(--text3)">→ `+_hint+`</span></div>`;
+          }
+        }).catch(e=>{
+          console.warn('[Score] fetch error:', e);
+          if(!_sc) scoreEl.innerHTML=`<div style="font-size:11px;color:var(--red);padding:8px 0">Score fetch error</div>`;
+        });
+    }
+  } else if(scoreEl){ scoreEl.innerHTML=''; }
 
   if (phase) {
     phaseEl.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
@@ -5457,12 +5743,158 @@ function openRoomModal(room) {
   const tableCount=[1,6,9].includes(roomNum)?2:3;
   const tables=(!_isSupportRoom&&raw.length)?parseTableSensors(raw,tableCount):null;
 
-  function probeCard(data,posLabel,side){
+  // Load GL_ProbeMetrics for this room — keyed by room id (r1, r2 etc)
+  const _roomNum = (roomName.match(/\d+/)||[])[0];
+  const _roomIdForMetrics = room.id || (_roomNum ? 'r'+_roomNum : null);
+  console.log('[ProbeMetrics] room id for metrics:', _roomIdForMetrics);
+
+  // Parse probe metrics rows into a per-room per-probe map
+  function _parseProbeMetrics(rows){
+    if(!rows||rows.length<2) return {};
+    const hdr = rows[0].map(h=>String(h).toLowerCase().trim());
+    const col = n => hdr.indexOf(n);
+    const today = new Date().toISOString().split('T')[0];
+    const pm = {};
+    rows.slice(1).forEach(row=>{
+      const d = String(row[col('date')]||'').split('T')[0];
+      if(d!==today) return;
+      const rid = String(row[col('room_id')]||'');
+      const pos = String(row[col('probe')]||''); // e.g. T1F, T1B, T2F etc
+      if(!rid||!pos) return;
+      if(!pm[rid]) pm[rid]={};
+      pm[rid][pos]={
+        dayPeakVwc:  row[col('day_peak_vwc')],
+        dayPeakTime: row[col('day_peak_time')],
+        dayLowVwc:   row[col('day_low_vwc')],
+        dayLowTime:  row[col('day_low_time')],
+        overnightDb: row[col('overnight_dryback_pct')],
+        avgBetween:  row[col('avg_between_event_dryback')],
+        eventCount:  row[col('irrigation_event_count')],
+      };
+    });
+    return pm;
+  }
+
+  // Use cached metrics first for instant display
+  const _cachedMetrics = L('wg_probe_metrics_raw',null);
+  let _probeMetrics = null;
+  if(_cachedMetrics){
+    const pm = _parseProbeMetrics(_cachedMetrics);
+    _probeMetrics = pm[_roomIdForMetrics] || null;
+    console.log('[ProbeMetrics] from cache — keys:', _probeMetrics ? Object.keys(_probeMetrics) : 'none');
+  }
+  // Track current open room so async re-render targets the right room
+  window._currentModalRoomId = _roomIdForMetrics;
+
+  // Always fetch fresh — re-renders substrate section when data arrives
+  if(gsUrl){
+    fetch(gsUrl+'?action=getProbeMetrics&t='+Date.now())
+      .then(r=>r.json())
+      .then(json=>{
+        if(!json.ok||!json.rows) {
+          console.log('[ProbeMetrics] fetch failed:', json.error||'no data');
+          return;
+        }
+        console.log('[ProbeMetrics] fetched', json.rows.length, 'rows');
+        // Cache raw rows
+        S('wg_probe_metrics_raw', json.rows);
+        const pm = _parseProbeMetrics(json.rows);
+        console.log('[ProbeMetrics] rooms in data:', Object.keys(pm));
+        _probeMetrics = pm[_roomIdForMetrics] || null;
+        console.log('[ProbeMetrics] probes for', _roomIdForMetrics, ':', _probeMetrics ? Object.keys(_probeMetrics) : 'none');
+        // Only re-render if this room's modal is still open
+        if(window._currentModalRoomId !== _roomIdForMetrics) return;
+        const _subEl2 = document.getElementById('rdm-substrate-section');
+        if(_subEl2 && _probeMetrics){
+          _subEl2.querySelectorAll('[data-probe-key]').forEach(el=>{
+            const key = el.dataset.probeKey;
+            const pm2 = _probeMetrics[key];
+            if(!pm2) return;
+            const metricsEl = el.querySelector('.probe-metrics-section');
+            if(metricsEl) metricsEl.innerHTML = _buildProbeMetricsHtml(pm2);
+          });
+        }
+      }).catch(e=>{ console.log('[ProbeMetrics] fetch error:', e); });
+  }
+
+  // Build metrics HTML block for a probe — called both on initial render and on re-render
+  function _buildProbeMetricsHtml(pm){
+    if(!pm) return '';
+    const _ovDb  = (pm.overnightDb  !== '' && pm.overnightDb  != null) ? parseFloat(pm.overnightDb)  : null;
+    const _avgBt = (pm.avgBetween   !== '' && pm.avgBetween   != null) ? parseFloat(pm.avgBetween)   : null;
+    const _pkVwc = (pm.dayPeakVwc   !== '' && pm.dayPeakVwc   != null) ? parseFloat(pm.dayPeakVwc)   : null;
+    const _loVwc = (pm.dayLowVwc    !== '' && pm.dayLowVwc    != null) ? parseFloat(pm.dayLowVwc)    : null;
+    const _evCt  = (pm.eventCount   !== '' && pm.eventCount   != null) ? parseInt(pm.eventCount)     : null;
+    const _ovCol  = _ovDb!=null  ? (_ovDb>15?'var(--red)':_ovDb<8?'var(--amber)':'var(--green)') : 'var(--text3)';
+    const _avgCol = _avgBt!=null ? (_avgBt>15?'var(--red)':_avgBt<3?'var(--amber)':'var(--green)') : 'var(--text3)';
+    if(_pkVwc===null && _loVwc===null && _ovDb===null && _avgBt===null) return '';
+    let h = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:5px">Dryback metrics · today</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+    // Format time — handles Date objects, ISO strings, and "3:45 PM" strings from Sheets
+    const _fmtTime = (t) => {
+      if(!t) return '';
+      try {
+        // If it's already a clean time string like "3:45 PM", return as-is
+        if(typeof t === 'string' && /^\d{1,2}:\d{2}/.test(t)) return t;
+        // Parse as date (works for ISO strings and Date objects serialized to string)
+        const s = String(t);
+        // Extract time from ISO or Date.toString() formats
+        const isoMatch = s.match(/T(\d{2}:\d{2})/);
+        if(isoMatch) {
+          // UTC time from ISO — convert to local
+          const d = new Date(s);
+          if(!isNaN(d.getTime())) return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+        }
+        // Date.toString() format: "Thu Dec 30 1899 15:40:00 GMT-0500"
+        const timeMatch = s.match(/(\d{1,2}:\d{2}:\d{2})/);
+        if(timeMatch) {
+          const [h,m] = timeMatch[1].split(':').map(Number);
+          const ampm = h>=12?'PM':'AM';
+          const h12 = h%12||12;
+          return h12+':'+(m<10?'0':'')+m+' '+ampm;
+        }
+      } catch(e) {}
+      return '';
+    };
+    if(_pkVwc!==null){
+      h += '<div><div style="font-size:8px;color:var(--text3)">Day peak</div>';
+      h += '<div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text)">'+_pkVwc.toFixed(1)+'%</div>';
+      const _pt = _fmtTime(pm.dayPeakTime);
+      if(_pt) h += '<div style="font-size:8px;color:var(--text3)">'+_pt+'</div>';
+      h += '</div>';
+    }
+    if(_loVwc!==null){
+      h += '<div><div style="font-size:8px;color:var(--text3)">Day low</div>';
+      h += '<div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text)">'+_loVwc.toFixed(1)+'%</div>';
+      const _lt = _fmtTime(pm.dayLowTime);
+      if(_lt) h += '<div style="font-size:8px;color:var(--text3)">'+_lt+'</div>';
+      h += '</div>';
+    }
+    if(_ovDb!==null){
+      const _ovHint = _ovDb<0 ? 'getting wetter overnight — check last shot timing' : _ovDb<8 ? 'shallow — consider −1 event or earlier last shot' : _ovDb>15 ? 'too deep — consider +1 event or later last shot' : '10–14% ✓';
+      h += '<div><div style="font-size:8px;color:var(--text3)">Overnight DB</div>';
+      h += '<div style="font-family:var(--mono);font-size:11px;font-weight:600;color:'+_ovCol+'">'+_ovDb.toFixed(1)+'%</div>';
+      h += '<div style="font-size:8px;color:var(--text3)">'+_ovHint+'</div></div>';
+    }
+    if(_avgBt!==null){
+      const _label = 'Avg bet. shots' + (_evCt!==null ? ' ('+_evCt+')' : '');
+      h += '<div><div style="font-size:8px;color:var(--text3)">'+_label+'</div>';
+      h += '<div style="font-family:var(--mono);font-size:11px;font-weight:600;color:'+_avgCol+'">'+_avgBt.toFixed(1)+'%</div></div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function probeCard(data,posLabel,side,tNum){
     if(!data) return `<div style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);opacity:0.35;text-align:center;font-size:11px;color:var(--text3)">${posLabel}<br>No data</div>`;
     const vwcCol=data.vwc!=null?sc(data.vwc,tVWC[0],tVWC[1]):'var(--text3)';
     const ecCol =data.ec!=null ?sc(data.ec, tEC[0], tEC[1]) :'var(--text3)';
     const dbCol =data.dryback!=null?(data.dryback>20?'var(--red)':data.dryback>10?'var(--amber)':'var(--green)'):'var(--text3)';
-    return `<div style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)">
+    const _phaseTgt = phase && phase.dryback!=null ? phase.dryback : null;
+    // Per-probe metrics from GL_ProbeMetrics — keyed by T1F, T1B, T2F etc
+    const _probeKey = 'T' + (tNum||'1') + (posLabel==='Front'?'F':'B');
+    const _pm = _probeMetrics ? _probeMetrics[_probeKey] : null;
+    return `<div data-probe-key="${_probeKey}" style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)">
       <div style="font-size:9px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
         <span style="color:var(--text2)">${posLabel}</span><span>${side}</span>
       </div>
@@ -5473,12 +5905,14 @@ function openRoomModal(room) {
           ${data.peak!=null?`<div style="font-size:8px;color:var(--text3)">pk ${data.peak.toFixed(1)}%</div>`:''}
         </div>
         <div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center">
-          <div style="font-size:9px;color:var(--text3)">Dryback</div>
+          <div style="font-size:9px;color:var(--text3);display:flex;justify-content:space-between;align-items:center">
+            <span>Dryback</span>${_phaseTgt?`<span style="color:var(--text3);font-size:8px">~${_phaseTgt}%</span>`:''}
+          </div>
           <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${dbCol}">${data.dryback!=null?data.dryback.toFixed(1)+'%':'—'}</div>
           <div style="font-size:8px;color:var(--text3)">&lt;10% ok</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px">
         <div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center">
           <div style="font-size:9px;color:var(--text3)">EC</div>
           <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${ecCol}">${fmt(data.ec,2)}<span style="font-size:9px;font-weight:400;color:var(--text3)"> mS</span></div>
@@ -5488,6 +5922,7 @@ function openRoomModal(room) {
           <div style="font-family:var(--mono);font-size:13px;color:var(--text2)">${fmt(data.temp)}°<span style="font-size:9px;color:var(--text3)">F</span></div>
         </div>
       </div>
+      <div class="probe-metrics-section" style="${_pm?'background:var(--bg2);border-radius:var(--r);padding:6px 8px;border:1px solid var(--border)':'display:none'}">${_pm?_buildProbeMetricsHtml(_pm):''}</div>
     </div>`;}
 
   if (tables) {
@@ -5502,8 +5937,8 @@ function openRoomModal(room) {
             Table ${tNum} <span style="font-size:10px;font-weight:400;color:var(--text3)">· ${tNum==='1'?'Right side':tNum===String(tableCount)?'Left side':'Center'}</span>
           </div>
           <div style="display:flex;gap:6px">
-            ${probeCard(tables[tNum].F,'Front','')}
-            ${probeCard(tables[tNum].B,'Back','')}
+            ${probeCard(tables[tNum].F,'Front','',tNum)}
+            ${probeCard(tables[tNum].B,'Back','',tNum)}
           </div>
         </div>`).join('')}
     </div>`;
@@ -5521,8 +5956,258 @@ function openRoomModal(room) {
   document.getElementById('room-detail-bg').style.display='block';
 }
 
+function renderRoomScoreSection(el, sc, roomId, expanded){
+  if(!el) return;
+  expanded = expanded === true; // default collapsed
+  const stateBandColor = s => s&&s.includes('ELITE')?'var(--green)':s&&s.includes('STRONG')?'var(--green)':s&&s.includes('STABLE')?'var(--blue)':s&&s.includes('WATCH')?'var(--amber)':'var(--red)';
+  const barColor = v => v>=80?'var(--green)':v>=60?'var(--blue)':v>=40?'var(--amber)':'var(--red)';
+
+  // Rule-based score breakdown using Dialed Destiny 2.2 and TREP thresholds
+  const buildBreakdown = (sc) => {
+    const items = [];
+    const add = (sev, headline, detail, fixes) => items.push({sev, headline, detail, fixes});
+    const cycleDay = sc.cycleDay || 0;
+    const inStack  = cycleDay >= 29 && cycleDay <= 49; // Resin Stacking window
+    const inFade   = cycleDay >= 50 && cycleDay <= 63;
+
+    // ── VPD — TREP phase targets ──
+    // P1 Expansion: 0.7–0.9 kPa | P2 Conversion: 0.9–1.1 | P3 Stack: 1.3–1.6 | P4 Fade: 1.4–1.7
+    if(sc.vpdScore!=null){
+      if(sc.vpdScore>=85) add('good','VPD on target for '+sc.phase,'VPD is tracking the TREP setpoint — transpiration-driven nutrient transport is running at capacity.',[]);
+      else if(sc.vpdScore>=70) add('watch','VPD drifting from '+sc.phase+' target','VPD is near but not on target. The most common cause is lights-on ramp — VPD spikes before HVAC catches up to the temperature rise.',['Check Growlink trend for this room between 8–10 AM — VPD should ramp gradually, not spike','If high VPD: RH is dropping too fast at lights-on — check dehumidifier timing','If low VPD: confirm night setpoints are stepping up to day targets on schedule','Per TREP: '+sc.phase+' target is '+(cycleDay<=21?'0.7–0.9':cycleDay<=28?'0.9–1.1':inStack?'1.3–1.6':'1.4–1.7')+' kPa']);
+      else if(sc.vpdScore>=50) add('issue','VPD consistently outside TREP target','VPD has been outside phase targets for most of the day. Per Resin OS: oscillating environments suppress enzyme activity — THCA accumulation is being impacted.',['Pull 24-hour Growlink VPD chart and identify when and how far it goes out of range','If VPD too high (>'+( inStack?'1.6':'1.2')+'): RH is too low — check dehumidifier setpoints, confirm night RH is not crashing below day RH','If VPD too low (<'+(inStack?'1.3':cycleDay<=21?'0.7':'0.9')+'): RH is too high or temp too low — check HVAC setpoints','Verify sensor placement — probes near light fixtures read artificially high VPD']);
+      else add('critical','VPD severely off target — THCA impact likely','VPD is far outside phase targets. Per Resin OS science: photosynthesis and nutrient transport are significantly impaired. This is the highest-impact environmental issue possible.',['Immediate: compare Growlink readings to handheld VPD meter to rule out sensor fault','If confirmed: escalate to Pat — HVAC or dehumidifier intervention needed immediately','Do not make fertigation changes until VPD is corrected — EC uptake data is unreliable under these conditions','Per TREP Non-Negotiable: stability is the standard — no environmental oscillation']);
+    }
+
+    // ── Dewpoint — TREP hard ceiling 60°F from Day 29 ──
+    if(sc.dewpointScore!=null){
+      if(sc.dewpointScore>=85) add('good','Dewpoint spread safe','Temp-to-dewpoint spread is healthy — Botrytis condensation risk is low on canopy surfaces.',[]);
+      else if(sc.dewpointScore>=60){
+        const urgency = cycleDay>=29 ? 'watch' : 'info';
+        add(urgency,'Dewpoint spread narrowing'+(cycleDay>=29?' — TREP guardrail active':''),'The gap between air temp and dewpoint is tightening. '+( cycleDay>=29?'TREP hard ceiling is 60°F from Day 29 onward — Botrytis cinerea spores germinate within 4–8 hours of condensation at this temperature range.':'If this trend continues into Day 29+ it will breach the TREP ceiling.'),['Monitor lights-off period closely — temp drops while RH can rise during dark period','Confirm dehumidifiers are running during dark period and not cycling off','Check that night RH is at or below day RH — per TREP Non-Negotiable, overnight RH spikes are hidden mold events','Target dewpoint 55–59°F per TREP — current spread is getting close to the 60°F ceiling']);
+      } else {
+        add('critical','Dewpoint ceiling breached — active Botrytis risk','Dewpoint spread is critically low. Per Resin OS science: Botrytis cinerea spores germinate within 4–8 hours of surface condensation at canopy temperatures. A dense bud can be destroyed in 48–72 hours once established.',['Immediate: physically inspect dense buds and lower canopy for any grey powder or soft spots','Increase dehumidifier output for lights-off period immediately','Check night temp setpoint — it must not drop below the dewpoint','Per TREP Non-Negotiable: hard ceiling is 60°F dewpoint from Day 29 — this is the primary late-flower mold trigger','Night RH must be at or below day RH at all times per Resin OS']);
+      }
+    }
+
+    // ── Stability — Resin OS: stability beats aggression ──
+    if(sc.stabilityScore!=null){
+      if(sc.stabilityScore>=85) add('good','Environment stable','Temp, RH and VPD are holding steady across 3-hour windows. Per Resin OS: a boring, predictable room produces higher THCA.',[]);
+      else if(sc.stabilityScore>=65) add('watch','Environmental swings detected','Readings are fluctuating across 3-hour windows. Per Resin OS: oscillating environments suppress enzyme activity and yield consistency.',['Check if swings are tied to a specific time — lights-on ramp and irrigation events are common triggers','Verify Growlink controller PID settings are tuned for current canopy size and HVAC capacity','Check for air leaks or poor insulation causing temp swings near the ceiling or walls']);
+      else add('issue','High environmental instability — enzyme activity suppressed','Significant temp/RH/VPD oscillation detected. Per Resin OS science: THCAS activity requires a kinetic stability window — the enzyme cannot operate at Vmax if environmental conditions are erratic.',['Pull Growlink 24-hour chart for this room — identify whether swings are temp-led or RH-led','If temp swings: check HVAC cycling frequency and PID settings — a failing unit produces characteristic oscillation','If RH swings: often caused by irrigation events spiking humidity — check exhaust fan timing relative to P1/P2 shots','Per TREP Non-Negotiable: no environmental oscillation. Stability is the standard.']);
+    }
+
+    // ── EC Uptake — Dialed Destiny 2.2 drift rule ──
+    if(sc.uptakeScore!=null){
+      if(sc.uptakeScore>=85) add('good','EC uptake healthy','EC is declining over 24 hours at the expected rate — plants are processing mineral nutrition at or above delivery rate. Root zone is functional.',[]);
+      else if(sc.uptakeScore>=65) add('watch','EC uptake slightly below target','Plants are feeding but slower than expected. Per Dialed Destiny 2.2: EC rising + normal VWC = nutrition issue, not cadence.',['Pull runoff EC and compare to feed EC — ratio >1.2 indicates salt accumulating faster than plant is clearing','Cross-reference with morning VWC — if VWC is also high, cadence may need reducing (could be 21-event room needing 20)','Check VPD score — low VPD directly reduces transpiration-driven mineral transport']);
+      else add('issue','Low EC uptake — root zone or osmotic issue',inStack?'Critical during stacking window (Days 29–49). Per Resin OS: CBGA precursor availability is the rate limiter for THCA synthesis — if the root zone cannot deliver minerals, the enzyme cannot run at Vmax.':'EC is not declining meaningfully. Plants are not feeding at the expected rate for this phase.',['Check substrate VWC per Dialed Destiny: morning VWC should be 54–57%, overnight dryback 10–14%. If VWC is too high, reduce to 19 events','Pull runoff EC — if >0.5 above feed EC over 3 days that is the Dialed Destiny drift threshold requiring investigation','Check soil temp in probe cards — below 65°F significantly reduces nutrient uptake efficiency','Per EC Rainbow: confirm you are on correct phase EC. An unplanned drop below 2.6 during Days 29–49 requires immediate review',inStack?'Stack phase: do not flush or reduce nutrition without CD approval — an EC drop here directly reduces THCA ceiling':'']);
+    }
+
+    // ── Uniformity — Dialed Destiny 2.2 front/back thresholds ──
+    if(sc.uniformityScore!=null){
+      if(sc.uniformityScore>=85) add('good','Front/back substrate uniform','VWC distribution is even across probe positions. Irrigation is reaching the canopy evenly — all plants are getting the same substrate conditions.',[]);
+      else if(sc.uniformityScore>=65) add('watch','Minor front/back VWC gap','Per Dialed Destiny 2.2: front/back divergence 5–8% = watch-list. Monitor over 2–3 days before intervening.',['Note which table and which side (front=aisle, back=wall) is consistently wetter or drier','Check dripper placement on the drier side — should be at base of stem, not offset','At next room visit, manually check a few dripper flow rates on the drier side','Per DD 2.2: do not adjust dripper pressure system-wide for a single table — target the specific emitters']);
+      else add('issue','Significant front/back distribution gap','Per Dialed Destiny 2.2: >8% divergence for 3+ days requires intervention. This is a structural hydraulics issue — likely pressure drop at the back of the loop or blocked emitters.',['Confirm which specific table(s) are showing the divergence — check per-table data in the probe cards below','Inspect all drippers on the low-VWC side for blockages, partial flow, or dislodged emitters','Per DD 2.2 facility note: 78-ft ¾-inch loop at 30 PSI — back of room sees lower pressure, meaning this gap tends to favor back-of-room wetter. If front is wetter, check for canopy blocking emitters rather than pressure','Dripper adjustments require Fertigation Lead sign-off per DD 2.2 — log zone, reason, and pre/post VWC']);
+    }
+
+    // ── Irrigation Response — Dialed Destiny shot detection ──
+    if(sc.responseScore!=null){
+      if(sc.responseScore>=85) add('good','Irrigation response clean','VWC rising properly after shots and drying back between events. Shot sizing and cadence are matched to plant demand — per DD 2.2: balanced room at 20 events.',[]);
+      else if(sc.responseScore>=60) add('watch','Irrigation response inconsistent','VWC response to shots is variable. Some events are producing good rises, others are flat.',['Check for partially blocked drippers on individual plants — a blocked emitter produces a flat VWC response','Verify substrate is not hydrophobic in dry zones — severely dry rockwool repels water until re-wetted','If shots are too frequent, substrate never dries back enough to respond well to next shot — check if overnight dryback is below 8%']);
+      else if(sc.responseScore!=null) add('issue','Weak irrigation response — shot sizing or substrate issue','VWC is not responding as expected to irrigation events. Per DD 2.2: irrigation follows substrate signal — if the plant is not responding, something is wrong with either delivery or the root zone.',['Check morning VWC and overnight dryback — per DD 2.2 target 54–57% morning VWC, 10–14% overnight dryback. If morning VWC is too high, plants are waterlogged and will not respond to shots','Inspect substrate physically — check a few blocks for hydrophobic dry zones or saturated cores','Verify all dripper lines are charged and not air-locked after any recent system work','If substrate is saturated with poor drainage, notify Fertigation Lead — this requires a cadence correction, not a duration change']);
+    }
+
+    // ── Stress penalty ──
+    if(sc.stress&&sc.stress>5){
+      const stressDetail = inStack
+        ? 'During the stacking window (Days 29–49) stress penalties have outsized impact — THCAS activity is at peak and any disruption reduces total THCA accumulated.'
+        : 'T1 alerts or environmental boundary events are adding a penalty to the raw score.';
+      if(sc.stress<=10) add('watch','Minor stress penalty (−'+sc.stress+' pts)',stressDetail,['Review T1 alert log for this room — identify which specific thresholds triggered','Verify alerts are calibrated and not firing on sensor noise or brief transitions']);
+      else add('issue','Significant stress penalty (−'+sc.stress+' pts)',stressDetail,['Pull T1 alert log and identify the pattern — is it the same threshold firing repeatedly?','Check if alerts cluster at lights-on transition (most common) or throughout the day','Per TREP: no environmental oscillation — if the same threshold fires daily at the same time, the setpoint or PID needs adjustment, not a manual acknowledge']);
+    }
+
+    // ── Confidence ──
+    if(sc.confidence<70) add('info','Score confidence limited ('+sc.confidence+'%)','Not enough GL_History data points yet for a fully reliable score. The more data accumulated, the more accurate the breakdown.',['Score reaches full confidence after 24+ hours of GL_History data per room','Provisional flags (dryback, irrigation response) activate once irrigation event data is available in GL_History']);
+
+    // All clear
+    if(!items.filter(i=>i.sev==='issue'||i.sev==='critical'||i.sev==='watch').length)
+      add('good','All metrics within target range — room is performing well','No significant deviations detected. Environment, substrate, and demand signals are all within Resin OS targets for '+sc.phase+'.',[]);
+
+    return items;
+  };
+
+  const bar = (v,label,explain) => v!=null?`<div style="margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+      <span style="color:var(--text3)">${label}</span>
+      <span style="font-family:var(--mono);font-weight:600;color:${barColor(v)}">${v}</span>
+    </div>
+    <div style="height:5px;background:var(--bg4);border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${v}%;background:${barColor(v)};border-radius:2px"></div>
+    </div>
+    ${explain?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${explain}</div>`:''}
+  </div>`:'';
+
+  // Index explanations
+  const envExplain = sc.envIndex!=null?(sc.envIndex>=80?'VPD, dewpoint and stability all on target':sc.envIndex>=60?'Some environmental variance — review sub-scores below':'Environmental conditions need attention'):'';
+  const demandExplain = sc.demandIndex!=null?(sc.demandIndex>=80?'Plants responding well to environment':sc.demandIndex>=60?'Demand signals adequate':'Low plant demand detected — check substrate'):'';
+
+  const subScores = [
+    {label:'VPD', val:sc.vpdScore, tip:'How close VPD is to phase target'},
+    {label:'Dewpoint', val:sc.dewpointScore, tip:'Spread between temp and dewpoint — risk of condensation if low'},
+    {label:'Stability', val:sc.stabilityScore, tip:'Temp/RH/VPD swing across 3-hour windows'},
+    {label:'EC Uptake', val:sc.uptakeScore, tip:'EC change over 24h — indicates how hard plants are feeding'},
+    {label:'Uniformity', val:sc.uniformityScore, tip:'Front vs back VWC delta across tables'},
+    {label:'Irr Response', val:sc.responseScore, tip:'VWC rise/fall pattern around irrigation events'},
+  ].filter(s=>s.val!=null&&s.val!=='');
+
+  const breakdown = buildBreakdown(sc);
+
+  // Collapsed view — just the two scores, click to expand
+  const _sensorColor = stateBandColor(sc.sensorState);
+  const _combinedColor = stateBandColor(sc.combinedState);
+  const _topIssues = breakdown.filter(i=>i.sev==='issue'||i.sev==='critical').map(i=>i.headline);
+  const _issueHint = _topIssues.length ? _topIssues.slice(0,2).join(' · ') : (breakdown.filter(i=>i.sev==='watch').length ? breakdown.filter(i=>i.sev==='watch')[0].headline : 'All metrics on target');
+
+  if(!expanded){
+    el.innerHTML=`<div id="score-collapsed-${roomId}" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;cursor:pointer">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px">Performance Score · Day ${sc.cycleDay} · ${sc.phase}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_issueHint}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+          <div style="text-align:center">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:2px">Sensor</div>
+            <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${_sensorColor};line-height:1">${sc.sensorScore}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:2px">Combined</div>
+            <div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${_combinedColor};line-height:1">${sc.combinedScore}</div>
+          </div>
+          <div style="font-size:16px;color:var(--text3)">›</div>
+        </div>
+      </div>
+    </div>`;
+    // Store score on element for click handler
+    el._scoreData = sc;
+    el._scoreRoomId = roomId;
+    document.getElementById('score-collapsed-'+roomId).addEventListener('click', ()=>{
+      renderRoomScoreSection(el, el._scoreData, el._scoreRoomId, true);
+    });
+    return;
+  }
+
+  el.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div id="score-collapse-btn-${roomId}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <div style="font-size:16px;color:var(--text3)">‹</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)">Performance Score · Day ${sc.cycleDay} · ${sc.phase}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--text3)">Confidence: ${sc.confidence}% <span style="color:var(--text2)">${sc.confidenceTier}</span></span>
+        <button onclick="refreshRoomScore('${roomId}')" style="font-size:10px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">↻</button>
+      </div>
+    </div>
+
+    <!-- Dual score display -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:var(--bg2);border-radius:var(--r);padding:10px;text-align:center;border:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Sensor Score</div>
+        <div style="font-size:28px;font-weight:700;font-family:var(--mono);color:${stateBandColor(sc.sensorState)}">${sc.sensorScore}</div>
+        <div style="font-size:10px;color:${stateBandColor(sc.sensorState)};margin-top:2px">${sc.sensorState||''}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:var(--r);padding:10px;text-align:center;border:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Combined Score</div>
+        <div style="font-size:28px;font-weight:700;font-family:var(--mono);color:${stateBandColor(sc.combinedState)}">${sc.combinedScore}</div>
+        <div style="font-size:10px;color:${stateBandColor(sc.combinedState)};margin-top:2px">${sc.combinedState||''}</div>
+      </div>
+    </div>
+
+    <!-- Index breakdown -->
+    <div style="margin-bottom:10px">
+      ${bar(sc.envIndex,'Environment index',envExplain)}
+      ${bar(sc.demandIndex,'Demand index',demandExplain)}
+      ${sc.execIndex!=null?bar(sc.execIndex,'Execution index','Task completion + room checks + additives'):''}
+      ${sc.stress?`<div style="font-size:10px;color:var(--text3);margin-top:4px">Stress penalty: <span style="color:var(--red);font-family:var(--mono)">−${sc.stress}</span> <span style="font-size:9px">T1 alerts + dewpoint events + EC ceiling</span></div>`:''}
+    </div>
+
+    <!-- Rich score breakdown -->
+    <div style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Score breakdown</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${breakdown.map(item=>{
+          const sevColor = item.sev==='good'?'var(--green)':item.sev==='watch'?'var(--amber)':item.sev==='issue'?'var(--red)':item.sev==='critical'?'var(--red)':'var(--text3)';
+          const sevIcon  = item.sev==='good'?'✓':item.sev==='watch'?'⚠':item.sev==='issue'?'✕':item.sev==='critical'?'✕':'ℹ';
+          const bgColor  = item.sev==='good'?'rgba(34,197,94,0.06)':item.sev==='watch'?'rgba(245,158,11,0.06)':item.sev==='issue'||item.sev==='critical'?'rgba(239,68,68,0.06)':'var(--bg2)';
+          return `<div style="background:${bgColor};border:1px solid ${item.sev==='good'?'rgba(34,197,94,0.2)':item.sev==='watch'?'rgba(245,158,11,0.2)':item.sev==='issue'||item.sev==='critical'?'rgba(239,68,68,0.2)':'var(--border)'};border-radius:var(--r);padding:8px 10px">
+            <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:${item.detail||item.fixes.length?'5px':'0'}">
+              <span style="color:${sevColor};font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">${sevIcon}</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">${item.headline}</span>
+            </div>
+            ${item.detail?`<div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:${item.fixes.length?'6px':'0'};padding-left:17px">${item.detail}</div>`:''}
+            ${item.fixes.length?`<div style="padding-left:17px">
+              <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Actions</div>
+              ${item.fixes.map(f=>`<div style="font-size:11px;color:var(--text2);line-height:1.5;display:flex;gap:5px;margin-bottom:2px"><span style="color:var(--text3);flex-shrink:0">→</span>${f}</div>`).join('')}
+            </div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Sub-score grid -->
+    ${subScores.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Sub-scores</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+        ${subScores.map(s=>`<div style="background:var(--bg2);border-radius:var(--r);padding:5px;text-align:center;border:1px solid var(--border)" title="${s.tip}">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:2px">${s.label}</div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${barColor(s.val)}">${s.val}</div>
+          <div style="font-size:8px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${s.tip}">${s.tip}</div>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+
+  </div>`;
+  // Wire collapse button
+  const _collapseBtn = document.getElementById('score-collapse-btn-'+roomId);
+  if(_collapseBtn){
+    const _scCopy = sc;
+    _collapseBtn.addEventListener('click', ()=>{
+      renderRoomScoreSection(el, _scCopy, roomId, false);
+    });
+  }
+}
+
+async function refreshRoomScore(roomId){
+  if(!gsUrl) return;
+  const scoreEl=document.getElementById('rdm-score-section');
+  if(scoreEl) scoreEl.innerHTML='<div style="font-size:11px;color:var(--text3);padding:8px 0">Refreshing…</div>';
+  try{
+    const resp = await fetch(gsUrl+'?action=getScores&t='+Date.now());
+    const json = await resp.json();
+    console.log('[Score] getScores response:', json);
+    if(json.ok&&json.data){
+      S('wg_perf_scores',json.data);
+      const sc=json.data[roomId];
+      console.log('[Score] room score for '+roomId+':', sc);
+      if(sc&&scoreEl) renderRoomScoreSection(scoreEl,sc,roomId,false);
+      else if(scoreEl) scoreEl.innerHTML='<div style="font-size:11px;color:var(--amber);padding:8px 0">No score yet for '+roomId+' — run calculateDailyScores() in Apps Script to generate scores.</div>';
+    } else {
+      const _errMsg=json.error||'Score fetch failed';
+              const _hint=_errMsg.includes('Unknown action')?'Apps Script needs redeployment — Deploy → Manage deployments → New version → Deploy':_errMsg.includes('No score')?'Run calculateDailyScores() in Apps Script to generate':'Check Apps Script logs';
+              if(!_sc) scoreEl.innerHTML=`<div style="font-size:11px;padding:8px 0;line-height:1.6;color:var(--amber)"><b>Score unavailable:</b> `+_errMsg+`<br><span style="color:var(--text3)">→ `+_hint+`</span></div>`;
+    }
+  }catch(e){
+    if(scoreEl) scoreEl.innerHTML='<div style="font-size:11px;color:var(--red);padding:8px 0">Error: '+e.message+'</div>';
+    console.error('[Score] refresh error:', e);
+  }
+}
+
+
+
 function closeRoomModal(){
   document.getElementById('room-detail-bg').style.display='none';
+  window._currentModalRoomId = null;
 }
 
 // INIT
