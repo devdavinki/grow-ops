@@ -1089,6 +1089,20 @@ button { cursor: pointer; }
   </div>
 </div>
 
+<!-- TABLE SHOTS MODAL — irrigation events + per-shot VWC response per table -->
+<div id="table-shots-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:250;overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="if(event.target===this)closeTableShotsModal()">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);width:calc(100% - 32px);max-width:680px;margin:16px auto 40px;box-shadow:var(--shadow-md)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg3);border-radius:var(--r2) var(--r2) 0 0">
+      <div>
+        <div id="tsm-title" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+        <div id="tsm-subtitle" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+      </div>
+      <button onclick="closeTableShotsModal()" style="background:none;border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;padding:5px 12px;border-radius:var(--r)">✕ Close</button>
+    </div>
+    <div id="tsm-body" style="padding:14px 16px"></div>
+  </div>
+</div>
+
 <div id="login-modal-bg" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;padding:16px;overflow-y:auto">
   <div class="modal" style="max-width:380px;width:100%;box-shadow:var(--shadow-md);max-height:90vh;overflow-y:auto">
     <div style="text-align:center;margin-bottom:16px">
@@ -6117,9 +6131,10 @@ function openRoomModal(room) {
         <span style="font-size:9px;font-weight:400">VWC ${tVWC[0]}–${tVWC[1]}% · EC ${tEC[0]}–${tEC[1]}</span>
       </div>
       ${Object.keys(tables).sort().map(tNum=>`
-        <div style="margin-bottom:10px">
-          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px">
-            Table ${tNum} <span style="font-size:10px;font-weight:400;color:var(--text3)">· ${tNum==='1'?'Right side':tNum===String(tableCount)?'Left side':'Center'}</span>
+        <div onclick='openTableShotsModal(${JSON.stringify(_roomIdForMetrics||"")},${JSON.stringify(roomName||"")},${tNum})' style="margin-bottom:10px;cursor:pointer" title="Tap to see irrigation history">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;user-select:none">
+            <span>Table ${tNum} <span style="font-size:10px;font-weight:400;color:var(--text3)">· ${tNum==='1'?'Right side':tNum===String(tableCount)?'Left side':'Center'}</span></span>
+            <span style="font-size:10px;color:var(--blue);font-weight:600">View shots →</span>
           </div>
           <div style="display:flex;gap:6px">
             ${probeCard(tables[tNum].F,'Front','',tNum)}
@@ -6394,6 +6409,196 @@ async function refreshRoomScore(roomId){
 }
 
 
+
+// ══════════════════════════════════════════════════════════════════
+// TABLE SHOTS MODAL — per-table irrigation event history with VWC response
+// Clicked from inside the room detail modal. Layered on top.
+// Shows last 2 days of fired shots (from GL_IrrigationEvents) with the
+// peak Front and Back VWC in the 0-15 min window after each shot
+// (from GL_History).
+// ══════════════════════════════════════════════════════════════════
+async function openTableShotsModal(roomId, roomName, tableNum){
+  // Stop event from bubbling to room modal close
+  if(typeof event!=='undefined' && event && event.stopPropagation) event.stopPropagation();
+  if(!roomId){ console.warn('[TableShots] no roomId'); return; }
+  const modal = document.getElementById('table-shots-bg');
+  const body  = document.getElementById('tsm-body');
+  document.getElementById('tsm-title').textContent = (roomName||'Room')+' · Table '+tableNum;
+  document.getElementById('tsm-subtitle').textContent = 'Loading irrigation history…';
+  body.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">Loading…</div>';
+  modal.style.display = 'block';
+
+  try {
+    const u = gsUrl;
+    const [evRes, hsRes] = await Promise.all([
+      fetch(u+'?action=getSheet&sheet=GL_IrrigationEvents').then(r=>r.json()),
+      fetch(u+'?action=getSheet&sheet=GL_History').then(r=>r.json()),
+    ]);
+    if(!evRes.ok || !hsRes.ok){ body.innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:13px">Failed to load data.</div>'; return; }
+    renderTableShots(roomId, roomName, tableNum, evRes.rows, hsRes.rows);
+  } catch(e){
+    console.error('[TableShots] fetch error', e);
+    body.innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:13px">Error loading data: '+e+'</div>';
+  }
+}
+
+function closeTableShotsModal(){
+  document.getElementById('table-shots-bg').style.display='none';
+}
+
+function renderTableShots(roomId, roomName, tableNum, eventsRows, historyRows){
+  const body = document.getElementById('tsm-body');
+
+  // Parse events for this room/table
+  const evHdr = eventsRows[0].map(h=>String(h).toLowerCase().trim());
+  const evC = n => evHdr.indexOf(n);
+  const tsI = evC('timestamp'), rmI = evC('room_id'), tnI = evC('table_number');
+  const flagI = evC('flag'), durI = evC('duration_sec'), manI = evC('is_manual');
+  const events = eventsRows.slice(1)
+    .filter(r => String(r[rmI])===roomId && parseInt(r[tnI])===tableNum)
+    .map(r => ({
+      ts: new Date(r[tsI]),
+      tsRaw: String(r[tsI]),
+      flag: flagI>=0 ? String(r[flagI]||'') : '',
+      durSec: durI>=0 ? r[durI] : '',
+      isManual: manI>=0 ? (r[manI]===true || String(r[manI]).toLowerCase()==='true') : false,
+    }))
+    .filter(e => !isNaN(e.ts.getTime()))
+    .sort((a,b)=>b.ts-a.ts); // newest first
+
+  if(!events.length){
+    body.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">No irrigation events for this table in the last 2 days.</div>';
+    document.getElementById('tsm-subtitle').textContent='No events';
+    return;
+  }
+
+  // Parse history rows for this room — need t<N>f_vwc and t<N>b_vwc per timestamp
+  const hsHdr = historyRows[0].map(h=>String(h).toLowerCase().trim());
+  const hsC = n => hsHdr.indexOf(n);
+  const hTsI = hsC('timestamp'), hRmI = hsC('room_id');
+  const fI = hsC('t'+tableNum+'f_vwc'), bI = hsC('t'+tableNum+'b_vwc');
+  const hist = historyRows.slice(1)
+    .filter(r => String(r[hRmI])===roomId)
+    .map(r => ({
+      ts: new Date(r[hTsI]),
+      f: (fI>=0 && r[fI]!=='' && r[fI]!==null) ? parseFloat(r[fI]) : null,
+      b: (bI>=0 && r[bI]!=='' && r[bI]!==null) ? parseFloat(r[bI]) : null,
+    }))
+    .filter(h => !isNaN(h.ts.getTime()))
+    .sort((a,b)=>a.ts-b.ts);
+
+  // For each event, find peak F and peak B in [event.ts, event.ts + 15 min]
+  events.forEach(e => {
+    const winEndMs = e.ts.getTime() + 15*60*1000;
+    let pkF = null, pkB = null;
+    for(let i=0;i<hist.length;i++){
+      const t = hist[i].ts.getTime();
+      if(t < e.ts.getTime()) continue;
+      if(t > winEndMs) break;
+      if(hist[i].f!==null && (pkF===null || hist[i].f>pkF)) pkF = hist[i].f;
+      if(hist[i].b!==null && (pkB===null || hist[i].b>pkB)) pkB = hist[i].b;
+    }
+    e.peakF = pkF;
+    e.peakB = pkB;
+  });
+
+  // Group by day-key in local time (yesterday vs today, with "today" being the current operating day starting at the latest rampStart)
+  // Simple: group by local calendar date for now. Two days max.
+  const fmtLocalDate = d => {
+    const local = new Date(d.getTime() - 5*3600000); // CDT shift baked in for grouping; the format uses UTC-5
+    return local.toISOString().split('T')[0];
+  };
+  const fmtTime = d => {
+    const utcH = d.getUTCHours();
+    const utcM = d.getUTCMinutes();
+    let localH = (utcH - 5 + 24) % 24;
+    const ampm = localH >= 12 ? 'PM' : 'AM';
+    const h12 = localH % 12 || 12;
+    const mm = String(utcM).padStart(2,'0');
+    return h12+':'+mm+' '+ampm;
+  };
+  const fmtDayLabel = dateStr => {
+    // dateStr is YYYY-MM-DD (local). Compare to today's local date.
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5, 0, 0)); // 5h UTC = midnight CDT
+    const todayKey = new Date(today.getTime() - 5*3600000).toISOString().split('T')[0];
+    if(dateStr === todayKey) return 'Today';
+    const yest = new Date(today.getTime() - 86400000);
+    const yestKey = new Date(yest.getTime() - 5*3600000).toISOString().split('T')[0];
+    if(dateStr === yestKey) return 'Yesterday';
+    return dateStr;
+  };
+
+  // Group
+  const groups = {};
+  events.forEach(e => {
+    const key = fmtLocalDate(e.ts);
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(e);
+  });
+  // Keep top 2 days
+  const dayKeys = Object.keys(groups).sort().reverse().slice(0,2);
+
+  // Manual override warning
+  const recentManual = events.filter(e => e.isManual && (Date.now()-e.ts.getTime()) < 25*3600000).length;
+  let banner = '';
+  if(recentManual > 0){
+    banner = `<div style="background:rgba(245,158,11,0.15);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text)">
+      ⚠ <b>Manual override detected</b> — ${recentManual} of the last events fired with manual control on. Auto-schedule may be disabled. Verify in Growlink.
+    </div>`;
+  }
+
+  // Anomaly summary
+  const anomalies = events.filter(e => e.flag).length;
+  let anomalyNote = '';
+  if(anomalies > 0){
+    anomalyNote = ` · ${anomalies} flagged`;
+  }
+
+  document.getElementById('tsm-subtitle').textContent = events.length+' shots in last 2 days'+anomalyNote;
+
+  // Build table HTML
+  let html = banner;
+  dayKeys.forEach(dayKey => {
+    const dayEvts = groups[dayKey];
+    const totalShots = dayEvts.length;
+    html += `<div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between">
+        <span>${fmtDayLabel(dayKey)}</span>
+        <span style="font-weight:400">${totalShots} shot${totalShots===1?'':'s'}</span>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        <div style="display:grid;grid-template-columns:74px 1fr 1fr 50px 50px;gap:0;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border)">
+          <div>Time</div>
+          <div>Front peak</div>
+          <div>Back peak</div>
+          <div style="text-align:right">Dur</div>
+          <div style="text-align:right">Flag</div>
+        </div>
+    `;
+    dayEvts.forEach(e => {
+      const fStr = e.peakF!==null ? e.peakF.toFixed(1)+'%' : '—';
+      const bStr = e.peakB!==null ? e.peakB.toFixed(1)+'%' : '—';
+      const durStr = e.durSec!=='' && e.durSec!==null ? e.durSec+'s' : '—';
+      let flagBadge = '';
+      if(e.isManual) flagBadge += '<span style="display:inline-block;padding:1px 5px;font-size:9px;border-radius:3px;background:rgba(245,158,11,0.2);color:var(--amber);font-weight:700">MAN</span> ';
+      if(e.flag === 'unpaired') flagBadge += '<span style="display:inline-block;padding:1px 5px;font-size:9px;border-radius:3px;background:rgba(239,68,68,0.2);color:var(--red);font-weight:700">UNPAIR</span>';
+      else if(e.flag === 'next_on') flagBadge += '<span style="display:inline-block;padding:1px 5px;font-size:9px;border-radius:3px;background:rgba(239,68,68,0.2);color:var(--red);font-weight:700">DUP</span>';
+      else if(e.flag === 'long') flagBadge += '<span style="display:inline-block;padding:1px 5px;font-size:9px;border-radius:3px;background:rgba(239,68,68,0.2);color:var(--red);font-weight:700">LONG</span>';
+      if(!flagBadge) flagBadge = '<span style="color:var(--text3);font-size:10px">—</span>';
+      html += `<div style="display:grid;grid-template-columns:74px 1fr 1fr 50px 50px;gap:0;font-size:12px;color:var(--text);padding:7px 12px;border-bottom:1px solid var(--border);align-items:center">
+        <div style="font-weight:600">${fmtTime(e.ts)}</div>
+        <div>${fStr}</div>
+        <div>${bStr}</div>
+        <div style="text-align:right;color:var(--text3);font-size:11px">${durStr}</div>
+        <div style="text-align:right">${flagBadge}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  body.innerHTML = html;
+}
 
 function closeRoomModal(){
   document.getElementById('room-detail-bg').style.display='none';
