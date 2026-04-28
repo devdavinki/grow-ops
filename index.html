@@ -1113,7 +1113,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.3'; // Probe metrics parser merges V1+V2 rows correctly
+const APP_VERSION = '3.4'; // V2 Overnight section now visible after async probe metrics fetch
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -5907,7 +5907,12 @@ function openRoomModal(room) {
             const pm2 = _probeMetrics[key];
             if(!pm2) return;
             const metricsEl = el.querySelector('.probe-metrics-section');
-            if(metricsEl) metricsEl.innerHTML = _buildProbeMetricsHtml(pm2);
+            if(metricsEl) {
+              // Reveal the section if it was hidden at first render (when _probeMetrics
+              // was still loading). Apply the same styles as the populated state.
+              metricsEl.style.cssText = 'background:var(--bg2);border-radius:var(--r);padding:6px 8px;border:1px solid var(--border)';
+              metricsEl.innerHTML = _buildProbeMetricsHtml(pm2);
+            }
           });
         }
       }).catch(e=>{ console.log('[ProbeMetrics] fetch error:', e); });
