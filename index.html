@@ -3226,13 +3226,35 @@ function applyRolePerms(){
 function addTeamMember(){
   team.push({id:'u'+Date.now(),name:'',role:'defoliator',agtId:''});
   S('wg_team',team);
+  S('wg_team_edited_at',Date.now());
+  pushConfigDebounced();
   renderTeamRoster();
 }
 
 function removeTeamMember(id){
   team=team.filter(m=>m.id!==id);
   S('wg_team',team);
+  S('wg_team_edited_at',Date.now());
+  pushConfigDebounced();
   renderTeamRoster();
+}
+
+// Setting a NEW launchDate (different from current) signals the start of a new
+// cycle. Clear flipDate explicitly with null so the clear propagates to all devices.
+// (Empty string is treated as "stale/missing" by the merge — null means "intentionally cleared".)
+function setRoomLaunchDate(i, newValue){
+  const r = rooms[i];
+  if(!r) return;
+  const prev = r.launchDate || '';
+  r.launchDate = newValue || '';
+  // If the lead changed launch to a new value, this is a new cycle. Clear flipDate.
+  if(newValue && newValue !== prev){
+    r.flipDate = null;
+  }
+  S('wg_rooms_v2', rooms);
+  S('wg_rooms_edited_at', Date.now());
+  renderRooms();
+  pushConfigDebounced();
 }
 
 function renderTeamRoster(){
@@ -3248,13 +3270,13 @@ function renderTeamRoster(){
         <button onclick="removeTeamMember('${member.id}')" style="font-size:11px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
       </div>
       <label>Name</label>
-      <input value="${member.name||''}" placeholder="Full name" onchange="team[${i}].name=this.value;S('wg_team',team);renderTeamRoster()"/>
+      <input value="${member.name||''}" placeholder="Full name" onchange="team[${i}].name=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());pushConfigDebounced();renderTeamRoster()"/>
       <label>Role</label>
-      <select onchange="team[${i}].role=this.value;S('wg_team',team);renderTeamRoster()">
+      <select onchange="team[${i}].role=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());pushConfigDebounced();renderTeamRoster()">
         ${Object.entries(ROLE_LABELS).map(([r,l])=>`<option value="${r}"${r===member.role?' selected':''}>${l}</option>`).join('')}
       </select>
       <label>AGT employee ID (leave blank to skip verification)</label>
-      <input type="password" maxlength="10" value="${member.agtId||''}" placeholder="######" onchange="team[${i}].agtId=this.value;S('wg_team',team)" style="letter-spacing:.15em"/>
+      <input type="password" maxlength="10" value="${member.agtId||''}" placeholder="######" onchange="team[${i}].agtId=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());pushConfigDebounced()" style="letter-spacing:.15em"/>
     `;
     grid.appendChild(cell);
   });
@@ -3433,7 +3455,7 @@ function renderSettings(){
       <label>Strain</label>
       <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
       <label>Launch date (plants in)</label>
-      <input type="date" value="${room.launchDate||''}" onchange="rooms[${i}].launchDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
+      <input type="date" value="${room.launchDate||''}" onchange="setRoomLaunchDate(${i},this.value)"/>
       <label>Flip date (day 1 of flower)</label>
       <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
       <label>Rythm Tank #</label>
@@ -6895,6 +6917,8 @@ async function pushConfigToCloud(silent=false){
       cloneSessions,
       dryRooms,
       alertThresholds,
+      trimQueue:L('wg_trim_queue',[]),
+      approvedTakedowns:L('wg_approved_takedowns',{}),
       syncedBy:loggedInMember?loggedInMember.name:'Unknown',
       syncedAt:new Date().toISOString(),
     }
@@ -6914,34 +6938,48 @@ async function pullConfigFromCloud(silent=false){
     if(!json.ok||!json.data) return false;
     const d=json.data;
 
-    // Rooms — cloud wins, but respect intentional clears.
-    // A cleared field (empty string) that was explicitly saved must not be overwritten
-    // by an older cloud value. We track the cloud's syncedAt timestamp vs local edit time.
+    // Rooms — cloud wins ONLY when cloud has a real value. Empty strings, nulls, and
+    // undefined never overwrite local. Once a flip/launch/strain/note is set, it persists
+    // until a real value (or another lead's real edit) explicitly replaces it.
+    // This protects against any device pushing back stale empties that wipe set values.
     if(d.rooms&&d.rooms.length){
       const cloudRooms=d.rooms;
-      // If local was saved MORE RECENTLY than cloud, local wins for any field the lead cleared
       const cloudSyncedAt=d.syncedAt?new Date(d.syncedAt).getTime():0;
       const localEditAt=L('wg_rooms_edited_at',0);
       const localIsNewer=localEditAt>cloudSyncedAt;
+      const _hasReal = v => v !== undefined && v !== null && v !== '';
+      // Per-field merge:
+      //   - cloud has real value → cloud wins (replace local)
+      //   - cloud is null → intentional clear, propagate (replace local with empty)
+      //   - cloud is '' or undefined → stale/missing, keep local
+      const _mergeField = (cloudVal, localVal) => {
+        if(_hasReal(cloudVal)) return cloudVal;        // real value wins
+        if(cloudVal === null) return '';                // explicit clear propagates
+        return localVal;                                // stale empty → keep local
+      };
       rooms=rooms.map((local,i)=>{
         const cloud=cloudRooms.find(r=>r.id===local.id);
         if(!cloud) return local;
-        // If local was edited after the cloud sync, trust local for every field
-        // (this covers intentional clears — empty string beats old cloud value)
+        // If local edit is newer than cloud sync, trust local entirely
         if(localIsNewer) return local;
-        // Otherwise cloud wins, but only replace with cloud value if cloud has something
         return{...local,
-          flipDate:   cloud.flipDate   !== undefined ? cloud.flipDate   : local.flipDate,
-          launchDate: cloud.launchDate !== undefined ? cloud.launchDate : local.launchDate,
-          strain:     cloud.strain     !== undefined ? cloud.strain     : local.strain,
-          note:       cloud.note       !== undefined ? cloud.note       : local.note,
+          flipDate:   _mergeField(cloud.flipDate,   local.flipDate),
+          launchDate: _mergeField(cloud.launchDate, local.launchDate),
+          strain:     _mergeField(cloud.strain,     local.strain),
+          note:       _mergeField(cloud.note,       local.note),
         };
       });
       S('wg_rooms_v2',rooms);
     }
 
-    // Team & role perms — cloud wins (lead manages these)
-    if(d.team&&d.team.length){ team=d.team; S('wg_team',team); }
+    // Team — symmetric with rooms: if local was edited more recently than cloud, local wins.
+    // Otherwise cloud wins. Prevents another device with a stale roster from clobbering
+    // a lead's role assignment (e.g. promoting Chris to lead).
+    if(d.team&&d.team.length){
+      const cloudSyncedAtTeam=d.syncedAt?new Date(d.syncedAt).getTime():0;
+      const localTeamEditAt=L('wg_team_edited_at',0);
+      if(localTeamEditAt<=cloudSyncedAtTeam){ team=d.team; S('wg_team',team); }
+    }
     if(d.rolePerms){ rolePerms=d.rolePerms; S('wg_role_perms',rolePerms); applyRolePerms(); }
 
     // Custom chores & tasks
@@ -6955,6 +6993,26 @@ async function pullConfigFromCloud(silent=false){
       const localOnly=local.filter(s=>!cloudIds.has(s.id));
       supplies=[...d.supplies,...localOnly];
       S('wg_supplies',supplies);
+    }
+
+    // Trim queue — cloud is authoritative for order/priority/notes/roomId.
+    // Order persists across devices: the lead reorders → push to cloud → other
+    // devices pull → see the same order. New METRC-derived items not yet in cloud
+    // (just added on this device since last push) are kept and appended.
+    if(d.trimQueue&&Array.isArray(d.trimQueue)){
+      const local=L('wg_trim_queue',[]);
+      const cloudIds=new Set(d.trimQueue.map(t=>t.id));
+      const localOnly=local.filter(t=>!cloudIds.has(t.id));
+      trimQueue=[...d.trimQueue,...localOnly];
+      S('wg_trim_queue',trimQueue);
+    }
+
+    // Approved takedowns — append-only union. Once a takedown is approved on
+    // any device, it stays approved everywhere. Cloud and local are unioned by key.
+    if(d.approvedTakedowns&&typeof d.approvedTakedowns==='object'){
+      const local=L('wg_approved_takedowns',{});
+      approvedTakedowns={...d.approvedTakedowns,...local};
+      S('wg_approved_takedowns',approvedTakedowns);
     }
 
     // Today logs — merge per day
