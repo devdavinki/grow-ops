@@ -1113,7 +1113,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.4'; // V2 Overnight section now visible after async probe metrics fetch
+const APP_VERSION = '3.5'; // Fix: V2-only rows no longer trigger early-return in metrics builder
 const CYCLE = 66; const FLOWER_DAYS = 64; const DARK_DAYS = 2;
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -5928,7 +5928,13 @@ function openRoomModal(room) {
     const _evCt  = (pm.eventCount   !== '' && pm.eventCount   != null) ? parseInt(pm.eventCount)     : null;
     const _ovCol  = _ovDb!=null  ? (_ovDb>15?'var(--red)':_ovDb<8?'var(--amber)':'var(--green)') : 'var(--text3)';
     const _avgCol = _avgBt!=null ? (_avgBt>15?'var(--red)':_avgBt<3?'var(--amber)':'var(--green)') : 'var(--text3)';
-    if(_pkVwc===null && _loVwc===null && _ovDb===null && _avgBt===null) return '';
+    // Check V2 presence too — V2 rows may have empty V1 fields but valid V2 data.
+    // Without this, a V2-only row would bail out below before the V2 section renders.
+    const _hasAnyV2 = (pm.ovPts !== '' && pm.ovPts != null)
+                  || (pm.yPeak !== '' && pm.yPeak != null)
+                  || (pm.mLow  !== '' && pm.mLow  != null)
+                  || pm.noProgram === true;
+    if(_pkVwc===null && _loVwc===null && _ovDb===null && _avgBt===null && !_hasAnyV2) return '';
     let h = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:5px">Dryback metrics · today</div>';
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
     // Format time — handles Date objects, ISO strings, and "3:45 PM" strings from Sheets
