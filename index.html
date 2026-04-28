@@ -6424,17 +6424,35 @@ async function openTableShotsModal(roomId, roomName, tableNum){
   const modal = document.getElementById('table-shots-bg');
   const body  = document.getElementById('tsm-body');
   document.getElementById('tsm-title').textContent = (roomName||'Room')+' · Table '+tableNum;
-  document.getElementById('tsm-subtitle').textContent = 'Loading irrigation history…';
-  body.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">Loading…</div>';
+  const setStatus = (msg) => { document.getElementById('tsm-subtitle').textContent = msg; };
+  setStatus('Fetching irrigation events…');
+  body.innerHTML = '<div id="tsm-loader" style="text-align:center;padding:32px;color:var(--text3);font-size:13px">'
+    + '<div style="margin-bottom:8px">Loading shot history…</div>'
+    + '<div id="tsm-loader-step" style="font-size:11px;color:var(--text3)">Fetching irrigation events</div>'
+    + '</div>';
   modal.style.display = 'block';
+  const setStep = (msg) => {
+    const el = document.getElementById('tsm-loader-step');
+    if(el) el.textContent = msg;
+  };
 
   try {
     const u = gsUrl;
+    // Server-side filter: only this room, only the last 49 hours of GL_History
+    // (matches the 49h window pullIrrigationEvents uses, so events line up)
+    const sinceISO = new Date(Date.now() - 49*60*60*1000).toISOString();
+    const evUrl = u+'?action=getSheet&sheet=GL_IrrigationEvents&room='+encodeURIComponent(roomId);
+    const hsUrl = u+'?action=getSheet&sheet=GL_History&room='+encodeURIComponent(roomId)
+                + '&since='+encodeURIComponent(sinceISO);
+
     const [evRes, hsRes] = await Promise.all([
-      fetch(u+'?action=getSheet&sheet=GL_IrrigationEvents').then(r=>r.json()),
-      fetch(u+'?action=getSheet&sheet=GL_History').then(r=>r.json()),
+      fetch(evUrl).then(r=>r.json()),
+      fetch(hsUrl).then(r=>r.json()),
     ]);
     if(!evRes.ok || !hsRes.ok){ body.innerHTML='<div style="text-align:center;padding:32px;color:var(--red);font-size:13px">Failed to load data.</div>'; return; }
+    setStep('Computing peak VWC per shot…');
+    // Yield to the browser so the status text actually paints before render starts
+    await new Promise(r => setTimeout(r, 0));
     renderTableShots(roomId, roomName, tableNum, evRes.rows, hsRes.rows);
   } catch(e){
     console.error('[TableShots] fetch error', e);
