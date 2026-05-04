@@ -413,6 +413,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Today's Log</button>
   <button class="nav-tab" onclick="showPage('calendar')" data-page="calendar" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Calendar</button>
   <button class="nav-tab" onclick="showPage('additive')" data-page="additive" data-roles="lead,fertigator">Additive Schedule</button>
+  <button class="nav-tab" onclick="showPage('ipm')" data-page="ipm" data-roles="lead,ipm">IPM Schedule</button>
   <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
   <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
@@ -670,6 +671,40 @@ button { cursor: pointer; }
     </div>
   </div>
 
+  <!-- ══ PAGE: IPM SCHEDULE ══ -->
+  <div id="page-ipm" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div>
+        <h1 style="font-size:22px;font-weight:700;margin:0">IPM Schedule</h1>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">Define spray rotations. The IPM tech sees due tasks in My Tasks each day.</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="nav-tab active" onclick="showIpmTab('rules',this)" style="font-size:12px">Rules</button>
+        <button class="nav-tab" onclick="showIpmTab('history',this)" style="font-size:12px">History</button>
+      </div>
+    </div>
+
+    <div id="ipmsub-rules">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px;color:var(--text2)">Active spray rules. Toggle on/off, edit, or remove.</div>
+        <button onclick="openIpmRuleEditor()" class="btn-primary" style="font-size:12px;padding:6px 14px">+ New rule</button>
+      </div>
+      <div id="ipm-rules-list"></div>
+    </div>
+
+    <div id="ipmsub-history" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px;color:var(--text2)">All sprays + skips. Most recent first.</div>
+        <select id="ipm-history-filter" onchange="renderIpmHistory()" style="font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+          <option value="all">All entries</option>
+          <option value="done">Done only</option>
+          <option value="skipped">Skipped only</option>
+        </select>
+      </div>
+      <div id="ipm-history-list"></div>
+    </div>
+  </div>
+
   <!-- ══ PAGE: ROOM CHECKS ══ -->
   <div id="page-checks" class="page">
     <!-- SUB-TABS -->
@@ -841,6 +876,25 @@ button { cursor: pointer; }
       <div class="metrc-upload-cell" id="mup-harvests"><div class="metrc-upload-label">Harvests</div><div class="metrc-upload-status" id="mup-harvests-status">Not loaded</div></div>
     </div>
 
+    <!-- GROWLINK CSV BACKFILL -->
+    <div class="section-title" style="margin-top:20px;margin-bottom:10px">Growlink CSV backfill</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6">
+      Use this when a room's substrate history has gaps in GL_History but Growlink's CSV export still has data.
+      Export the room from Growlink (Analytics → Export CSV), pick the room, then upload here.
+      Rows merge into GL_History and V2 picks them up on the next probe metrics recalculation.
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:20px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text2);font-weight:600;min-width:60px">Room:</label>
+        <select id="csv-room-select" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text);min-width:140px">
+          <option value="">— pick a room —</option>
+        </select>
+        <input type="file" id="csv-file-input" accept=".csv" style="font-size:12px;color:var(--text3);flex:1;min-width:180px"/>
+        <button onclick="importGrowlinkCsv()" class="send-btn green" style="font-size:12px;padding:6px 14px;font-weight:600">Import</button>
+      </div>
+      <div id="csv-import-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);min-height:16px"></div>
+    </div>
+
     <!-- GOOGLE SHEET URL -->
     <div class="section-title" style="margin-top:20px;margin-bottom:10px">Google Sheet integration</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6">Apps Script Web App URL for all sheet writes.</div>
@@ -867,7 +921,7 @@ button { cursor: pointer; }
     <!-- SUB-TABS -->
     <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
       <button class="nav-tab active" onclick="showPostTab('queue',this)" style="font-size:12px">Trim queue</button>
-      <button class="nav-tab" onclick="showPostTab('weights',this)" style="font-size:12px">Log weights</button>
+      <button class="nav-tab" onclick="showPostTab('history',this)" style="font-size:12px">Trim history</button>
       <button class="nav-tab" id="preroll-subtab-btn" onclick="showPostTab('preroll',this)" style="font-size:12px;display:none">Pre-roll priority</button>
     </div>
 
@@ -885,10 +939,10 @@ button { cursor: pointer; }
       <div id="trim-queue-list" style="margin-bottom:1.5rem"></div>
     </div>
 
-    <!-- LOG WEIGHTS -->
-    <div id="postsub-weights" style="display:none">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Enter final weights after trimming is complete for each strain.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:1.5rem" id="weight-cards"></div>
+    <!-- TRIM HISTORY -->
+    <div id="postsub-history" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Approved harvests removed from the trim queue. Read-only ledger. Lead approval is the trigger to enter weights into METRC.</div>
+      <div id="trim-history-list" style="margin-bottom:1.5rem"></div>
     </div>
 
     <!-- PRE-ROLL PRIORITY -->
@@ -1332,11 +1386,11 @@ function getAdditiveForRoom(room){
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
-  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','calendar','additive','checks','slack','settings','metrc','daily-review','supplies','blueprint'], roomView:'full'},
+  lead:       {pages:['assignments','rooms','postprod','clonetracker','today-log','calendar','additive','ipm','checks','slack','settings','metrc','daily-review','supplies','blueprint'], roomView:'full'},
   defoliator: {pages:['assignments','rooms','today-log','calendar'], roomView:'defol'},
   fertigator: {pages:['assignments','rooms','clonetracker','today-log','calendar','additive','checks','slack','metrc','supplies'], roomView:'basic'},
   cloner:     {pages:['assignments','rooms','clonetracker','today-log','calendar','metrc'], roomView:'basic'},
-  ipm:        {pages:['assignments','rooms','today-log','calendar','checks','additive'], roomView:'basic'},
+  ipm:        {pages:['assignments','rooms','today-log','calendar','checks','additive','ipm'], roomView:'basic'},
   checker:    {pages:['assignments','today-log','calendar','checks'], roomView:'none'},
   postprod:   {pages:['assignments','postprod','today-log','calendar','metrc'], roomView:'none'},
 };
@@ -1377,6 +1431,61 @@ function setRole(role){
 // ══════════════════════════════════════════════
 // ROOMS PAGE
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// MANUAL IRRIGATION BADGE — recent manual events per room
+// Fetches GL_IrrigationEvents (filtered to last 30 min via since= param),
+// builds roomId → [tableNumber, ...] of any room/table with a manual fire.
+// Refreshes every 60 sec while Rooms tab is visible.
+// ══════════════════════════════════════════════
+let _manualByRoom = {};
+let _manualRefreshTimer = null;
+
+async function refreshManualEvents(silent=true){
+  try {
+    const sinceISO = new Date(Date.now() - 30*60*1000).toISOString();
+    const url = gsUrl + '?action=getSheet&sheet=GL_IrrigationEvents&since=' + encodeURIComponent(sinceISO);
+    const res = await fetch(url);
+    const d = await res.json();
+    if(!d.ok || !d.rows) return;
+    const hdr = d.rows[0].map(h=>String(h).toLowerCase().trim());
+    const ridI = hdr.indexOf('room_id');
+    const tnI  = hdr.indexOf('table_number');
+    const manI = hdr.indexOf('is_manual');
+    if(ridI < 0 || tnI < 0 || manI < 0) return;
+    const next = {};
+    d.rows.slice(1).forEach(row => {
+      const isMan = row[manI] === true || String(row[manI]).toLowerCase() === 'true';
+      if(!isMan) return;
+      const rid = String(row[ridI] || '');
+      const tnum = parseInt(row[tnI]);
+      if(!rid || !tnum) return;
+      if(!next[rid]) next[rid] = [];
+      if(!next[rid].includes(tnum)) next[rid].push(tnum);
+    });
+    // Sort table numbers in each list for stable display
+    Object.keys(next).forEach(k => next[k].sort((a,b)=>a-b));
+    // Detect change before re-rendering to avoid flicker
+    const before = JSON.stringify(_manualByRoom);
+    const after  = JSON.stringify(next);
+    _manualByRoom = next;
+    if(before !== after && document.getElementById('page-rooms') && document.getElementById('page-rooms').classList.contains('active')){
+      renderRooms();
+    }
+  } catch(e) {
+    if(!silent) console.warn('[manual badge] fetch error', e);
+  }
+}
+
+function startManualRefresh(){
+  if(_manualRefreshTimer) return;
+  refreshManualEvents();
+  _manualRefreshTimer = setInterval(refreshManualEvents, 60000);
+}
+
+function stopManualRefresh(){
+  if(_manualRefreshTimer){ clearInterval(_manualRefreshTimer); _manualRefreshTimer = null; }
+}
+
 function renderRooms(){
   const grid=document.getElementById('rooms-grid');
   grid.innerHTML='';
@@ -1517,7 +1626,7 @@ function renderRooms(){
     card.innerHTML=`
       <div class="card-head">
         <div>
-          <div class="room-name">${room.name}${room.tankNumber?` <span style="font-size:10px;font-weight:400;color:var(--text3)">· T${room.tankNumber}</span>`:''}</div>
+          <div class="room-name">${room.name}${(_manualByRoom[room.id]&&_manualByRoom[room.id].length)?` <span title="Manual irrigation in last 30 min" style="display:inline-block;margin-left:6px;padding:2px 6px;font-size:9px;font-weight:700;letter-spacing:.04em;border-radius:3px;background:rgba(245,158,11,0.18);color:var(--amber);vertical-align:middle">✋ MANUAL · table ${_manualByRoom[room.id].join(', ')}</span>`:''}</div>
           <div class="room-meta">${room.tier} · ${room.sqft} sq ft${room.strain?' · '+room.strain:''}</div>
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
@@ -1682,6 +1791,13 @@ function renderAssignments(){
       const isDone=overrides['done_'+task.id];
       const isSkipped=overrides['skip_'+task.id];
       if(isSkipped) return '';
+      const isIpm=task.id&&task.id.indexOf('ipm_')===0&&task.ipmRuleId;
+      const doneBtn=isIpm
+        ?'<button class="complete-btn" onclick="markIpmDone(\''+task.ipmRuleId+'\',\''+group.roomId+'\',\''+task.ipmDueDate+'\',\'\')">Mark done</button>'
+        :`<button class="complete-btn" onclick="openModal('${group.roomId}','${task.id}','${task.name} — ${group.roomName}')">Mark done</button>`;
+      const skipBtn=isIpm
+        ?'<button class="skip-btn" onclick="markIpmSkip(\''+task.ipmRuleId+'\',\''+group.roomId+'\',\''+task.ipmDueDate+'\',\'\')">Skip</button>'
+        :`<button class="skip-btn" onclick="skipTask('${group.roomId}','${task.id}')">Skip</button>`;
       return`<div class="assign-task">
         <div class="assign-task-info">
           <div class="assign-task-name" style="${isDone?'text-decoration:line-through;color:var(--text3)':''}">${task.name}</div>
@@ -1689,8 +1805,8 @@ function renderAssignments(){
           ${task.sub?`<div class="assign-task-sub">${task.sub}</div>`:''}
         </div>
         <div style="display:flex;gap:5px;flex-direction:column;align-items:flex-end">
-          ${!isDone?`<button class="complete-btn" onclick="openModal('${group.roomId}','${task.id}','${task.name} — ${group.roomName}')">Mark done</button>`:`<button class="complete-btn done" disabled>Done</button>`}
-          ${!isDone?`<button class="skip-btn" onclick="skipTask('${group.roomId}','${task.id}')">Skip</button>`:''}
+          ${!isDone?doneBtn:'<button class="complete-btn done" disabled>Done</button>'}
+          ${!isDone?skipBtn:''}
         </div>
       </div>`;
     }).join('');
@@ -1808,7 +1924,347 @@ function buildAssignments(role){
     groups.push({roomId:room.id,roomName:room.name,stageLine,badge,badgeCls,tasks});
   });
 
+  // IPM rotation tasks: only for IPM role and lead. One card per room per due rule.
+  if(role==='ipm' || role==='lead'){
+    const ipmTasks=(typeof getIpmTasksForToday==='function')?getIpmTasksForToday():[];
+    const byRoom={};
+    ipmTasks.forEach(t=>{
+      const room=rooms.find(r=>r.id===t.roomId);
+      if(!room) return;
+      if(!byRoom[t.roomId]){
+        byRoom[t.roomId]={roomId:t.roomId, roomName:room.name, tasks:[]};
+      }
+      const overdueLabel=t.daysOverdue>0?' ('+t.daysOverdue+'d overdue)':'';
+      byRoom[t.roomId].tasks.push({
+        id:'ipm_'+t.rule.id+'_'+t.dueDate,
+        ipmRuleId:t.rule.id,
+        ipmDueDate:t.dueDate,
+        name:(t.rule.product||'IPM')+' — '+room.name+overdueLabel,
+        desc:(t.rule.dose?'Dose: '+t.rule.dose:'')+(t.rule.notes?(t.rule.dose?' · ':'')+t.rule.notes:''),
+        sub:t.rule.name?'Rule: '+t.rule.name:'',
+      });
+    });
+    Object.values(byRoom).forEach(g=>{
+      groups.unshift({
+        roomId:g.roomId, roomName:g.roomName,
+        stageLine:'IPM rotation', badge:'IPM', badgeCls:'tag-blue',
+        tasks:g.tasks
+      });
+    });
+  }
+
   return groups;
+}
+
+// ══════════════════════════════════════════════
+// IPM SCHEDULE — rule-based spray rotation
+// ══════════════════════════════════════════════
+let ipmRules=L('wg_ipm_rules',[]);
+let ipmLog=L('wg_ipm_log',[]);
+
+function isIpmRuleDueOn(rule, date){
+  if(!rule.active) return null;
+  const dateIso=date.toISOString().split('T')[0];
+  const startIso=rule.startDate||dateIso;
+  if(dateIso<startIso) return null;
+  if(rule.cadenceType==='every_n'){
+    const startDate=new Date(startIso+'T00:00:00');
+    const diffDays=Math.floor((date - startDate)/86400000);
+    if(diffDays<0) return null;
+    if(diffDays % (rule.every||1) !== 0) return null;
+    return {dueDate:dateIso};
+  }
+  if(rule.cadenceType==='weekdays'){
+    const dow=date.getDay();
+    if(!Array.isArray(rule.weekdays)) return null;
+    if(!rule.weekdays.includes(dow)) return null;
+    return {dueDate:dateIso};
+  }
+  if(rule.cadenceType==='dates'){
+    if(!Array.isArray(rule.dates)) return null;
+    if(!rule.dates.includes(dateIso)) return null;
+    return {dueDate:dateIso};
+  }
+  return null;
+}
+
+function ipmRuleHandledOn(rule, dateIso, roomId){
+  return ipmLog.some(l => l.ruleId===rule.id && l.date===dateIso && (!roomId || l.roomId===roomId));
+}
+
+function getIpmTasksForToday(){
+  ipmRules=L('wg_ipm_rules',[]);
+  ipmLog=L('wg_ipm_log',[]);
+  const out=[];
+  ipmRules.forEach(rule=>{
+    if(!rule.active) return;
+    if(!Array.isArray(rule.rooms) || !rule.rooms.length) return;
+    for(let back=0; back<=7; back++){
+      const d=new Date(TODAY); d.setDate(d.getDate()-back);
+      const due=isIpmRuleDueOn(rule, d);
+      if(!due) continue;
+      rule.rooms.forEach(roomId=>{
+        if(ipmRuleHandledOn(rule, due.dueDate, roomId)) return;
+        out.push({rule, roomId, dueDate:due.dueDate, daysOverdue:back});
+      });
+    }
+  });
+  out.sort((a,b)=>{
+    if(a.daysOverdue!==b.daysOverdue) return b.daysOverdue-a.daysOverdue;
+    return (a.rule.name||'').localeCompare(b.rule.name||'');
+  });
+  return out;
+}
+
+function markIpmDone(ruleId, roomId, dueDate, note){
+  const rule=ipmRules.find(r=>r.id===ruleId);
+  if(!rule) return;
+  ipmLog.push({
+    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    ruleId, ruleName:rule.name||'', product:rule.product||'',
+    roomId, dueDate, date:dueDate,
+    status:'done', who:loggedInMember?loggedInMember.name:'Unknown',
+    note:note||'', completedAt:new Date().toISOString()
+  });
+  S('wg_ipm_log', ipmLog);
+  pushConfigDebounced();
+  postToSheet('IPM_Log',[dueDate, fmtTime(), loggedInMember?loggedInMember.name:'Unknown', rule.name||'', rule.product||'', roomId, 'done', note||'']);
+  renderAssignments();
+  if(typeof renderIpmRules==='function') renderIpmRules();
+  if(typeof renderIpmHistory==='function') renderIpmHistory();
+}
+
+function markIpmSkip(ruleId, roomId, dueDate, reason){
+  const rule=ipmRules.find(r=>r.id===ruleId);
+  if(!rule) return;
+  if(!reason){
+    reason=prompt('Reason for skipping (optional):','')||'';
+  }
+  ipmLog.push({
+    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    ruleId, ruleName:rule.name||'', product:rule.product||'',
+    roomId, dueDate, date:dueDate,
+    status:'skipped', who:loggedInMember?loggedInMember.name:'Unknown',
+    note:reason||'', completedAt:new Date().toISOString()
+  });
+  S('wg_ipm_log', ipmLog);
+  pushConfigDebounced();
+  postToSheet('IPM_Log',[dueDate, fmtTime(), loggedInMember?loggedInMember.name:'Unknown', rule.name||'', rule.product||'', roomId, 'skipped', reason||'']);
+  renderAssignments();
+  if(typeof renderIpmHistory==='function') renderIpmHistory();
+}
+
+function openIpmRuleEditor(ruleId){
+  const editing=ruleId?ipmRules.find(r=>r.id===ruleId):null;
+  const rule=editing?{...editing}:{
+    id:'rule_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    name:'', product:'', dose:'', rooms:[],
+    cadenceType:'every_n', every:2, weekdays:[], dates:[],
+    startDate:dateToIso(TODAY), active:true, notes:''
+  };
+  const modal=document.createElement('div');
+  modal.className='modal-bg open';
+  modal.id='ipm-rule-modal';
+  const allRooms=rooms.filter(r=>r.id);
+  const roomChecks=allRooms.map(r=>{
+    const checked=rule.rooms.includes(r.id);
+    return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border:1px solid var(--border2);border-radius:var(--r);background:'+(checked?'var(--blue-bg)':'var(--bg3)')+';cursor:pointer">'+
+           '<input type="checkbox" data-room="'+r.id+'" '+(checked?'checked':'')+' style="margin:0"/>'+
+           r.name+'</label>';
+  }).join('');
+  const dayLabels=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekdayChecks=dayLabels.map(function(lbl,i){
+    const checked=rule.weekdays&&rule.weekdays.includes(i);
+    return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border:1px solid var(--border2);border-radius:var(--r);background:'+(checked?'var(--blue-bg)':'var(--bg3)')+';cursor:pointer">'+
+           '<input type="checkbox" data-dow="'+i+'" '+(checked?'checked':'')+' style="margin:0"/>'+
+           lbl+'</label>';
+  }).join('');
+  const ct=rule.cadenceType;
+  const html='<div class="modal" style="max-width:560px">'+
+    '<div class="modal-head"><div class="modal-title">'+(editing?'Edit':'New')+' IPM rule</div>'+
+    '<button class="modal-close" onclick="closeIpmRuleEditor()">×</button></div>'+
+    '<div class="modal-body" style="padding:18px"><div style="display:grid;gap:12px">'+
+    '<div><label style="font-size:11px;color:var(--text3);font-weight:600">Rule name</label>'+
+    '<input id="ipm-rule-name" value="'+(rule.name||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Oxiphos in mother + veg" style="width:100%;font-size:13px;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box;margin-top:3px"/></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    '<div><label style="font-size:11px;color:var(--text3);font-weight:600">Product</label>'+
+    '<input id="ipm-rule-product" value="'+(rule.product||'').replace(/"/g,'&quot;')+'" placeholder="Oxiphos / SuffOil-X / Athena IPM / Milstop" style="width:100%;font-size:13px;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box;margin-top:3px"/></div>'+
+    '<div><label style="font-size:11px;color:var(--text3);font-weight:600">Dose / mix</label>'+
+    '<input id="ipm-rule-dose" value="'+(rule.dose||'').replace(/"/g,'&quot;')+'" placeholder="1 tsp/gal · ~½ gal/room" style="width:100%;font-size:13px;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box;margin-top:3px"/></div></div>'+
+    '<div><label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:5px">Rooms</label>'+
+    '<div id="ipm-rule-rooms" style="display:flex;flex-wrap:wrap;gap:5px">'+roomChecks+'</div></div>'+
+    '<div><label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:5px">Cadence</label>'+
+    '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+
+    '<button onclick="setIpmCadenceType(\'every_n\')" id="ipm-cad-every_n" style="font-size:12px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:'+(ct==='every_n'?'var(--blue-bg)':'var(--bg3)')+';color:var(--text);cursor:pointer">Every N days</button>'+
+    '<button onclick="setIpmCadenceType(\'weekdays\')" id="ipm-cad-weekdays" style="font-size:12px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:'+(ct==='weekdays'?'var(--blue-bg)':'var(--bg3)')+';color:var(--text);cursor:pointer">Specific weekdays</button>'+
+    '<button onclick="setIpmCadenceType(\'dates\')" id="ipm-cad-dates" style="font-size:12px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:'+(ct==='dates'?'var(--blue-bg)':'var(--bg3)')+';color:var(--text);cursor:pointer">Specific dates</button></div>'+
+    '<div id="ipm-cad-every_n-block" style="display:'+(ct==='every_n'?'flex':'none')+';gap:8px;align-items:center">'+
+    '<span style="font-size:12px;color:var(--text2)">Every</span>'+
+    '<input id="ipm-rule-every" type="number" min="1" max="60" value="'+(rule.every||2)+'" style="width:60px;font-size:13px;padding:6px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);text-align:center"/>'+
+    '<span style="font-size:12px;color:var(--text2)">days starting</span>'+
+    '<input id="ipm-rule-start" type="date" value="'+(rule.startDate||dateToIso(TODAY))+'" style="font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)"/></div>'+
+    '<div id="ipm-cad-weekdays-block" style="display:'+(ct==='weekdays'?'flex':'none')+';flex-wrap:wrap;gap:5px">'+weekdayChecks+'</div>'+
+    '<div id="ipm-cad-dates-block" style="display:'+(ct==='dates'?'block':'none')+'">'+
+    '<textarea id="ipm-rule-dates" placeholder="One date per line: 2026-05-12" style="width:100%;min-height:60px;font-size:12px;padding:8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box;font-family:var(--mono)">'+(rule.dates||[]).join('\n')+'</textarea></div></div>'+
+    '<div><label style="font-size:11px;color:var(--text3);font-weight:600">Notes</label>'+
+    '<textarea id="ipm-rule-notes" style="width:100%;min-height:50px;font-size:12px;padding:8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box">'+(rule.notes||'').replace(/</g,'&lt;')+'</textarea></div>'+
+    '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">'+
+    '<input id="ipm-rule-active" type="checkbox" '+(rule.active!==false?'checked':'')+'/>Active</label></div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">'+
+    (editing?'<button onclick="deleteIpmRule(\''+rule.id+'\')" style="font-size:12px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--red-bg);background:none;color:var(--red);cursor:pointer">Delete</button>':'')+
+    '<button onclick="closeIpmRuleEditor()" style="font-size:12px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">Cancel</button>'+
+    '<button onclick="saveIpmRule(\''+rule.id+'\')" class="btn-primary" style="font-size:12px;padding:7px 14px">Save</button></div></div></div>';
+  modal.innerHTML=html;
+  document.body.appendChild(modal);
+}
+
+function setIpmCadenceType(type){
+  ['every_n','weekdays','dates'].forEach(t=>{
+    const btn=document.getElementById('ipm-cad-'+t);
+    if(btn) btn.style.background = (t===type) ? 'var(--blue-bg)' : 'var(--bg3)';
+    const blk=document.getElementById('ipm-cad-'+t+'-block');
+    if(blk) blk.style.display = (t===type) ? (t==='dates'?'block':'flex') : 'none';
+  });
+}
+
+function closeIpmRuleEditor(){
+  const m=document.getElementById('ipm-rule-modal');
+  if(m) m.remove();
+}
+
+function saveIpmRule(ruleId){
+  ipmRules=L('wg_ipm_rules',[]);
+  const existing=ipmRules.find(r=>r.id===ruleId);
+  const rule=existing||{id:ruleId};
+  rule.name=document.getElementById('ipm-rule-name').value.trim();
+  rule.product=document.getElementById('ipm-rule-product').value.trim();
+  rule.dose=document.getElementById('ipm-rule-dose').value.trim();
+  rule.notes=document.getElementById('ipm-rule-notes').value.trim();
+  rule.active=document.getElementById('ipm-rule-active').checked;
+  const rcs=document.querySelectorAll('#ipm-rule-rooms input[type="checkbox"]');
+  rule.rooms=[];
+  rcs.forEach(cb=>{ if(cb.checked) rule.rooms.push(cb.getAttribute('data-room')); });
+  if(document.getElementById('ipm-cad-every_n-block').style.display!=='none'){
+    rule.cadenceType='every_n';
+    rule.every=Math.max(1,parseInt(document.getElementById('ipm-rule-every').value)||1);
+    rule.startDate=document.getElementById('ipm-rule-start').value||dateToIso(TODAY);
+  } else if(document.getElementById('ipm-cad-weekdays-block').style.display!=='none'){
+    rule.cadenceType='weekdays';
+    const wcs=document.querySelectorAll('#ipm-cad-weekdays-block input[type="checkbox"]');
+    rule.weekdays=[];
+    wcs.forEach(cb=>{ if(cb.checked) rule.weekdays.push(parseInt(cb.getAttribute('data-dow'))); });
+  } else {
+    rule.cadenceType='dates';
+    const txt=document.getElementById('ipm-rule-dates').value;
+    rule.dates=txt.split(/[\n,]/).map(s=>s.trim()).filter(s=>/^\d{4}-\d{2}-\d{2}$/.test(s));
+  }
+  if(!rule.name){alert('Rule name is required');return;}
+  if(!rule.product){alert('Product is required');return;}
+  if(!rule.rooms.length){alert('Select at least one room');return;}
+  if(rule.cadenceType==='weekdays' && !rule.weekdays.length){alert('Select at least one weekday');return;}
+  if(rule.cadenceType==='dates' && !rule.dates.length){alert('Add at least one date');return;}
+  if(!existing) ipmRules.push(rule);
+  S('wg_ipm_rules', ipmRules);
+  pushConfigDebounced();
+  closeIpmRuleEditor();
+  renderIpmRules();
+  renderAssignments();
+}
+
+function deleteIpmRule(ruleId){
+  if(!confirm('Delete this rule? History entries are kept.'))return;
+  ipmRules=L('wg_ipm_rules',[]).filter(r=>r.id!==ruleId);
+  S('wg_ipm_rules', ipmRules);
+  pushConfigDebounced();
+  closeIpmRuleEditor();
+  renderIpmRules();
+  renderAssignments();
+}
+
+function toggleIpmRule(ruleId){
+  ipmRules=L('wg_ipm_rules',[]);
+  const r=ipmRules.find(x=>x.id===ruleId);
+  if(!r) return;
+  r.active=!r.active;
+  S('wg_ipm_rules', ipmRules);
+  pushConfigDebounced();
+  renderIpmRules();
+  renderAssignments();
+}
+
+function renderIpmRules(){
+  ipmRules=L('wg_ipm_rules',[]);
+  const list=document.getElementById('ipm-rules-list');
+  if(!list) return;
+  if(!ipmRules.length){
+    list.innerHTML='<div class="empty-state">No rules yet. Click "+ New rule" to create one.</div>';
+    return;
+  }
+  const sorted=[...ipmRules].sort((a,b)=>{
+    if(a.active!==b.active) return a.active?-1:1;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  list.innerHTML=sorted.map(r=>{
+    const roomNames=r.rooms.map(rid=>(rooms.find(rm=>rm.id===rid)||{}).name||rid).join(', ');
+    let cadDesc='';
+    if(r.cadenceType==='every_n'){ cadDesc='Every '+(r.every||1)+' days from '+(r.startDate||'?'); }
+    else if(r.cadenceType==='weekdays'){ const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; cadDesc=(r.weekdays||[]).map(i=>days[i]).join(', ')||'no days'; }
+    else if(r.cadenceType==='dates'){ cadDesc='Specific dates ('+(r.dates||[]).length+')'; }
+    return '<div class="card" style="border-left:3px solid '+(r.active?'var(--green)':'var(--text3)')+';margin-bottom:8px;'+(r.active?'':'opacity:0.6')+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
+      '<div style="flex:1;min-width:200px">'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+      '<div style="font-size:14px;font-weight:700;color:var(--text)">'+(r.name||'(unnamed)')+'</div>'+
+      '<span style="font-size:10px;padding:1px 7px;border-radius:var(--r);background:rgba(168,85,247,0.15);color:var(--purple);font-weight:600">'+(r.product||'?')+'</span>'+
+      (r.active?'':'<span style="font-size:10px;padding:1px 7px;border-radius:var(--r);background:var(--bg3);color:var(--text3);font-weight:600">paused</span>')+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:3px">'+(roomNames||'no rooms')+' · '+cadDesc+'</div>'+
+      (r.dose?'<div style="font-size:11px;color:var(--text2);margin-top:3px">Dose: '+r.dose+'</div>':'')+
+      (r.notes?'<div style="font-size:11px;color:var(--text2);margin-top:3px;padding:4px 6px;background:var(--bg3);border-radius:var(--r)">'+r.notes+'</div>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:5px;flex-shrink:0">'+
+      '<button onclick="toggleIpmRule(\''+r.id+'\')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">'+(r.active?'Pause':'Resume')+'</button>'+
+      '<button onclick="openIpmRuleEditor(\''+r.id+'\')" style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">Edit</button>'+
+      '</div></div></div>';
+  }).join('');
+}
+
+function renderIpmHistory(){
+  ipmLog=L('wg_ipm_log',[]);
+  const list=document.getElementById('ipm-history-list');
+  if(!list) return;
+  const filter=(document.getElementById('ipm-history-filter')||{}).value||'all';
+  let entries=[...ipmLog];
+  if(filter!=='all') entries=entries.filter(e=>e.status===filter);
+  entries.sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
+  if(!entries.length){
+    list.innerHTML='<div class="empty-state">No IPM activity logged yet.</div>';
+    return;
+  }
+  list.innerHTML=entries.slice(0,200).map(e=>{
+    const room=rooms.find(r=>r.id===e.roomId);
+    const ds=new Date(e.completedAt||e.date+'T12:00:00');
+    const dateStr=isNaN(ds)?(e.date||''):(ds.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+ds.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
+    const color=e.status==='done'?'var(--green)':'var(--amber)';
+    const icon=e.status==='done'?'✓':'⏭';
+    return '<div class="card" style="border-left:3px solid '+color+';margin-bottom:6px;padding:8px 12px">'+
+      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">'+
+      '<div style="flex:1;min-width:180px">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text)">'+icon+' '+(e.product||e.ruleName||'?')+' · '+((room&&room.name)||e.roomId||'?')+'</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(e.who||'?')+' · '+dateStr+(e.note?' · '+e.note:'')+'</div>'+
+      '</div>'+
+      '<span style="font-size:10px;padding:1px 7px;border-radius:var(--r);background:'+(e.status==='done'?'var(--green-bg)':'var(--bg3)')+';color:'+color+';font-weight:600">'+e.status+'</span>'+
+      '</div></div>';
+  }).join('');
+}
+
+function showIpmTab(tab,el){
+  document.querySelectorAll('#page-ipm .nav-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('ipmsub-rules').style.display=tab==='rules'?'block':'none';
+  document.getElementById('ipmsub-history').style.display=tab==='history'?'block':'none';
+  if(tab==='rules') renderIpmRules();
+  if(tab==='history') renderIpmHistory();
 }
 
 // ══════════════════════════════════════════════
@@ -1830,51 +2286,119 @@ const STRAIN_TARGETS=[
 ];
 const WEEKLY_TARGET=450;
 
-function logCloneCut(clearStrain=false){
+async function logCloneCut(clearStrain=false,leadOverride=false){
   const strain=document.getElementById('ce-strain').value.trim();
   const motherTag=document.getElementById('ce-mother-tag')?.value.trim()||'';
   const count=parseInt(document.getElementById('ce-count').value)||0;
   const who=loggedInMember?loggedInMember.name:'Unknown';
-  if(!strain||!count)return;
-  // Validate mother tag against METRC data if available
-  let motherLabel='';
-  if(motherTag&&metrcData.mother.length){
-    const match=metrcData.mother.find(r=>(r['Tag']||'').endsWith(motherTag));
-    if(match){
-      motherLabel=match['Tag']||'';
-      // Verify strain matches
-      if(match['Strain']&&match['Strain'].toLowerCase()!==strain.toLowerCase()){
-        const hint=document.getElementById('ce-mother-hint');
-        if(hint) hint.style.color='var(--amber)';
-        if(hint) hint.textContent='⚠ Tag is '+match['Strain']+' not '+strain;
-      }
-    } else {
-      const hint=document.getElementById('ce-mother-hint');
-      if(hint){hint.textContent='Tag not found in mothers';hint.style.color='var(--amber)';}
+  const hint=document.getElementById('ce-mother-hint');
+  const setHint=(msg,color)=>{ if(hint){hint.textContent=msg||'';hint.style.color=color||'var(--text3)';} };
+
+  // ── Required fields ──
+  if(!strain){ setHint('⚠ Strain is required','var(--red)'); document.getElementById('ce-strain').focus(); return; }
+  if(!count){  setHint('⚠ Number of clones is required','var(--red)'); document.getElementById('ce-count').focus(); return; }
+
+  // ── Sanity check on count: typical cuts are <300; warn if 500+ which is more like a plant number ──
+  if(count>=300){
+    if(!confirm(`You're logging ${count} clones — that's unusually high. Did you mean to enter the plant number in this field by mistake? Click OK to proceed, Cancel to fix.`)){
+      document.getElementById('ce-count').focus();
+      return;
     }
   }
-  cloneSessions.push({strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)});
+
+  // ── Mother tag required + must match METRC ──
+  if(!motherTag){
+    setHint('⚠ Mother tag (last 4) is required','var(--red)');
+    document.getElementById('ce-mother-tag').focus();
+    return;
+  }
+  if(motherTag.length<4){
+    setHint('⚠ Enter all 4 digits of the mother tag','var(--red)');
+    document.getElementById('ce-mother-tag').focus();
+    return;
+  }
+
+  let motherLabel='';
+  let validationFailed=null; // null if OK, or string explaining what's wrong
+
+  if(metrcData.mother && metrcData.mother.length){
+    // Match all mothers ending in this tag (typically 1, but could be 0 or >1)
+    const matches=metrcData.mother.filter(r=>(r['Tag']||'').endsWith(motherTag));
+    if(matches.length===0){
+      validationFailed='Tag …'+motherTag+' is not a registered mother in METRC.';
+    } else if(matches.length>1){
+      // Multiple matches — strain must disambiguate
+      const strainMatch=matches.find(m=>(m['Strain']||'').toLowerCase()===strain.toLowerCase());
+      if(!strainMatch){
+        validationFailed='Tag …'+motherTag+' matches '+matches.length+' mothers, none of strain "'+strain+'" — '+matches.map(m=>m['Strain']).join(', ');
+      } else {
+        motherLabel=strainMatch['Tag']||'';
+      }
+    } else {
+      motherLabel=matches[0]['Tag']||'';
+      const motherStrain=matches[0]['Strain']||'';
+      if(motherStrain && motherStrain.toLowerCase()!==strain.toLowerCase()){
+        validationFailed='Tag …'+motherTag+' is registered to "'+motherStrain+'", not "'+strain+'"';
+      }
+    }
+  } else {
+    validationFailed='METRC mother data not loaded — cannot validate. Upload latest Mother CSV in Settings.';
+  }
+
+  // ── Block on validation failure unless lead-override ──
+  if(validationFailed && !leadOverride){
+    if(hint){
+      hint.innerHTML='<span style="color:var(--red)">✗ '+validationFailed+'</span>'+
+        (currentRole==='lead'?' <button onclick="logCloneCut('+(clearStrain?'true':'false')+',true)" style="margin-left:6px;font-size:10px;padding:2px 7px;border-radius:var(--r);border:1px solid var(--amber);background:none;color:var(--amber);cursor:pointer">Override (lead)</button>':'');
+    }
+    return;
+  }
+  if(validationFailed && leadOverride){
+    motherLabel=motherLabel || ('OVERRIDE_'+motherTag);
+  }
+
+  // ── Append locally + sync ──
+  const session={strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)};
+  if(leadOverride) session.override=true;
+  cloneSessions.push(session);
   S(getWeekKey(),cloneSessions);
   pushConfigToCloud(true); // immediate — clone saves must sync right away
-  postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
-  // Always clear count and mother tag
+  renderCloneTracker();
+
+  // ── Sheet write WITH success confirmation ──
+  setHint('Saving to sheet…','var(--text3)');
+  const result=await postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
+  if(!result.ok){
+    setHint('⚠ Sheet write failed — saved locally only. Click here to retry.','var(--amber)');
+    if(hint){
+      hint.style.cursor='pointer';
+      hint.onclick=async ()=>{
+        setHint('Retrying…','var(--text3)');
+        const r2=await postToSheet('Clone_Log',[session.date,session.time,session.who,session.strain,session.count,session.motherTag,session.motherLabel]);
+        if(r2.ok){ setHint('✓ Saved on retry','var(--green)'); hint.onclick=null; hint.style.cursor=''; setTimeout(()=>setHint(''),3000); }
+        else { setHint('⚠ Still failed — check Settings → Apps Script URL. Tap to retry.','var(--red)'); }
+      };
+    }
+    // Don't clear the form on failure — let user retry without re-typing
+    return;
+  }
+
+  // ── Success — clear form and refocus ──
+  setHint('✓ Saved','var(--green)');
+  setTimeout(()=>setHint(''),2500);
   if(document.getElementById('ce-mother-tag')) document.getElementById('ce-mother-tag').value='';
   document.getElementById('ce-count').value='';
   const box=document.getElementById('strain-autocomplete');
   if(box) box.style.display='none';
-  const hint=document.getElementById('ce-mother-hint');
-  if(hint) hint.textContent='';
   if(clearStrain){
     document.getElementById('ce-strain').value='';
     const panel=document.getElementById('clone-strain-info');
     if(panel) panel.style.display='none';
   }
-  // Refocus on count field for same strain, strain field for new strain
   setTimeout(()=>{
     const focusEl=document.getElementById(clearStrain?'ce-strain':'ce-count');
     if(focusEl) focusEl.focus();
   },50);
-  renderCloneTracker();
 }
 
 function resetCloneWeek(){
@@ -3157,6 +3681,7 @@ const ALL_PAGES=[
   {key:'clonetracker',label:'Clone Tracker'},
   {key:'today-log',label:'Today\'s Log'},
   {key:'additive',label:'Additive Schedule'},
+  {key:'ipm',label:'IPM Schedule'},
   {key:'checks',label:'Room Checks'},
   {key:'slack',label:'Slack Dispatch'},
   {key:'settings',label:'Settings'},
@@ -3246,9 +3771,9 @@ function applyRolePerms(){
   // Always ensure new pages are present even on old cached rolePerms.
   // Every role (including non-leads) gets calendar so the team can view it.
   const ensurePages = {
-    lead:       ['assignments','rooms','postprod','clonetracker','today-log','calendar','additive','checks','slack','settings','metrc','daily-review','supplies','blueprint'],
+    lead:       ['assignments','rooms','postprod','clonetracker','today-log','calendar','additive','ipm','checks','slack','settings','metrc','daily-review','supplies','blueprint'],
     fertigator: ['supplies','additive','checks','slack','clonetracker','calendar'],
-    ipm:        ['additive','calendar'],
+    ipm:        ['additive','ipm','calendar'],
     cloner:     ['calendar'],
     defoliator: ['calendar'],
     checker:    ['calendar'],
@@ -3662,6 +4187,7 @@ function toggleMachineTrimmed(id){
 
 function renderTrimQueue(){
   trimQueue=L('wg_trim_queue',[]);
+  trimWeights=L('wg_trim_weights',{});
   const list=document.getElementById('trim-queue-list');
   if(!list)return;
   const isLead=currentRole==='lead';
@@ -3671,81 +4197,95 @@ function renderTrimQueue(){
   // Show/hide add button
   const addBtn=document.getElementById('add-trim-btn');
   if(addBtn) addBtn.style.display=isLead?'inline-flex':'none';
-  if(!trimQueue.length){
-    list.innerHTML=`<div class="empty-state">No harvests in queue yet. Upload a Harvests export in Settings → METRC.</div>`;
+  // Active queue = items not yet archived (lead-approved into history)
+  const activeTrimQueue=trimQueue.filter(i=>!i.archived);
+  if(!activeTrimQueue.length){
+    list.innerHTML=`<div class="empty-state">No harvests in queue. Upload a Harvests export in Settings → METRC, or add manually.</div>`;
     return;
   }
   const priColor={high:'var(--red)',normal:'var(--green)',low:'var(--text3)'};
   const priLabel={high:'🔴 Trim first',normal:'Normal',low:'⬇ Low'};
-  const statusColor={pending:'var(--text3)',trimming:'var(--amber)',done:'var(--green)'};
-  const statusLabel={pending:'Pending',trimming:'Trimming now',done:'Complete'};
-  const activeTrimQueue=trimQueue.filter(i=>i.status!=='done');
-  const doneQueue=trimQueue.filter(i=>i.status==='done');
   const renderItems=(items,offset)=>items.map((item,idx)=>{
     const realIdx=trimQueue.indexOf(item);
     const w=trimWeights[item.id]||{};
-    const hasWeights=w.bigBuds||w.smallBuds||w.trim;
+    const wStatus=w.status||'entry'; // entry → submitted → (lead approved → archive)
     const dateObj=item.harvestDate?new Date(item.harvestDate):null;
     const dateStr=dateObj&&!isNaN(dateObj)?dateObj.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):item.harvestDate||'';
-    return`<div class="card" style="border-left:3px solid ${priColor[item.priority||'normal']};opacity:${item.status==='done'?'0.55':'1'};margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:8px">
-        ${isLead?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
+    const submitted=wStatus==='submitted'||wStatus==='pending'; // 'pending' kept for backward-compat with existing data
+    const inputDisabled=submitted?'disabled':'';
+    // Border color reflects state: amber when submitted (waiting on lead), priority color otherwise
+    const borderColor=submitted?'var(--amber)':priColor[item.priority||'normal'];
+    return`<div class="card" style="border-left:3px solid ${borderColor};margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        ${isLead?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;padding-top:2px">
           <button onclick="moveTrimItem('${item.id}',-1)" ${realIdx===0?'disabled':''} style="font-size:14px;line-height:1;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:${realIdx===0?'var(--bg3)':'none'};color:${realIdx===0?'var(--border2)':'var(--text2)'};cursor:${realIdx===0?'default':'pointer'}">↑</button>
           <button onclick="moveTrimItem('${item.id}',1)" ${realIdx>=trimQueue.length-1?'disabled':''} style="font-size:14px;line-height:1;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:${realIdx>=trimQueue.length-1?'var(--bg3)':'none'};color:${realIdx>=trimQueue.length-1?'var(--border2)':'var(--text2)'};cursor:${realIdx>=trimQueue.length-1?'default':'pointer'}">↓</button>
         </div>`:''}
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:28px;flex-shrink:0">${offset+idx+1}</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text3);min-width:28px;flex-shrink:0;padding-top:2px">${offset+idx+1}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.strain}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:3px;align-items:center">
             ${item.plantCount?`<span style="font-size:11px;padding:1px 7px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);color:var(--green);font-family:var(--mono)">${item.plantCount} plants</span>`:''}
             ${dateStr?`<span style="font-size:11px;color:var(--text3)">${dateStr}</span>`:''}
             <span style="font-size:11px;font-weight:600;color:${priColor[item.priority||'normal']}">${priLabel[item.priority||'normal']}</span>
-            <span style="font-size:11px;padding:1px 7px;border-radius:var(--r);background:var(--bg3);color:${statusColor[item.status||'pending']}">${statusLabel[item.status||'pending']}</span>
+            ${submitted?`<span style="font-size:11px;padding:1px 7px;border-radius:var(--r);background:var(--amber-bg,rgba(245,158,11,0.15));color:var(--amber);font-weight:600">⏳ Pending lead approval</span>`:''}
           </div>
           ${item.notes?`<div style="font-size:11px;color:var(--text2);margin-top:4px;padding:4px 6px;background:var(--bg3);border-radius:var(--r)">${item.notes}</div>`:''}
-          ${hasWeights?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-            ${w.bigBuds?`<span style="font-size:11px;padding:1px 7px;background:var(--green-bg);color:var(--green);border-radius:var(--r)">Bigs: ${w.bigBuds}g</span>`:''}
-            ${w.smallBuds?`<span style="font-size:11px;padding:1px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--r)">Smalls: ${w.smallBuds}g</span>`:''}
-            ${w.trim?`<span style="font-size:11px;padding:1px 7px;background:var(--bg3);color:var(--text3);border-radius:var(--r)">Trim: ${w.trim}g</span>`:''}
-          </div>`:''}
-          ${(isLead||currentRole==='postprod')?`<div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:7px">🔬 Purpl Pro</div>
-            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-              <div style="flex:1;min-width:90px">
+
+          <!-- WEIGHTS + PURPL PRO INLINE -->
+          <div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">⚖ Weights & QC</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
+              <div>
+                <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Bigs (g)</div>
+                <input type="number" min="0" step="0.1" value="${w.bigBuds||''}" placeholder="0.0" ${inputDisabled}
+                  style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-family:var(--mono)"
+                  onchange="saveWeight('${item.id}','bigBuds',this.value)"/>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Smalls (g)</div>
+                <input type="number" min="0" step="0.1" value="${w.smallBuds||''}" placeholder="0.0" ${inputDisabled}
+                  style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-family:var(--mono)"
+                  onchange="saveWeight('${item.id}','smallBuds',this.value)"/>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Trim (g)</div>
+                <input type="number" min="0" step="0.1" value="${w.trim||''}" placeholder="0.0" ${inputDisabled}
+                  style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-family:var(--mono)"
+                  onchange="saveWeight('${item.id}','trim',this.value)"/>
+              </div>
+              <div>
                 <div style="font-size:10px;color:var(--text3);margin-bottom:3px">THC %</div>
-                <input type="number" min="0" max="40" step="0.1"
-                  value="${w.purplTHC||''}" placeholder="e.g. 28.4"
+                <input type="number" min="0" max="40" step="0.1" value="${w.purplTHC||''}" placeholder="e.g. 28.4" ${inputDisabled}
                   style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-family:var(--mono)"
-                  oninput="savePurplResult('${item.id}','purplTHC',this.value)"/>
+                  onchange="savePurplResult('${item.id}','purplTHC',this.value)"/>
               </div>
-              <div style="flex:1;min-width:90px">
+              <div>
                 <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Moisture %</div>
-                <input type="number" min="0" max="30" step="0.1"
-                  value="${w.moisture||''}" placeholder="e.g. 11.2"
+                <input type="number" min="0" max="30" step="0.1" value="${w.moisture||''}" placeholder="e.g. 11.2" ${inputDisabled}
                   style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-family:var(--mono)"
-                  oninput="savePurplResult('${item.id}','moisture',this.value)"/>
+                  onchange="savePurplResult('${item.id}','moisture',this.value)"/>
               </div>
-              ${(w.purplTHC||w.moisture)?`<div style="display:flex;align-items:center;gap:8px;padding-bottom:2px">
-                ${w.purplTHC?`<span style="font-size:13px;font-weight:700;color:var(--purple);font-family:var(--mono)">THC ${w.purplTHC}%</span>`:''}
-                ${w.moisture?`<span style="font-size:13px;font-weight:700;color:var(--blue);font-family:var(--mono)">H₂O ${w.moisture}%</span>`:''}
-                ${w.purplEnteredBy?`<span style="font-size:10px;color:var(--text3)">· ${w.purplEnteredBy}</span>`:''}
-              </div>`:''}
             </div>
-          </div>`:''}
-          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
-            ${item.machineTrimmed
-              ?`<span style="font-size:11px;padding:2px 8px;border-radius:var(--r);background:var(--green-bg);border:1px solid var(--green-dim);color:var(--green);font-weight:600">✓ Machine trimmed${item.machineTrimmedBy?' · '+item.machineTrimmedBy:''}</span>`
-              :(isLead||currentRole==='postprod')?`<button onclick="toggleMachineTrimmed('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--blue);background:none;color:var(--blue);cursor:pointer">🔪 Mark machine trimmed</button>`:''
-            }
-            ${item.status==='pending'?`<button onclick="markTrimInProgress('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--amber-dim);background:none;color:var(--amber);cursor:pointer">▶ Start</button>`:''}
-            ${item.status==='trimming'?`<button onclick="markTrimDone('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">✓ Done</button>`:''}
-            ${isLead?`<select onchange="updateTrimItemPriority('${item.id}',this.value)" style="font-size:11px;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
+            ${(w.enteredBy||w.purplEnteredBy)?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:10px;color:var(--text3)">
+              ${w.enteredBy?`<span>Submitted by ${w.enteredBy}</span>`:''}
+              ${w.purplEnteredBy&&w.purplEnteredBy!==w.enteredBy?`<span>QC by ${w.purplEnteredBy}</span>`:''}
+            </div>`:''}
+          </div>
+
+          <!-- ACTIONS -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;align-items:center">
+            ${!submitted?`<button onclick="submitWeightForVerification('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--amber);background:none;color:var(--amber);cursor:pointer;font-weight:600">Submit for approval</button>`:''}
+            ${submitted&&isLead?`<button onclick="approveWeight('${item.id}')" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer;font-weight:700">✓ Approve & archive</button>`:''}
+            ${submitted&&isLead?`<button onclick="rejectWeight('${item.id}')" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>`:''}
+            ${submitted&&!isLead?`<span style="font-size:11px;color:var(--text3)">Waiting for lead approval</span>`:''}
+            ${!submitted&&isLead?`<select onchange="updateTrimItemPriority('${item.id}',this.value)" style="font-size:11px;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text)">
               <option value="high"${item.priority==='high'?' selected':''}>Trim first</option>
               <option value="normal"${item.priority==='normal'?' selected':''}>Normal</option>
               <option value="low"${item.priority==='low'?' selected':''}>Low priority</option>
             </select>`:''}
-            ${isLead&&!item.fromMetrc?`<button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit</button>`:''}
-            ${isLead?`<button onclick="removeTrimItem('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>`:''}
+            ${!submitted&&isLead&&!item.fromMetrc?`<button onclick="openAddTrimItem('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Edit info</button>`:''}
+            ${!submitted&&isLead?`<button onclick="removeTrimItem('${item.id}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>`:''}
           </div>
         </div>
       </div>
@@ -3753,20 +4293,70 @@ function renderTrimQueue(){
   }).join('');
 
   list.innerHTML='';
-  if(activeTrimQueue.length){
-    list.innerHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Queue — ${activeTrimQueue.length} active</div>`;
-    list.innerHTML+=renderItems(activeTrimQueue,0);
-  }
+  list.innerHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Queue — ${activeTrimQueue.length} active</div>`;
+  list.innerHTML+=renderItems(activeTrimQueue,0);
   if(isLead){
     list.innerHTML+=`<div style="margin-top:10px"><button onclick="openAddTrimItem()" style="font-size:12px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">+ Add manually</button></div>`;
   }
-  if(doneQueue.length){
-    list.innerHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin:14px 0 8px">Completed</div>`;
-    list.innerHTML+=renderItems(doneQueue,activeTrimQueue.length);
+}
+
+function renderTrimHistory(){
+  trimQueue=L('wg_trim_queue',[]);
+  trimWeights=L('wg_trim_weights',{});
+  const wrap=document.getElementById('trim-history-list');
+  if(!wrap)return;
+  const archived=trimQueue.filter(i=>i.archived);
+  if(!archived.length){
+    wrap.innerHTML=`<div class="empty-state">No archived harvests yet. Approved items from the trim queue land here.</div>`;
+    return;
   }
+  // Sort by approvedAt descending (most recent first)
+  archived.sort((a,b)=>{
+    const aT=(trimWeights[a.id]&&trimWeights[a.id].approvedAt)||'';
+    const bT=(trimWeights[b.id]&&trimWeights[b.id].approvedAt)||'';
+    return bT.localeCompare(aT);
+  });
+  wrap.innerHTML=`
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Approved harvests — ${archived.length}</div>
+    ${archived.map(item=>{
+      const w=trimWeights[item.id]||{};
+      const dateObj=item.harvestDate?new Date(item.harvestDate):null;
+      const harvestStr=dateObj&&!isNaN(dateObj)?dateObj.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):item.harvestDate||'';
+      const apprDate=w.approvedAt?new Date(w.approvedAt):null;
+      const apprStr=apprDate&&!isNaN(apprDate)?apprDate.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+apprDate.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
+      return `<div class="card" style="border-left:3px solid var(--green);margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:14px;font-weight:700;font-family:var(--mono);color:var(--text)">${item.strain}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">
+              ${item.plantCount?`${item.plantCount} plants · `:''}${harvestStr}${item.roomName?' · '+item.roomName:''}
+            </div>
+          </div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:var(--r);background:var(--green-bg);color:var(--green);font-weight:600;border:1px solid var(--green-dim)">✓ Approved${apprStr?' '+apprStr:''}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          ${w.bigBuds?`<span style="font-size:11px;padding:2px 8px;background:var(--green-bg);color:var(--green);border-radius:var(--r);font-family:var(--mono)">Bigs ${w.bigBuds}g</span>`:''}
+          ${w.smallBuds?`<span style="font-size:11px;padding:2px 8px;background:var(--blue-bg);color:var(--blue);border-radius:var(--r);font-family:var(--mono)">Smalls ${w.smallBuds}g</span>`:''}
+          ${w.trim?`<span style="font-size:11px;padding:2px 8px;background:var(--bg3);color:var(--text2);border-radius:var(--r);font-family:var(--mono)">Trim ${w.trim}g</span>`:''}
+          ${w.purplTHC?`<span style="font-size:11px;padding:2px 8px;background:rgba(168,85,247,0.15);color:var(--purple);border-radius:var(--r);font-family:var(--mono);font-weight:600">THC ${w.purplTHC}%</span>`:''}
+          ${w.moisture?`<span style="font-size:11px;padding:2px 8px;background:var(--bg3);color:var(--text2);border-radius:var(--r);font-family:var(--mono)">H₂O ${w.moisture}%</span>`:''}
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:10px;color:var(--text3)">
+          ${w.enteredBy?`<span>Entered by ${w.enteredBy}</span>`:''}
+          ${w.purplEnteredBy&&w.purplEnteredBy!==w.enteredBy?`<span>QC by ${w.purplEnteredBy}</span>`:''}
+          ${w.approvedBy?`<span>Approved by ${w.approvedBy}</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  `;
 }
 
 function renderWeightCards(){
+  // Backward-compat shim — old callers funnel into the new history renderer
+  renderTrimHistory();
+}
+
+function _legacyRenderWeightCardsUnused(){
   const wrap=document.getElementById('weight-cards');
   if(!wrap)return;
   if(!trimQueue.length){wrap.innerHTML=`<div class="empty-state">No strains in trim queue yet.</div>`;return;}
@@ -3814,9 +4404,10 @@ function saveWeight(itemId,field,value){
   if(!trimWeights[itemId]) trimWeights[itemId]={};
   trimWeights[itemId][field]=value?parseFloat(value):null;
   S('wg_trim_weights',trimWeights);
-  renderTrimQueue();
+  // Don't re-render trim queue on every keystroke — would lose focus on the input.
+  // Just sync to cloud + refresh preroll (it reads the cached value).
   renderPrerollPriority();
-  pushWeightsToCloud();  // sync purplTHC to cloud immediately
+  pushWeightsToCloud();
 }
 
 function savePurplResult(itemId,field,value){
@@ -3835,54 +4426,59 @@ function renderPrerollPriority(){
   trimWeights=L('wg_trim_weights',{});
   const isLead=currentRole==='lead';
 
-  // Deduplicate by strain name — merge weights, weighted avg THC
-  const byStrain={};
-  trimQueue
+  // One row per harvest — multiple lots of the same strain are NOT merged so the
+  // team can see if one batch tested higher than another and prioritize accordingly.
+  const strains=trimQueue
     .map(item=>({...item,w:trimWeights[item.id]||{}}))
-    .filter(item=>item.w.purplTHC)
-    .forEach(item=>{
-      const key=(item.strain||'').toLowerCase().trim();
-      if(!byStrain[key]){
-        byStrain[key]={strain:item.strain,thc:parseFloat(item.w.purplTHC)||0,
-          total:item.w.purplTotal?parseFloat(item.w.purplTotal):null,
-          smalls:item.w.smallBuds?parseFloat(item.w.smallBuds):0,
-          roomName:rooms.find(r=>r.id===item.roomId)?.name||'',ids:[item.id]};
-      } else {
-        const ex=byStrain[key];
-        const w1=ex.smalls||1, w2=item.w.smallBuds?parseFloat(item.w.smallBuds):1;
-        ex.thc=((ex.thc*w1)+(parseFloat(item.w.purplTHC)*w2))/(w1+w2);
-        ex.smalls+=(item.w.smallBuds?parseFloat(item.w.smallBuds):0);
-        ex.ids.push(item.id);
-        ex.roomName='Multiple rooms';
-      }
+    .filter(item=>{
+      const sm=parseFloat(item.w.smallBuds)||0;
+      const thc=parseFloat(item.w.purplTHC)||0;
+      return sm>0 || thc>0;
+    })
+    .map(item=>({
+      strain:item.strain,
+      thc:parseFloat(item.w.purplTHC)||0,
+      smalls:parseFloat(item.w.smallBuds)||0,
+      roomName:rooms.find(r=>r.id===item.roomId)?.name||item.roomName||'',
+      harvestDate:item.harvestDate||'',
+      archived:!!item.archived,
+      ids:[item.id]
+    }))
+    // Sort: strains with THC first (descending), strains without THC at the bottom
+    .sort((a,b)=>{
+      if(a.thc>0 && b.thc===0) return -1;
+      if(a.thc===0 && b.thc>0) return 1;
+      return b.thc - a.thc;
     });
-
-  const strains=Object.values(byStrain).sort((a,b)=>b.thc-a.thc);
   if(!strains.length){
-    list.innerHTML=`<div class="empty-state">No Purpl Pro results entered yet. Add test results in the Log Weights tab.</div>`;
+    list.innerHTML=`<div class="empty-state">No harvests with smalls or THC entered yet. Add weights in the Trim queue.</div>`;
     return;
   }
 
+  // Strains with no THC drop the rank medal (no meaningful ranking yet)
+  const rankedStrains=strains.filter(s=>s.thc>0);
   list.innerHTML=strains.map((item,i)=>{
-    const rank=i+1;
+    const ranked=item.thc>0;
+    const rank=ranked?(rankedStrains.indexOf(item)+1):null;
     const rankColor=rank===1?'var(--amber)':rank===2?'var(--text3)':rank===3?'#cd7f32':'var(--text3)';
-    const rankLabel=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
-    return`<div class="card" style="border-left:3px solid ${rankColor}">
+    const rankLabel=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':(rank?`#${rank}`:'');
+    const borderColor=ranked?rankColor:'var(--border2)';
+    const idsJson=JSON.stringify(item.ids);
+    return`<div class="card" style="border-left:3px solid ${borderColor};${ranked?'':'opacity:0.85'}">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="font-size:22px;min-width:32px;text-align:center">${rankLabel}</div>
+        <div style="font-size:22px;min-width:32px;text-align:center;color:${ranked?'var(--text)':'var(--text3)'}">${rankLabel||'·'}</div>
         <div style="flex:1;min-width:120px">
           <div style="font-size:14px;font-weight:700;color:var(--text)">${item.strain}</div>
-          <div style="font-size:11px;color:var(--text3)">${item.roomName}${item.ids.length>1?` · ${item.ids.length} lots`:''}</div>
+          <div style="font-size:11px;color:var(--text3)">${item.roomName}${item.harvestDate?' · '+(new Date(item.harvestDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})||item.harvestDate):''}${item.archived?' · <span style="color:var(--green)">archived</span>':''}${!ranked?' · No THC reading yet':''}</div>
         </div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-          <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${item.thc.toFixed(1)}%</div>
-            <div style="font-size:10px;color:var(--text3)">THC</div>
+          <div style="text-align:center;min-width:80px">
+            ${ranked?`<div style="font-size:22px;font-weight:700;color:var(--purple);font-family:var(--mono)">${item.thc.toFixed(1)}%</div>`:`<input type="number" min="0" max="40" step="0.1" placeholder="—" value="" data-strain="${item.strain.replace(/"/g,'&quot;')}" data-ids='${idsJson.replace(/\'/g,"&#39;")}'
+              style="width:70px;font-size:14px;font-weight:700;color:var(--purple);font-family:var(--mono);text-align:center;padding:4px 6px;border-radius:var(--r);border:1px solid var(--purple-dim,rgba(168,85,247,0.4));background:var(--bg2)"
+              onblur="savePrerollTHC(this)"
+              onkeydown="if(event.key==='Enter')this.blur();"/>`}
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">THC${ranked?'':' (tap to enter)'}</div>
           </div>
-          ${item.total!==null?`<div style="text-align:center">
-            <div style="font-size:18px;font-weight:600;color:var(--text2);font-family:var(--mono)">${item.total.toFixed(1)}%</div>
-            <div style="font-size:10px;color:var(--text3)">Total</div>
-          </div>`:''}
           <div style="text-align:center">
             <div style="font-size:18px;font-weight:600;color:var(--blue);font-family:var(--mono)">${item.smalls>0?item.smalls.toFixed(1)+'g':'—'}</div>
             <div style="font-size:10px;color:var(--text3)">Smalls</div>
@@ -3890,20 +4486,64 @@ function renderPrerollPriority(){
         </div>
         ${isLead?`<div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
           <button onclick="editPrerollEntry('${item.ids[0]}')" style="font-size:11px;padding:4px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">Edit</button>
-          <button onclick="removePrerollEntry(${JSON.stringify(item.ids)})" style="font-size:11px;padding:4px 9px;border-radius:var(--r);border:1px solid var(--red-bg);background:none;color:var(--red);cursor:pointer">Remove</button>
+          <button onclick="removePrerollEntry(${idsJson})" style="font-size:11px;padding:4px 9px;border-radius:var(--r);border:1px solid var(--red-bg);background:none;color:var(--red);cursor:pointer">Remove</button>
         </div>`:''}
       </div>
     </div>`;
   }).join('');
 }
 
+// ── Save THC entered inline on a preroll card. Applies to all matching lot ids
+// (since preroll dedupes by strain, multiple harvests of the same strain may share a card).
+function savePrerollTHC(inputEl){
+  const v=parseFloat(inputEl.value);
+  if(isNaN(v)||v<=0||v>40){inputEl.value='';return;}
+  let ids=[];
+  try{ ids=JSON.parse(inputEl.getAttribute('data-ids').replace(/&#39;/g,"'")); }catch(e){ ids=[]; }
+  if(!ids.length) return;
+  trimWeights=L('wg_trim_weights',{});
+  ids.forEach(id=>{
+    if(!trimWeights[id]) trimWeights[id]={};
+    trimWeights[id].purplTHC=v;
+    if(loggedInMember) trimWeights[id].purplEnteredBy=loggedInMember.name;
+  });
+  S('wg_trim_weights',trimWeights);
+  pushWeightsToCloud();
+  renderPrerollPriority();
+}
+
 function editPrerollEntry(id){
-  showPostTab('weights',document.querySelectorAll('#page-postprod .nav-tab')[1]);
+  if(currentRole!=='lead'){alert('Only leads can edit preroll entries.');return;}
+  // Find the trim queue item — could be active OR archived.
+  const item=trimQueue.find(i=>i.id===id);
+  if(!item){alert('Item not found in trim queue.');return;}
+  if(item.archived){
+    // Un-archive it back to the active trim queue so the user can edit weights inline.
+    if(!confirm('This item is in Trim history. Move it back to the active trim queue to edit?')) return;
+    item.archived=false;
+    item.archivedAt='';
+    if(trimWeights[id]){
+      trimWeights[id].status='entry';
+      trimWeights[id].approvedBy='';
+      trimWeights[id].approvedAt='';
+      S('wg_trim_weights',trimWeights);
+      pushWeightsToCloud();
+    }
+    S('wg_trim_queue',trimQueue);
+    pushConfigDebounced();
+  }
+  // Switch to the trim queue tab and scroll to the strain card.
+  showPostTab('queue',document.querySelectorAll('#page-postprod .nav-tab')[0]);
   setTimeout(()=>{
-    const el=document.getElementById('weight-card-'+id);
-    if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='2px solid var(--green)';setTimeout(()=>el.style.outline='',2000);}
-    else{ const cards=document.querySelectorAll('#weight-cards .card');cards.forEach(c=>{if(c.textContent.includes(id)){c.scrollIntoView({behavior:'smooth',block:'center'});c.style.outline='2px solid var(--green)';setTimeout(()=>c.style.outline='',2000);}});}
-  },200);
+    const cards=document.querySelectorAll('#trim-queue-list .card');
+    cards.forEach(c=>{
+      if(c.textContent.includes(item.strain)){
+        c.scrollIntoView({behavior:'smooth',block:'center'});
+        c.style.outline='2px solid var(--green)';
+        setTimeout(()=>c.style.outline='',2000);
+      }
+    });
+  },250);
 }
 
 function removePrerollEntry(ids){
@@ -3920,17 +4560,17 @@ function showPostTab(tab,el){
   document.querySelectorAll('#page-postprod .nav-tab').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('postsub-queue').style.display=tab==='queue'?'block':'none';
-  document.getElementById('postsub-weights').style.display=tab==='weights'?'block':'none';
+  const histPane=document.getElementById('postsub-history');
+  if(histPane) histPane.style.display=tab==='history'?'block':'none';
   document.getElementById('postsub-preroll').style.display=tab==='preroll'?'block':'none';
   if(tab==='queue'){
-    // Show add button only for leads
     const addBtn=document.getElementById('add-trim-btn');
     if(addBtn) addBtn.style.display=currentRole==='lead'?'inline-flex':'none';
     renderTrimQueue();
     const lbl=document.getElementById('queue-last-refresh');
     if(lbl) lbl.textContent='Last refreshed: '+fmtTime();
   }
-  if(tab==='weights') renderWeightCards();
+  if(tab==='history') renderTrimHistory();
   if(tab==='preroll') renderPrerollPriority();
 }
 
@@ -3943,6 +4583,7 @@ function showPage(page){
   document.querySelector(`.nav-tab[data-page="${page}"]`)?.classList.add('active');
   if(page==='settings') renderSettings();
   if(page==='additive') renderAdditiveTable();
+  if(page==='ipm') renderIpmRules();
   if(page==='slack') renderSlackPanels();
   if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
@@ -3964,10 +4605,11 @@ function showPage(page){
   }
   if(page==='clonetracker') renderCloneTracker();
   if(page==='assignments'){renderAssignments();renderChores();}
-  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);pullRoomChecksFromCloud(true).then(()=>renderRooms()).catch(()=>{});}
+  if(page==='rooms'){renderRooms();pullGrowlinkFromCloud(true);pullRoomChecksFromCloud(true).then(()=>renderRooms()).catch(()=>{});startManualRefresh();}else{stopManualRefresh();}
   if(page==='daily-review'){renderDailyReview();}
   if(page==='blueprint'){renderBlueprint();}
   if(page==='supplies'){renderSupplies();}
+  if(page==='settings'){ try{ populateCsvRoomSelect(); }catch(e){} }
   if(page==='clonetracker'){
     renderCloneTracker();
     pullMetrcFromCloud(true);
@@ -3987,6 +4629,52 @@ function showPage(page){
 // ══════════════════════════════════════════════
 // GOOGLE SHEET HELPERS
 // ══════════════════════════════════════════════
+// Populate the CSV importer's room selector when Settings tab opens
+function populateCsvRoomSelect(){
+  const sel = document.getElementById('csv-room-select');
+  if(!sel) return;
+  // Only repopulate if it's empty (other than placeholder)
+  if(sel.options.length > 1) return;
+  rooms.filter(r => r.id && /^r\d+$/.test(r.id)).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.name + ' (' + r.id + ')';
+    sel.appendChild(opt);
+  });
+}
+
+async function importGrowlinkCsv(){
+  const roomId = document.getElementById('csv-room-select').value;
+  const fileInp = document.getElementById('csv-file-input');
+  const status = document.getElementById('csv-import-status');
+  if(!roomId){ status.textContent = '⚠ pick a room first'; status.style.color = 'var(--amber)'; return; }
+  if(!fileInp.files || !fileInp.files[0]){ status.textContent = '⚠ pick a CSV file first'; status.style.color = 'var(--amber)'; return; }
+  const file = fileInp.files[0];
+  status.textContent = 'Reading ' + file.name + '…';
+  status.style.color = 'var(--text3)';
+  try {
+    const csvText = await file.text();
+    status.textContent = 'Uploading ' + Math.round(csvText.length/1024) + 'KB to backend…';
+    const resp = await fetch(gsUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'importCsv', roomId: roomId, csvText: csvText }),
+    });
+    const result = await resp.json();
+    if(result.ok){
+      status.textContent = '✓ ' + roomId + ': wrote ' + result.written + ' rows, ' + (result.dupes||0) + ' dupes skipped, ' + (result.skipped||0) + ' invalid skipped';
+      status.style.color = 'var(--green)';
+      fileInp.value = '';
+    } else {
+      status.textContent = '✗ Error: ' + (result.error || 'unknown');
+      status.style.color = 'var(--red)';
+    }
+  } catch(e) {
+    console.error('[CSV import] error', e);
+    status.textContent = '✗ ' + e;
+    status.style.color = 'var(--red)';
+  }
+}
+
 function saveGsUrl(val){
   gsUrl=val.trim(); S('wg_gs_url',gsUrl);
   const st=document.getElementById('gs-url-status');
@@ -4004,11 +4692,26 @@ async function testGsUrl(){
   }catch(e){if(st){st.textContent='✗ '+e.message;st.style.color='var(--red)';}}
 }
 async function postToSheet(sheetName,rowData){
-  if(!gsUrl)return;
+  if(!gsUrl) return {ok:false,error:'no gsUrl configured'};
   try{
-    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sheet:sheetName,timestamp:new Date().toISOString(),row:rowData})});
-  }catch(e){console.warn('Sheet POST failed:',e);}
+    // text/plain content-type avoids CORS preflight on Apps Script web apps
+    // and still allows us to read the response (no-cors mode would hide it).
+    const res=await fetch(gsUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({sheet:sheetName,timestamp:new Date().toISOString(),row:rowData})
+    });
+    if(!res.ok){
+      console.warn('[postToSheet] HTTP error',sheetName,res.status);
+      return {ok:false,error:'HTTP '+res.status};
+    }
+    let body=null;
+    try{ body=await res.json(); }catch(_){ /* response may not be JSON */ }
+    return {ok:true,body};
+  }catch(e){
+    console.warn('[postToSheet] network error',sheetName,e);
+    return {ok:false,error:String(e)};
+  }
 }
 
 async function pushMetrcToCloud(){
@@ -4118,8 +4821,9 @@ async function pullWeightsFromCloud(){
       const cloudW=json.data.trimWeights;
       Object.entries(cloudW).forEach(([id,w])=>{
         const local=trimWeights[id]||{};
-        // Use cloud version if it has a more advanced status
-        const statusOrder={entry:0,pending:1,approved:2};
+        // Use cloud version if it has a more advanced status.
+        // 'pending' kept for backward-compat with old data; same level as 'submitted'.
+        const statusOrder={entry:0,pending:1,submitted:1,approved:2};
         const cloudStatus=statusOrder[w.status||'entry']||0;
         const localStatus=statusOrder[local.status||'entry']||0;
         if(cloudStatus>=localStatus) trimWeights[id]=w;
@@ -4268,50 +4972,64 @@ async function pullRoomChecksFromCloud(silent=false){
 
 function submitWeightForVerification(itemId){
   if(!loggedInMember){alert('Sign in first to submit weights.');return;}
-  if(!trimWeights[itemId]){alert('Enter weights before submitting.');return;}
+  if(!trimWeights[itemId]){alert('Enter at least one weight before submitting.');return;}
   const w=trimWeights[itemId];
-  if(!w.bigBuds&&!w.smallsAndTrim){alert('Enter at least bigs and smalls+trim before submitting.');return;}
-  trimWeights[itemId].status='pending';
+  if(!w.bigBuds&&!w.smallBuds&&!w.trim){alert('Enter at least one weight (bigs, smalls, or trim) before submitting.');return;}
+  trimWeights[itemId].status='submitted';
   trimWeights[itemId].enteredBy=loggedInMember.name;
+  trimWeights[itemId].submittedAt=new Date().toISOString();
   trimWeights[itemId].approvedBy='';
+  trimWeights[itemId].approvedAt='';
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
-  renderWeightCards();
-  // Notify #postprod Slack
+  pushConfigDebounced();
+  renderTrimQueue();
+  // Notify #postprod Slack — lead is the approver now
   const wh=webhooks['postprod'];
   const item=trimQueue.find(i=>i.id===itemId);
   if(wh&&wh.startsWith('https://hooks.slack.com/')&&item){
-    const msg=`*Weight submission pending verification* — ${item.strain}\nEntered by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g\n_Open Post Production → Log Weights to approve_`;
+    const msg=`*Weight submission pending lead approval* — ${item.strain}\nEntered by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls: ${w.smallBuds||'—'}g · Trim: ${w.trim||'—'}g${w.purplTHC?` · THC: ${w.purplTHC}%`:''}\n_Open Post Production → Trim Queue to approve_`;
     fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
   }
 }
 function approveWeight(itemId){
   if(!loggedInMember){alert('Sign in first to approve.');return;}
+  if(currentRole!=='lead'){alert('Only leads can approve.');return;}
   const w=trimWeights[itemId]||{};
-  if(loggedInMember.name===w.enteredBy){alert('A different employee must approve these weights.');return;}
   trimWeights[itemId].status='approved';
   trimWeights[itemId].approvedBy=loggedInMember.name;
+  trimWeights[itemId].approvedAt=new Date().toISOString();
   S('wg_trim_weights',trimWeights);
-  pushWeightsToCloud();
+  // Archive the trim queue item (removes from active queue, appears in history)
+  trimQueue=L('wg_trim_queue',[]);
   const item=trimQueue.find(i=>i.id===itemId);
   if(item){
-    postToSheet('Weight_Log',[item.strain,item.harvestDate||'',w.bigBuds||'',w.smallsAndTrim||'',
-      w.smallBuds||'',w.moisture||'',w.purplTHC||'',w.enteredBy,loggedInMember.name,new Date().toISOString()]);
+    item.archived=true;
+    item.archivedAt=new Date().toISOString();
+    S('wg_trim_queue',trimQueue);
+  }
+  pushWeightsToCloud();
+  pushConfigDebounced();
+  // Append to Weight_Log sheet (single-line ledger, METRC-ready format)
+  if(item){
+    postToSheet('Weight_Log',[item.strain,item.harvestDate||'',w.bigBuds||'',w.smallBuds||'',
+      w.trim||'',w.moisture||'',w.purplTHC||'',w.enteredBy||'',loggedInMember.name,new Date().toISOString()]);
   }
   const wh=webhooks['postprod'];
   if(wh&&wh.startsWith('https://hooks.slack.com/')){
-    const msg=`*Weight log approved ✓* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls+trim: ${w.smallsAndTrim||'—'}g · THC: ${w.purplTHC||'—'}%`;
+    const msg=`*Weight log approved ✓* — ${item?.strain||itemId}\nEntered by: ${w.enteredBy||'?'} · Approved by: ${loggedInMember.name}\nBigs: ${w.bigBuds||'—'}g · Smalls: ${w.smallBuds||'—'}g · Trim: ${w.trim||'—'}g${w.purplTHC?` · THC: ${w.purplTHC}%`:''}\n_Now in Trim history — enter into METRC._`;
     fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:msg})}).catch(()=>{});
   }
-  renderWeightCards();
+  renderTrimQueue();
 }
 function rejectWeight(itemId){
+  if(!trimWeights[itemId]) return;
   trimWeights[itemId].status='entry';
-  trimWeights[itemId].enteredBy='';
-  trimWeights[itemId].approvedBy='';
+  trimWeights[itemId].submittedAt='';
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
-  renderWeightCards();
+  pushConfigDebounced();
+  renderTrimQueue();
 }
 
 // ══════════════════════════════════════════════
@@ -7245,6 +7963,8 @@ async function pushConfigToCloud(silent=false){
       approvedTakedowns:L('wg_approved_takedowns',{}),
       calendarRules:L('wg_cal_rules',[]),
       calendarEvents:L('wg_cal_events',[]),
+      ipmRules:L('wg_ipm_rules',[]),
+      ipmLog:L('wg_ipm_log',[]),
       syncedBy:loggedInMember?loggedInMember.name:'Unknown',
       syncedAt:new Date().toISOString(),
     }
@@ -7351,6 +8071,18 @@ async function pullConfigFromCloud(silent=false){
     if(d.calendarEvents&&Array.isArray(d.calendarEvents)){
       calendarEvents = d.calendarEvents;
       S('wg_cal_events', calendarEvents);
+    }
+    if(d.ipmRules&&Array.isArray(d.ipmRules)){
+      ipmRules = d.ipmRules;
+      S('wg_ipm_rules', ipmRules);
+    }
+    if(d.ipmLog&&Array.isArray(d.ipmLog)){
+      // Merge by id (append-only union, lead can prune via UI)
+      const localLog = L('wg_ipm_log',[]);
+      const seen = new Set(localLog.map(e=>e.id));
+      const merged = [...localLog, ...d.ipmLog.filter(e=>e&&e.id&&!seen.has(e.id))];
+      ipmLog = merged;
+      S('wg_ipm_log', ipmLog);
     }
 
     // Today logs — merge per day
