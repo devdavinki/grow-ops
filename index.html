@@ -1908,6 +1908,22 @@ function strainCodeOnly(name){
 }
 
 // ══════════════════════════════════════════════
+// IPM SUPPORT ROOMS — non-flower rooms that get sprayed but aren't in `rooms`
+// (the flower-room config). Add new entries here to make them appear in the
+// IPM rule editor checkbox list and resolve correctly in tasks/history.
+// ══════════════════════════════════════════════
+const IPM_SUPPORT_ROOMS = [
+  {id:'mother', name:'Mother room'},
+  {id:'veg',    name:'Veg room'},
+  {id:'clones', name:'Clone room'},
+  {id:'dry1',   name:'Dry room 1'},
+  {id:'dry2',   name:'Dry room 2'},
+];
+function getIpmRoom(id){
+  return rooms.find(r=>r.id===id) || IPM_SUPPORT_ROOMS.find(r=>r.id===id) || null;
+}
+
+// ══════════════════════════════════════════════
 // ROLE PERMISSIONS
 // ══════════════════════════════════════════════
 const ROLE_PERMISSIONS = {
@@ -2454,7 +2470,7 @@ function buildAssignments(role){
     const ipmTasks=(typeof getIpmTasksForToday==='function')?getIpmTasksForToday():[];
     const byRoom={};
     ipmTasks.forEach(t=>{
-      const room=rooms.find(r=>r.id===t.roomId);
+      const room=getIpmRoom(t.roomId);
       if(!room) return;
       if(!byRoom[t.roomId]){
         byRoom[t.roomId]={roomId:t.roomId, roomName:room.name, tasks:[]};
@@ -2590,7 +2606,9 @@ function openIpmRuleEditor(ruleId){
   const modal=document.createElement('div');
   modal.className='modal-bg open';
   modal.id='ipm-rule-modal';
-  const allRooms=rooms.filter(r=>r.id);
+  // Combine support rooms (IPM_SUPPORT_ROOMS) + flower rooms for the checkbox list.
+  const flowerRooms=rooms.filter(r=>r.id);
+  const allRooms=[...IPM_SUPPORT_ROOMS, ...flowerRooms];
   const roomChecks=allRooms.map(r=>{
     const checked=rule.rooms.includes(r.id);
     return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border:1px solid var(--border2);border-radius:var(--r);background:'+(checked?'var(--blue-bg)':'var(--bg3)')+';cursor:pointer">'+
@@ -2730,7 +2748,7 @@ function renderIpmRules(){
     return (a.name||'').localeCompare(b.name||'');
   });
   list.innerHTML=sorted.map(r=>{
-    const roomNames=r.rooms.map(rid=>(rooms.find(rm=>rm.id===rid)||{}).name||rid).join(', ');
+    const roomNames=r.rooms.map(rid=>(getIpmRoom(rid)||{}).name||rid).join(', ');
     let cadDesc='';
     if(r.cadenceType==='every_n'){ cadDesc='Every '+(r.every||1)+' days from '+(r.startDate||'?'); }
     else if(r.cadenceType==='weekdays'){ const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; cadDesc=(r.weekdays||[]).map(i=>days[i]).join(', ')||'no days'; }
@@ -2767,7 +2785,7 @@ function renderIpmHistory(){
     return;
   }
   list.innerHTML=entries.slice(0,200).map(e=>{
-    const room=rooms.find(r=>r.id===e.roomId);
+    const room=getIpmRoom(e.roomId);
     const ds=new Date(e.completedAt||e.date+'T12:00:00');
     const dateStr=isNaN(ds)?(e.date||''):(ds.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+ds.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
     const color=e.status==='done'?'var(--green)':'var(--amber)';
