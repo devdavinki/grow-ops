@@ -687,7 +687,10 @@ button { cursor: pointer; }
     <div id="ipmsub-rules">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;color:var(--text2)">Active spray rules. Toggle on/off, edit, or remove.</div>
-        <button onclick="openIpmRuleEditor()" class="btn-primary" style="font-size:12px;padding:6px 14px">+ New rule</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="pullConfigFromCloud(false).then(()=>{renderIpmRules();if(document.getElementById('ipm-history-list'))renderIpmHistory();})" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">↻ Refresh</button>
+          <button onclick="openIpmRuleEditor()" class="btn-primary" style="font-size:12px;padding:6px 14px">+ New rule</button>
+        </div>
       </div>
       <div id="ipm-rules-list"></div>
     </div>
@@ -5126,7 +5129,16 @@ function showPage(page){
   document.querySelector(`.nav-tab[data-page="${page}"]`)?.classList.add('active');
   if(page==='settings') renderSettings();
   if(page==='additive') renderAdditiveTable();
-  if(page==='ipm') renderIpmRules();
+  if(page==='ipm'){
+    renderIpmRules();
+    // Pull fresh data so other devices' rules show up; re-render after.
+    pullConfigFromCloud(true).then(()=>{
+      renderIpmRules();
+      if(typeof renderIpmHistory==='function' && document.getElementById('ipm-history-list')){
+        renderIpmHistory();
+      }
+    }).catch(()=>{});
+  }
   if(page==='slack') renderSlackPanels();
   if(page==='assignments') renderAssignments();
   if(page==='today-log') renderTodayLog();
@@ -8645,6 +8657,10 @@ async function pullConfigFromCloud(silent=false){
     if(d.ipmRules&&Array.isArray(d.ipmRules)){
       ipmRules = d.ipmRules;
       S('wg_ipm_rules', ipmRules);
+      // Re-render if the IPM page is currently open
+      if(typeof renderIpmRules==='function' && document.getElementById('page-ipm') && document.getElementById('page-ipm').classList.contains('active')){
+        renderIpmRules();
+      }
     }
     if(d.ipmLog&&Array.isArray(d.ipmLog)){
       // Merge by id (append-only union, lead can prune via UI)
@@ -8653,6 +8669,9 @@ async function pullConfigFromCloud(silent=false){
       const merged = [...localLog, ...d.ipmLog.filter(e=>e&&e.id&&!seen.has(e.id))];
       ipmLog = merged;
       S('wg_ipm_log', ipmLog);
+      if(typeof renderIpmHistory==='function' && document.getElementById('ipm-history-list')){
+        renderIpmHistory();
+      }
     }
 
     // Today logs — merge per day
