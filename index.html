@@ -908,6 +908,7 @@ button { cursor: pointer; }
       <label>Apps Script URL</label>
       <input id="gs-url-input" type="text" style="flex:1;min-width:260px;font-size:12px" placeholder="https://script.google.com/macros/s/..." value="" onchange="saveGsUrl(this.value)"/>
       <button onclick="testGsUrl()" class="send-btn green" style="font-size:12px;padding:6px 12px">Test</button>
+      <button onclick="pushGsUrlToCloud()" style="font-size:12px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer" title="Immediately push this URL to cloud — bypasses the 2s debounce so other devices can pull it right away">Save to cloud</button>
       <button onclick="pullGsUrlFromCloud()" style="font-size:12px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer" title="Pull the URL stored in cloud config — use this if other devices are on a newer URL">Pull from cloud</button>
       <span id="gs-url-status" style="font-size:11px;color:var(--text3)"></span>
     </div>
@@ -5241,6 +5242,24 @@ function saveGsUrl(val){
   // Push to cloud so other devices can pull this URL
   pushConfigDebounced();
 }
+// Push the current gsUrl (and full config) to the cloud immediately, bypassing
+// the 2-second debounce. Use this when you've just changed the URL and want
+// other devices to be able to pick it up right now.
+async function pushGsUrlToCloud(){
+  const st=document.getElementById('gs-url-status');
+  if(!gsUrl){
+    if(st){st.textContent='No URL set yet — paste and Save first';st.style.color='var(--amber)';}
+    return;
+  }
+  if(st){st.textContent='Pushing to cloud…';st.style.color='var(--text3)';}
+  try{
+    const result=await pushConfigToCloud(false); // false = not silent
+    if(st){st.textContent='✓ Saved to cloud — other devices can now Pull from cloud';st.style.color='var(--green)';}
+  }catch(e){
+    if(st){st.textContent='Push failed: '+e;st.style.color='var(--red)';}
+  }
+}
+
 // Pull the cloud-stored gsUrl and apply it locally. Used when one device's URL
 // got out of sync with the rest.
 async function pullGsUrlFromCloud(){
