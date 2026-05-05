@@ -2577,7 +2577,7 @@ function markIpmDone(ruleId, roomId, dueDate, note){
   });
   S('wg_ipm_log', ipmLog);
   sessionStorage.setItem('wg_ipm_log_dirty','1');
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate, not debounced
   postToSheet('IPM_Log',[dueDate, fmtTime(), loggedInMember?loggedInMember.name:'Unknown', rule.name||'', rule.product||'', roomId, 'done', note||'']);
   renderAssignments();
   if(typeof renderIpmRules==='function') renderIpmRules();
@@ -2599,7 +2599,7 @@ function markIpmSkip(ruleId, roomId, dueDate, reason){
   });
   S('wg_ipm_log', ipmLog);
   sessionStorage.setItem('wg_ipm_log_dirty','1');
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate, not debounced
   postToSheet('IPM_Log',[dueDate, fmtTime(), loggedInMember?loggedInMember.name:'Unknown', rule.name||'', rule.product||'', roomId, 'skipped', reason||'']);
   renderAssignments();
   if(typeof renderIpmHistory==='function') renderIpmHistory();
@@ -2719,7 +2719,7 @@ function saveIpmRule(ruleId){
   if(!existing) ipmRules.push(rule);
   S('wg_ipm_rules', ipmRules);
   sessionStorage.setItem('wg_ipm_rules_dirty','1');
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate, not debounced
   closeIpmRuleEditor();
   renderIpmRules();
   renderAssignments();
@@ -2730,7 +2730,10 @@ function deleteIpmRule(ruleId){
   ipmRules=L('wg_ipm_rules',[]).filter(r=>r.id!==ruleId);
   S('wg_ipm_rules', ipmRules);
   sessionStorage.setItem('wg_ipm_rules_dirty','1');
-  pushConfigDebounced();
+  // Immediate push (not debounced) so the delete propagates before the user
+  // navigates away or refreshes. pushConfigToCloud is fire-and-forget under
+  // no-cors, so we don't await — but we DO call it directly to bypass the 2s timer.
+  pushConfigToCloud(true);
   closeIpmRuleEditor();
   renderIpmRules();
   renderAssignments();
@@ -2743,7 +2746,7 @@ function toggleIpmRule(ruleId){
   r.active=!r.active;
   S('wg_ipm_rules', ipmRules);
   sessionStorage.setItem('wg_ipm_rules_dirty','1');
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate, not debounced
   renderIpmRules();
   renderAssignments();
 }
