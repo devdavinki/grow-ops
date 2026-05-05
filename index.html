@@ -2726,7 +2726,17 @@ function deleteIpmRule(ruleId){
   if(!confirm('Delete this rule? History entries are kept.'))return;
   ipmRules=L('wg_ipm_rules',[]).filter(r=>r.id!==ruleId);
   S('wg_ipm_rules', ipmRules);
-  pushConfigDebounced();
+  // If we just deleted the LAST rule, push explicitly to wipe cloud — otherwise
+  // pushConfigToCloud's "skip-empty" optimization would keep stale rules in cloud.
+  if(ipmRules.length === 0 && gsUrl){
+    fetch(gsUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'setConfig',data:{ipmRules:[]}})
+    }).catch(e=>console.warn('IPM clear push failed:',e));
+  } else {
+    pushConfigDebounced();
+  }
   closeIpmRuleEditor();
   renderIpmRules();
   renderAssignments();
@@ -8581,6 +8591,12 @@ async function pushConfigToCloud(silent=false){
     const sessions=L(key,null);
     if(sessions&&sessions.length) cloneSessions[key]=sessions;
   }
+  // Don't push empty IPM rules/log if we have nothing locally — protects cloud
+  // from being silently wiped by a device that hasn't pulled yet. If you
+  // legitimately want to delete all rules, deleteIpmRule pushes the deletion
+  // explicitly through pushConfigDebounced after writing the empty array.
+  const _localIpmRules = L('wg_ipm_rules',[]);
+  const _localIpmLog   = L('wg_ipm_log',[]);
   const payload={
     action:'setConfig',
     data:{
@@ -8588,8 +8604,8 @@ async function pushConfigToCloud(silent=false){
       team,
       rolePerms,
       gsUrl,
-      ipmRules:L('wg_ipm_rules',[]),
-      ipmLog:L('wg_ipm_log',[]),
+      ...(_localIpmRules.length > 0 ? {ipmRules: _localIpmRules} : {}),
+      ...(_localIpmLog.length   > 0 ? {ipmLog:   _localIpmLog}   : {}),
       customChores:L('wg_custom_chores',null),
       customTasks:L('wg_custom_tasks',[]),
       supplies:L('wg_supplies',[]),
@@ -8710,7 +8726,17 @@ async function pullConfigFromCloud(silent=false){
       S('wg_cal_events', calendarEvents);
     }
     if(d.ipmRules&&Array.isArray(d.ipmRules)){
-      ipmRules = d.ipmRules;
+      // Merge by id (union), so a device with empty cloud or empty local doesn't
+      // wipe out rules created elsewhere. Cloud wins for any rule it has; rules
+      // that exist only locally are preserved (they'll get pushed up on next save).
+      // To DELETE a rule, the editing device must also push the deletion explicitly,
+      // which deleteIpmRule does — and deletion is rare enough that drift on this
+      // is acceptable. Better than silent data loss.
+      const localRules = L('wg_ipm_rules',[]);
+      const cloudIds = new Set(d.ipmRules.map(r=>r&&r.id).filter(Boolean));
+      const localOnly = localRules.filter(r => r&&r.id && !cloudIds.has(r.id));
+      const merged = [...d.ipmRules, ...localOnly];
+      ipmRules = merged;
       S('wg_ipm_rules', ipmRules);
       // Re-render if the IPM page is currently open
       if(typeof renderIpmRules==='function' && document.getElementById('page-ipm') && document.getElementById('page-ipm').classList.contains('active')){
