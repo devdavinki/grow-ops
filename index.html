@@ -4352,7 +4352,8 @@ function addTeamMember(){
   team.push({id:'u'+Date.now(),name:'',role:'defoliator',agtId:''});
   S('wg_team',team);
   S('wg_team_edited_at',Date.now());
-  pushConfigDebounced();
+  sessionStorage.setItem('wg_team_dirty','1');
+  pushConfigToCloud(true);
   renderTeamRoster();
 }
 
@@ -4360,7 +4361,8 @@ function removeTeamMember(id){
   team=team.filter(m=>m.id!==id);
   S('wg_team',team);
   S('wg_team_edited_at',Date.now());
-  pushConfigDebounced();
+  sessionStorage.setItem('wg_team_dirty','1');
+  pushConfigToCloud(true);
   renderTeamRoster();
 }
 
@@ -4378,8 +4380,9 @@ function setRoomLaunchDate(i, newValue){
   }
   S('wg_rooms_v2', rooms);
   S('wg_rooms_edited_at', Date.now());
+  sessionStorage.setItem('wg_rooms_dirty','1');
   renderRooms();
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate, not debounced — date edits must land before page close
 }
 
 function renderTeamRoster(){
@@ -4395,13 +4398,13 @@ function renderTeamRoster(){
         <button onclick="removeTeamMember('${member.id}')" style="font-size:11px;padding:2px 8px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer">Remove</button>
       </div>
       <label>Name</label>
-      <input value="${member.name||''}" placeholder="Full name" onchange="team[${i}].name=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());pushConfigDebounced();renderTeamRoster()"/>
+      <input value="${member.name||''}" placeholder="Full name" onchange="team[${i}].name=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());sessionStorage.setItem('wg_team_dirty','1');pushConfigToCloud(true);renderTeamRoster()"/>
       <label>Role</label>
-      <select onchange="team[${i}].role=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());pushConfigDebounced();renderTeamRoster()">
+      <select onchange="team[${i}].role=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());sessionStorage.setItem('wg_team_dirty','1');pushConfigToCloud(true);renderTeamRoster()">
         ${Object.entries(ROLE_LABELS).map(([r,l])=>`<option value="${r}"${r===member.role?' selected':''}>${l}</option>`).join('')}
       </select>
       <label>AGT employee ID (leave blank to skip verification)</label>
-      <input type="password" maxlength="10" value="${member.agtId||''}" placeholder="######" onchange="team[${i}].agtId=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());pushConfigDebounced()" style="letter-spacing:.15em"/>
+      <input type="password" maxlength="10" value="${member.agtId||''}" placeholder="######" onchange="team[${i}].agtId=this.value;S('wg_team',team);S('wg_team_edited_at',Date.now());sessionStorage.setItem('wg_team_dirty','1');pushConfigToCloud(true)" style="letter-spacing:.15em"/>
     `;
     grid.appendChild(cell);
   });
@@ -4578,15 +4581,15 @@ function renderSettings(){
         ${room.paired?'<span class="tag tag-teal" style="font-size:9px">paired</span>':''}
       </div>
       <label>Strain</label>
-      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
+      <input value="${room.strain||''}" placeholder="Strain name" onchange="rooms[${i}].strain=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());sessionStorage.setItem('wg_rooms_dirty','1');renderRooms();pushConfigToCloud(true)"/>
       <label>Launch date (plants in)</label>
       <input type="date" value="${room.launchDate||''}" onchange="setRoomLaunchDate(${i},this.value)"/>
       <label>Flip date (day 1 of flower)</label>
-      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());renderRooms();pushConfigDebounced()"/>
+      <input type="date" value="${room.flipDate||''}" onchange="rooms[${i}].flipDate=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());sessionStorage.setItem('wg_rooms_dirty','1');renderRooms();pushConfigToCloud(true)"/>
       <label>Rythm Tank #</label>
-      <input type="number" value="${room.tankNumber||''}" placeholder="e.g. 7" onchange="rooms[${i}].tankNumber=parseInt(this.value)||null;S('wg_rooms_v2',rooms);renderRooms()" style="width:80px"/>
+      <input type="number" value="${room.tankNumber||''}" placeholder="e.g. 7" onchange="rooms[${i}].tankNumber=parseInt(this.value)||null;S('wg_rooms_v2',rooms);sessionStorage.setItem('wg_rooms_dirty','1');renderRooms();pushConfigToCloud(true)" style="width:80px"/>
       <label>Note</label>
-      <input value="${room.note||''}" placeholder="e.g. Harvested Fri" onchange="rooms[${i}].note=this.value;S('wg_rooms_v2',rooms)"/>
+      <input value="${room.note||''}" placeholder="e.g. Harvested Fri" onchange="rooms[${i}].note=this.value;S('wg_rooms_v2',rooms);S('wg_rooms_edited_at',Date.now());sessionStorage.setItem('wg_rooms_dirty','1');pushConfigToCloud(true)"/>
       ${d.harvestDate?`<div class="calc-row">
         <span class="calc-tag">Harvest: ${fmtShort(d.harvestDate)}</span>
         <span class="calc-tag">Launch: ${fmtShort(d.nextLaunch)}</span>
@@ -8568,8 +8571,12 @@ function renderSupplies() {
 
 async function pushConfigToCloud(silent=false){
   if(!gsUrl) return;
-  // Stamp local edit time so cloud pull knows which is newer
-  S('wg_rooms_edited_at', Date.now());
+  // NOTE: We deliberately DO NOT stamp wg_rooms_edited_at here. Stamping it on
+  // every push (regardless of whether rooms were edited) breaks the merge logic
+  // in pullConfigFromCloud: a non-editing device's push would mark rooms as
+  // "freshly edited" and then later pulls would see local as newer than cloud
+  // even though local is actually stale. Edit timestamps should ONLY be set
+  // by actual edit handlers (the room input onchange handlers).
   // Gather today logs for last 7 days
   const todayLogs={};
   for(let i=0;i<7;i++){
@@ -8589,17 +8596,19 @@ async function pushConfigToCloud(silent=false){
     const sessions=L(key,null);
     if(sessions&&sessions.length) cloneSessions[key]=sessions;
   }
-  // Only push IPM data when this device JUST edited it (dirty flag set by
-  // saveIpmRule / deleteIpmRule / toggleIpmRule / markIpmDone / markIpmSkip).
-  // Otherwise stale localStorage from a device that hasn't pulled would clobber
-  // cloud's correct copy whenever any other config change triggered a push.
+  // Dirty-flag pattern: only push data this device actually edited. Prevents a
+  // non-editing device with stale localStorage from clobbering cloud's correct
+  // values when an unrelated config change triggers a push (e.g. fertigator
+  // logging supplies pushing back stale flipDates).
+  const _roomsDirty    = sessionStorage.getItem('wg_rooms_dirty')==='1';
+  const _teamDirty     = sessionStorage.getItem('wg_team_dirty')==='1';
   const _ipmRulesDirty = sessionStorage.getItem('wg_ipm_rules_dirty')==='1';
   const _ipmLogDirty   = sessionStorage.getItem('wg_ipm_log_dirty')==='1';
   const payload={
     action:'setConfig',
     data:{
-      rooms,
-      team,
+      ...(_roomsDirty ? {rooms} : {}),
+      ...(_teamDirty  ? {team}  : {}),
       rolePerms,
       gsUrl,
       ...(_ipmRulesDirty ? {ipmRules: L('wg_ipm_rules',[])} : {}),
@@ -8625,6 +8634,8 @@ async function pushConfigToCloud(silent=false){
       body:JSON.stringify(payload)});
     if(!silent) console.log('[Config] Pushed to cloud');
     // Clear dirty flags now that the changes are uploaded
+    if(_roomsDirty)    sessionStorage.removeItem('wg_rooms_dirty');
+    if(_teamDirty)     sessionStorage.removeItem('wg_team_dirty');
     if(_ipmRulesDirty) sessionStorage.removeItem('wg_ipm_rules_dirty');
     if(_ipmLogDirty)   sessionStorage.removeItem('wg_ipm_log_dirty');
   }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
