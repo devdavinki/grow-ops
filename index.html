@@ -429,7 +429,7 @@ button { cursor: pointer; }
 <div class="main">
 
   <!-- ══ PAGE: ROOMS ══ -->
-  <div id="page-rooms" class="page active">
+  <div id="page-rooms" class="page">
     <div class="row mb12">
       <div class="section-title">Room status</div>
       <div style="flex:1"></div>
@@ -4557,6 +4557,17 @@ function finishLogin(member){
   pendingLoginMember=null;
   // Save session with 4-hour expiry
   S('wg_session',{memberId:member.id,expires:Date.now()+(4*60*60*1000)});
+  // Land on a permitted page. Prefer Rooms (most operational roles use it),
+  // fall back to My Tasks, then to whatever is first in the role's perm list.
+  // Without this explicit showPage, the active nav tab ("My Tasks") and the
+  // visible page (whichever has 'active' in the HTML) can disagree, leaving
+  // users on a page their role can't actually navigate to.
+  const perms = ROLE_PERMISSIONS[member.role] || ROLE_PERMISSIONS.lead;
+  const landing = canSee(member.role,'rooms')       ? 'rooms'
+                : canSee(member.role,'assignments') ? 'assignments'
+                : (perms.pages && perms.pages[0])   ? perms.pages[0]
+                                                    : 'assignments';
+  showPage(landing);
 }
 
 function switchUser(){
@@ -8724,7 +8735,17 @@ async function pullConfigFromCloud(silent=false){
       const localTeamEditAt=L('wg_team_edited_at',0);
       if(localTeamEditAt<=cloudSyncedAtTeam){ team=d.team; S('wg_team',team); }
     }
-    if(d.rolePerms){ rolePerms=d.rolePerms; S('wg_role_perms',rolePerms); applyRolePerms(); }
+    if(d.rolePerms){
+      rolePerms=d.rolePerms;
+      S('wg_role_perms',rolePerms);
+      applyRolePerms();
+      // If the user is logged in, re-run setRole so any newly-granted nav tabs
+      // appear immediately (e.g. lead grants Zec rooms access on their device,
+      // Zec's next config pull should make the Rooms tab visible without reload).
+      if(loggedInMember && typeof setRole==='function'){
+        setRole(currentRole);
+      }
+    }
 
     // Custom chores & tasks
     if(d.customChores){ S('wg_custom_chores',d.customChores); }
