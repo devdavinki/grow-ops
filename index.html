@@ -2412,6 +2412,76 @@ function renderAssignments(){
   }
 }
 
+// Scan the past N days of today-logs for ipm_scout completions for a given room.
+// Returns array of {date, time, who, notes, pct} ordered most-recent first.
+function getScoutHistory(roomId, daysBack){
+  const days = daysBack || 14;
+  const out = [];
+  for(let i=0;i<days;i++){
+    const d = new Date(TODAY); d.setDate(d.getDate()-i);
+    const iso = dateToIso(d);
+    const log = L('wg_log_'+iso, []);
+    log.forEach(e => {
+      if(e.taskId === 'ipm_scout' && e.roomId === roomId && e.status === 'done'){
+        out.push({date: iso, time: e.time||'', who: e.who||'', notes: e.notes||'', pct: e.pct||''});
+      }
+    });
+  }
+  // Sort newest first (already mostly in order since outer loop walks back, but make sure)
+  out.sort((a,b)=> a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+  return out;
+}
+
+function countScoutHistory(roomId){
+  return getScoutHistory(roomId, 14).length;
+}
+
+function showScoutHistory(roomId, roomName){
+  const entries = getScoutHistory(roomId, 30);
+  let bg = document.getElementById('scout-history-modal-bg');
+  if(!bg){
+    bg = document.createElement('div');
+    bg.id = 'scout-history-modal-bg';
+    bg.className = 'modal-bg';
+    bg.innerHTML = `<div class="modal" id="scout-history-modal" style="max-width:560px"></div>`;
+    bg.onclick = (e) => { if(e.target === bg) closeScoutHistory(); };
+    document.body.appendChild(bg);
+  }
+  const modal = document.getElementById('scout-history-modal');
+  const rows = entries.length
+    ? entries.map(e => {
+        const dLabel = (() => {
+          try {
+            const d = new Date(e.date+'T12:00:00');
+            return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+          } catch(_){ return e.date; }
+        })();
+        return `<div style="border-bottom:1px solid var(--border);padding:10px 0">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${dLabel}${e.time?` · <span style="font-weight:400;color:var(--text3)">${e.time}</span>`:''}</div>
+            <div style="font-size:11px;color:var(--text3)">${e.who||''}</div>
+          </div>
+          ${e.pct?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${e.pct}% canopy</div>`:''}
+          ${e.notes?`<div style="font-size:12px;color:var(--text2);margin-top:4px;white-space:pre-wrap">${e.notes}</div>`:'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">No notes recorded</div>'}
+        </div>`;
+      }).join('')
+    : '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">No scouting history found in the last 30 days.</div>';
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:14px;font-weight:700;color:var(--text)">Scout history — ${roomName}</div>
+      <button onclick="closeScoutHistory()" style="font-size:12px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Close</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Last 30 days</div>
+    <div>${rows}</div>
+  `;
+  bg.classList.add('open');
+}
+
+function closeScoutHistory(){
+  const bg = document.getElementById('scout-history-modal-bg');
+  if(bg) bg.classList.remove('open');
+}
+
 function buildAssignments(role){
   const groups=[];
   const overrides=roomOverrides;
@@ -2454,8 +2524,12 @@ function buildAssignments(role){
 
     if(role==='ipm'||role==='lead'){
       if(stage==='flower'&&fd!==null&&fd<=42){
-        if(!rov['ipm_scout']){
-          tasks.push({id:'ipm_scout',name:'Scout '+room.name,desc:'Check undersides of leaves, lower canopy, and soil surface. Immediate flag required on any finding.',sub:'Post to #ipm before leaving the room · Full spray rotation schedule uploading soon'});
+        if(!rov['done_ipm_scout']){
+          const histCount = countScoutHistory(room.id);
+          const histSub = histCount > 0
+            ? `<a href="javascript:void(0)" onclick="showScoutHistory('${room.id}','${room.name.replace(/'/g,"\\'")}')" style="color:var(--teal);text-decoration:underline">View scout history (${histCount} ${histCount===1?'entry':'entries'})</a>`
+            : 'No prior scouts logged for this room';
+          tasks.push({id:'ipm_scout',name:'Scout '+room.name,desc:'Check undersides of leaves, lower canopy, and soil surface. Immediate flag required on any finding.',sub:histSub});
         }
       }
     }
@@ -2477,8 +2551,8 @@ function buildAssignments(role){
 
     if(role==='checker'||role==='lead'){
       if(stage==='flower'||stage==='late'){
-        if(!rov['room_check']){
-          tasks.push({id:'room_check',name:'Daily check — '+room.name,desc:'Complete flower room check form: environment readings, runoff EC and pH per table.',sub:'Form: devdavinki.github.io/flower-room-checks'});
+        if(!rov['done_room_check']){
+          tasks.push({id:'room_check',name:'Daily check — '+room.name,desc:'Complete flower room check form: environment readings, runoff EC and pH per table.',sub:'Record per room: RH · Room temp · Leaf temp · Dewpoint · PPFD. Per table: runoff EC and pH'});
         }
       }
     }
@@ -3374,7 +3448,7 @@ function confirmComplete(){
   todayLog.push(entry);
   S('wg_log_'+dateToIso(TODAY),todayLog);
   closeModal();
-  pushConfigDebounced();
+  pushConfigToCloud(true); // immediate — completion must land before user navigates
   renderAssignments();
   renderRooms();
   renderTodayLog();
@@ -3383,6 +3457,7 @@ function skipTask(roomId,taskId){
   if(!roomOverrides[roomId]) roomOverrides[roomId]={};
   roomOverrides[roomId]['skip_'+taskId]=true;
   S('wg_overrides_'+dateToIso(TODAY),roomOverrides);
+  pushConfigToCloud(true); // immediate
   renderAssignments();
   renderRooms();
 }
@@ -3569,6 +3644,7 @@ async function submitRoomCheck(){
           taskName:'Daily check — '+matchedRoom.name,who,notes:'',pct:'',time:timeVal,status:'done'});
         S('wg_overrides_'+todayIso, roomOverrides);
         S('wg_log_'+todayIso, todayLog);
+        pushConfigToCloud(true); // sync completion to other devices immediately
         renderAssignments(); renderRooms(); renderTodayLog();
       }
     }
@@ -3668,6 +3744,7 @@ async function loadChecks(){
     if(autoMarked>0){
       S('wg_overrides_'+todayIso,roomOverrides);
       S('wg_log_'+todayIso,todayLog);
+      pushConfigToCloud(true); // sync auto-completions
       renderAssignments();renderRooms();renderTodayLog();
     }
     renderChecks(latest);
@@ -8640,6 +8717,17 @@ async function pushConfigToCloud(silent=false){
     const sessions=L(key,null);
     if(sessions&&sessions.length) cloneSessions[key]=sessions;
   }
+  // Gather roomOverrides (task done/skip per room per day) for last 7 days
+  // so task completions sync across devices — without this, when Hy finishes a
+  // scout on his phone, the lead's desktop would still show "Scout R1" as
+  // pending in My Tasks until the lead refreshed Hy's exact device.
+  const roomOverridesByDay={};
+  for(let i=0;i<7;i++){
+    const d=new Date(TODAY); d.setDate(d.getDate()-i);
+    const iso=dateToIso(d);
+    const ov=L('wg_overrides_'+iso, null);
+    if(ov && Object.keys(ov).length) roomOverridesByDay[iso]=ov;
+  }
   // Dirty-flag pattern: only push data this device actually edited. Prevents a
   // non-editing device with stale localStorage from clobbering cloud's correct
   // values when an unrelated config change triggers a push (e.g. fertigator
@@ -8663,6 +8751,7 @@ async function pushConfigToCloud(silent=false){
       alertLog:L('wg_alert_log',[]),
       todayLogs,
       cloneSessions,
+      roomOverridesByDay,
       dryRooms,
       alertThresholds,
       trimQueue:L('wg_trim_queue',[]),
@@ -8827,6 +8916,22 @@ async function pullConfigFromCloud(silent=false){
         merged.sort((a,b)=>a.id-b.id);
         S('wg_log_'+date,merged);
         if(date===dateToIso(TODAY)) todayLog=merged;
+      });
+    }
+
+    // Room task overrides per day — merge so completions made on one device
+    // appear on others. Cloud and local are unioned at the task-key level
+    // (e.g. done_ipm_scout, skip_defol_phase1). Once any device marks done,
+    // it stays done across all devices.
+    if(d.roomOverridesByDay){
+      Object.entries(d.roomOverridesByDay).forEach(([date,cloudOv])=>{
+        const localOv = L('wg_overrides_'+date, {});
+        const merged = {...localOv};
+        Object.entries(cloudOv||{}).forEach(([roomId, cloudKeys])=>{
+          merged[roomId] = {...(merged[roomId]||{}), ...(cloudKeys||{})};
+        });
+        S('wg_overrides_'+date, merged);
+        if(date===dateToIso(TODAY)) roomOverrides = merged;
       });
     }
 
