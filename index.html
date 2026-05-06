@@ -1988,6 +1988,28 @@ function setRole(role){
 // ══════════════════════════════════════════════
 let _manualByRoom = {};
 let _manualRefreshTimer = null;
+// Phantom-shot flags: roomId → {count, totalRise, latestEventTs} for rooms whose
+// last 2 fire events produced less than 0.4% combined VWC rise. Computed by
+// computePhantomShotFlags() on the backend, fetched via getPhantomShotFlags.
+// Banner clears automatically once a real shot lands and pushes total rise above 0.4%.
+let _phantomShotFlags = {};
+
+async function refreshPhantomShotFlags(silent=true){
+  try {
+    const url = gsUrl + '?action=getPhantomShotFlags';
+    const res = await fetch(url);
+    const d = await res.json();
+    if(!d.ok) return;
+    const before = JSON.stringify(_phantomShotFlags);
+    const after  = JSON.stringify(d.flags || {});
+    _phantomShotFlags = d.flags || {};
+    if(before !== after && document.getElementById('page-rooms') && document.getElementById('page-rooms').classList.contains('active')){
+      renderRooms();
+    }
+  } catch(e) {
+    if(!silent) console.warn('[phantom shot] fetch error', e);
+  }
+}
 
 async function refreshManualEvents(silent=true){
   try {
@@ -2028,7 +2050,11 @@ async function refreshManualEvents(silent=true){
 function startManualRefresh(){
   if(_manualRefreshTimer) return;
   refreshManualEvents();
-  _manualRefreshTimer = setInterval(refreshManualEvents, 60000);
+  refreshPhantomShotFlags();
+  _manualRefreshTimer = setInterval(()=>{
+    refreshManualEvents();
+    refreshPhantomShotFlags();
+  }, 60000);
 }
 
 function stopManualRefresh(){
@@ -2173,6 +2199,7 @@ function renderRooms(){
     const badges=[`<span class="stage-badge ${badgeClass}">${badgeText}</span>`];
 
     card.innerHTML=`
+      ${(_phantomShotFlags && _phantomShotFlags[room.id])?`<div style="margin:-12px -12px 10px -12px;padding:8px 12px;background:rgba(239,68,68,0.12);border-bottom:1px solid var(--red);color:var(--red);font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px" title="Last 2 fire events showed less than 0.4% combined VWC rise — check tank, manifold, and valves">⚠ Valves firing — no water reaching substrate</div>`:''}
       <div class="card-head">
         <div>
           <div class="room-name">${room.name}${(_manualByRoom[room.id]&&_manualByRoom[room.id].length)?` <span title="Manual irrigation in last 30 min" style="display:inline-block;margin-left:6px;padding:2px 6px;font-size:9px;font-weight:700;letter-spacing:.04em;border-radius:3px;background:rgba(245,158,11,0.18);color:var(--amber);vertical-align:middle">✋ MANUAL · table ${_manualByRoom[room.id].join(', ')}</span>`:''}</div>
