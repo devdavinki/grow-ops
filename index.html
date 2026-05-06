@@ -1052,6 +1052,7 @@ button { cursor: pointer; }
         <div style="font-size:12px;color:var(--text3)">Tier 2 deviations — logged silently, reviewed each morning</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="clearDewpointAlerts()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer" title="Permanently delete all 'Dew point HIGH' alerts from the log. DP Spread alerts are kept.">Clear dewpoint alerts</button>
         <button onclick="clearOldAlerts()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer">Clear logs &gt;7 days</button>
         <button onclick="renderDailyReview()" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green);cursor:pointer">↻ Refresh</button>
       </div>
@@ -2013,7 +2014,12 @@ async function refreshPhantomShotFlags(silent=true){
 
 async function refreshManualEvents(silent=true){
   try {
-    const sinceISO = new Date(Date.now() - 30*60*1000).toISOString();
+    // Window: last 90 min so the badge doesn't blink in/out between manual fires.
+    // A manual session usually fires multiple shots over 30-60 min as the room
+    // gets hand-watered; with only a 30-min lookback the badge would disappear
+    // between fires. 90 min keeps the indicator stable through an active session
+    // while still clearing within ~1.5h of the last manual shot.
+    const sinceISO = new Date(Date.now() - 90*60*1000).toISOString();
     const url = gsUrl + '?action=getSheet&sheet=GL_IrrigationEvents&since=' + encodeURIComponent(sinceISO);
     const res = await fetch(url);
     const d = await res.json();
@@ -2202,7 +2208,7 @@ function renderRooms(){
       ${(_phantomShotFlags && _phantomShotFlags[room.id])?`<div style="margin:-12px -12px 10px -12px;padding:8px 12px;background:rgba(239,68,68,0.12);border-bottom:1px solid var(--red);color:var(--red);font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px" title="Last 2 fire events showed less than 0.4% combined VWC rise — check tank, manifold, and valves">⚠ Valves firing — no water reaching substrate</div>`:''}
       <div class="card-head">
         <div>
-          <div class="room-name">${room.name}${(_manualByRoom[room.id]&&_manualByRoom[room.id].length)?` <span title="Manual irrigation in last 30 min" style="display:inline-block;margin-left:6px;padding:2px 6px;font-size:9px;font-weight:700;letter-spacing:.04em;border-radius:3px;background:rgba(245,158,11,0.18);color:var(--amber);vertical-align:middle">✋ MANUAL · table ${_manualByRoom[room.id].join(', ')}</span>`:''}</div>
+          <div class="room-name">${room.name}${(_manualByRoom[room.id]&&_manualByRoom[room.id].length)?` <span title="Manual irrigation in last 90 min" style="display:inline-block;margin-left:6px;padding:2px 6px;font-size:9px;font-weight:700;letter-spacing:.04em;border-radius:3px;background:rgba(245,158,11,0.18);color:var(--amber);vertical-align:middle">✋ MANUAL · table ${_manualByRoom[room.id].join(', ')}</span>`:''}</div>
           <div class="room-meta">${room.tier} · ${room.sqft} sq ft${room.strain?' · '+strainWithCode(room.strain):''}</div>
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
@@ -9448,7 +9454,16 @@ async function fireT1Slack(alerts){
 
 // ── Daily Review rendering ────────────────────────────────────────
 function renderDailyReview(){
-  const log = getAlertLog();
+  const rawLog = getAlertLog();
+  // Filter out raw "Dew point HIGH" alerts — we use DP Spread (temp − dewpoint)
+  // as the Botrytis-risk signal instead. As long as the spread stays healthy,
+  // raw dewpoint above 60°F is acceptable and shouldn't generate noise.
+  const log = rawLog.filter(l => {
+    const msg = (l.message || '').toLowerCase();
+    if (msg.includes('dew point high')) return false;
+    if (msg.includes('dewpoint high'))  return false;
+    return true;
+  });
   const summaryEl = document.getElementById('daily-review-summary');
   const listEl = document.getElementById('daily-review-list');
   if(!summaryEl||!listEl) return;
@@ -9520,6 +9535,28 @@ function clearOldAlerts(){
   const cutoff = Date.now() - 7*24*60*60*1000;
   const log = getAlertLog().filter(l=>new Date(l.timestamp).getTime()>cutoff);
   saveAlertLog(log);
+  renderDailyReview();
+}
+
+// Removes all "Dew point HIGH" alerts from the log permanently. The alerts
+// are noise — we use DP Spread (temp − dewpoint) as the meaningful Botrytis-risk
+// signal instead, and that alert path stays untouched. Spread alerts have
+// messages like "DP Spread LOW: ..." or "Dewpoint spread narrowing".
+function clearDewpointAlerts(){
+  const before = getAlertLog();
+  const after = before.filter(l => {
+    const msg = (l.message || '').toLowerCase();
+    if (msg.includes('dew point high')) return false;
+    if (msg.includes('dewpoint high'))  return false;
+    return true;
+  });
+  const removed = before.length - after.length;
+  if (removed === 0) {
+    alert('No dewpoint-ceiling alerts to clear.');
+    return;
+  }
+  if (!confirm('Permanently delete ' + removed + ' "Dew point HIGH" alert(s)? DP Spread alerts will be kept.')) return;
+  saveAlertLog(after);
   renderDailyReview();
 }
 
