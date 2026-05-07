@@ -1233,7 +1233,12 @@ function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
 function diffDays(a,b){return Math.round((b-a)/86400000)}
 function fmtShort(d){if(!d)return '—';return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 function fmtFull(d){if(!d)return '—';return new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
-function fmtTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+// Format current time as "10:05 AM" in Kansas City local time. The explicit
+// timeZone option protects against devices with incorrect timezone settings
+// (e.g. a phone left on a different city's time after travel, or stuck on
+// UTC) — without this, fmtTime() would return whatever the device thinks is
+// "now," which may not match the operator's actual physical location.
+function fmtTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Chicago'})}
 function isoToDate(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setHours(0,0,0,0);return dt}
 function dateToIso(d){return d.toISOString().split('T')[0]}
 function L(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}}
@@ -5634,21 +5639,25 @@ async function pullRoomChecksFromCloud(silent=false){
     //   0:Date 1:Time 2:Room 3:RH 4:RoomTemp 5:LeafTemp 6:Dewpoint 7:PPFD
     //   8:TableLabel 9:FrontVol 10:FrontEC 11:FrontPH 12:BackVol 13:BackEC 14:BackPH
 
+    // Convert a sheet's time value to "10:05 AM" in Kansas City local time.
+    // The sheet might give us:
+    //   - A string like "10:05 AM" (in-dashboard form path) — pass through
+    //   - An ISO string like "1899-12-30T15:05:00.000Z" (Sheets time serial) — convert from UTC
+    //   - A Date object — convert via toLocaleTimeString with explicit timezone
+    // All paths normalize to Kansas City local time so display matches what
+    // the form operator actually saw on their phone.
     const fmtTime = isoTime => {
-      // isoTime is like "1899-12-30T21:37:00.000Z" — extract HH:MM in local
-      if(!isoTime || typeof isoTime !== 'string') return isoTime||'';
-      const m = isoTime.match(/T(\d{2}):(\d{2})/);
-      if(!m) return isoTime;
-      // Convert UTC hours to local (subtract UTC offset in hours)
-      let h = parseInt(m[1]), mn = parseInt(m[2]);
-      // Sheets time serials are UTC — convert to local
-      const offset = new Date().getTimezoneOffset(); // minutes behind UTC (positive = behind)
-      const totalMin = h*60 + mn - offset;
-      const lh = ((Math.floor(totalMin/60)) % 24 + 24) % 24;
-      const lm = ((totalMin % 60) + 60) % 60;
-      const ampm = lh >= 12 ? 'PM' : 'AM';
-      const dh = lh % 12 || 12;
-      return dh + ':' + String(lm).padStart(2,'0') + ' ' + ampm;
+      if(!isoTime) return '';
+      // Already a formatted string like "10:05 AM" — pass through
+      if(typeof isoTime === 'string' && /\d{1,2}:\d{2}\s*(AM|PM)/i.test(isoTime)){
+        return isoTime;
+      }
+      // Try parsing as a Date — covers both ISO strings and Date objects
+      const d = (isoTime instanceof Date) ? isoTime : new Date(isoTime);
+      if(d && !isNaN(d.getTime())){
+        return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Chicago'});
+      }
+      return String(isoTime);
     };
 
     const todaySubs = [];
