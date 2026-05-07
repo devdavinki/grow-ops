@@ -864,6 +864,12 @@ button { cursor: pointer; }
     <div id="custom-tasks-editor" style="display:grid;gap:6px;margin-bottom:10px"></div>
     <button onclick="addCustomTask()" class="btn-primary" style="font-size:12px;padding:6px 14px;margin-bottom:24px">+ Add standing task</button>
 
+    <!-- FLOWER SCHEDULE EDITOR -->
+    <div class="section-title" style="margin-top:4px;margin-bottom:10px">Flower schedule</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Day-of-flower reminders that appear in the Today section of any room currently on that day. Use a single day (e.g. Day 14) for one-off events, or a range (e.g. Day 25–30) for windows like defol periods.</div>
+    <div id="flower-schedule-editor" style="display:grid;gap:6px;margin-bottom:10px"></div>
+    <button onclick="addFlowerScheduleEvent()" class="btn-primary" style="font-size:12px;padding:6px 14px;margin-bottom:24px">+ Add flower schedule event</button>
+
     <!-- METRC UPLOAD — lead only -->
     <div class="section-title" style="margin-top:28px;margin-bottom:10px">METRC data upload</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Export from mo.metrc.com → Plants/Harvests tabs. Select all files at once — filenames are auto-detected.</div>
@@ -2203,6 +2209,29 @@ function renderRooms(){
       const dotCls=additive.tier2?'dot-amber':'dot-gray';
       taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${additive.name}<span class="sub">${additive.dose}${additive.tier2?' · Tier 2':''}</span></div></div>`);
     }
+    // Flower schedule events for today (lead-defined day-of-flower reminders).
+    // Visible to anyone who can see the room — these are operational reminders
+    // (defol windows, environment changes, irrigation tweaks) the whole crew
+    // benefits from. Renders as stacked card-style entries.
+    if(fd !== null && fd >= 1){
+      const matched = getFlowerScheduleForDay(fd);
+      matched.forEach(ev => {
+        const isRange = ev.dayEnd && ev.dayEnd !== ev.dayStart;
+        const dayLabel = isRange ? `Day ${ev.dayStart}–${ev.dayEnd}` : `Day ${ev.dayStart}`;
+        const safeLabel = String(ev.label||'').replace(/</g,'&lt;') || '(untitled)';
+        const safeNotes = String(ev.notes||'').replace(/</g,'&lt;');
+        taskList.push(`
+          <div class="task-item-sm" style="display:block;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;margin:4px 0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:${safeNotes?'4px':'0'}">
+              <div style="font-size:12px;font-weight:700;color:var(--text)">${safeLabel}</div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--mono);flex-shrink:0">${dayLabel}</div>
+            </div>
+            ${safeNotes?`<div style="font-size:11px;color:var(--text2);line-height:1.4;white-space:pre-wrap">${safeNotes}</div>`:''}
+          </div>
+        `);
+      });
+    }
+
     // (No dark period stage anymore — Day 65 = late flower, Day 66 = harvest)
     if(stage==='harvest'&&(roomView==='full')) taskList.push(`<div class="task-item-sm"><span class="task-dot dot-red"></span><div class="task-text"><span class="alert-txt">Harvest day — authorize entry in #harvest</span></div></div>`);
     if(taskList.length) taskHTML=`<div class="task-strip"><div class="task-strip-head">Today</div>${taskList.join('')}</div>`;
@@ -4734,6 +4763,7 @@ function renderSettings(){
 
   renderChoresEditor();
   renderCustomTasksEditor();
+  renderFlowerScheduleEditor();
   updateMetrcSyncLabel();
 
   const grid=document.getElementById('settings-grid');
@@ -6854,6 +6884,94 @@ function addCustomTask() {
 }
 
 // ══════════════════════════════════════════════
+// FLOWER SCHEDULE EDITOR
+// Flower-day-keyed reminders that surface in the Today section of any room
+// currently on the matching flower day. Single day or range supported.
+// Schema: { id, dayStart, dayEnd, label, notes }
+// dayStart === dayEnd → single day. dayEnd > dayStart → window/range.
+// ══════════════════════════════════════════════
+let flowerSchedule = L('wg_flower_schedule', []);
+
+function renderFlowerScheduleEditor(){
+  const wrap = document.getElementById('flower-schedule-editor');
+  if(!wrap) return;
+  if(!flowerSchedule.length){
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">No flower schedule events yet. Add reminders for specific flower days or windows.</div>';
+    return;
+  }
+  // Sort by dayStart ascending so the editor reads in chronological order
+  const sorted = [...flowerSchedule].sort((a,b)=>(a.dayStart||0)-(b.dayStart||0));
+  wrap.innerHTML = sorted.map(ev => {
+    const i = flowerSchedule.findIndex(e=>e.id===ev.id);
+    const isRange = ev.dayEnd && ev.dayEnd !== ev.dayStart;
+    return `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <span style="font-size:10px;color:var(--text3);font-weight:600">DAY</span>
+        <input type="number" min="1" max="80" value="${ev.dayStart||''}" placeholder="Start"
+          style="width:60px;font-size:12px;padding:4px 6px;text-align:center"
+          onchange="updateFlowerScheduleEvent(${i},'dayStart',parseInt(this.value)||null)"/>
+        <span style="font-size:11px;color:var(--text3)">–</span>
+        <input type="number" min="1" max="80" value="${isRange?ev.dayEnd:''}" placeholder="End"
+          title="Leave blank for a single day"
+          style="width:60px;font-size:12px;padding:4px 6px;text-align:center"
+          onchange="updateFlowerScheduleEvent(${i},'dayEnd',parseInt(this.value)||null)"/>
+      </div>
+      <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:4px">
+        <input value="${(ev.label||'').replace(/"/g,'&quot;')}" placeholder="Event label (e.g. Light defol window)"
+          style="width:100%;font-size:13px;padding:5px 8px;font-weight:600"
+          onchange="updateFlowerScheduleEvent(${i},'label',this.value)"/>
+        <textarea placeholder="Notes (irrigation, environment, IPM, anything to remember on this day)" rows="2"
+          style="width:100%;font-size:12px;padding:6px 8px;font-family:inherit;resize:vertical"
+          onchange="updateFlowerScheduleEvent(${i},'notes',this.value)">${(ev.notes||'').replace(/</g,'&lt;')}</textarea>
+      </div>
+      <button onclick="removeFlowerScheduleEvent('${ev.id}')" title="Remove this event"
+        style="font-size:11px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--red-dim);background:none;color:var(--red);cursor:pointer;flex-shrink:0;align-self:flex-start">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function updateFlowerScheduleEvent(i, field, val){
+  if(!flowerSchedule[i]) return;
+  flowerSchedule[i][field] = val;
+  S('wg_flower_schedule', flowerSchedule);
+  sessionStorage.setItem('wg_flower_schedule_dirty','1');
+  pushConfigToCloud(true);
+  renderRooms(); // surface change immediately on cards
+}
+
+function addFlowerScheduleEvent(){
+  flowerSchedule.push({ id:'fs_'+Date.now(), dayStart:1, dayEnd:null, label:'', notes:'' });
+  S('wg_flower_schedule', flowerSchedule);
+  sessionStorage.setItem('wg_flower_schedule_dirty','1');
+  pushConfigToCloud(true);
+  renderFlowerScheduleEditor();
+}
+
+function removeFlowerScheduleEvent(id){
+  if(!confirm('Remove this flower schedule event?')) return;
+  flowerSchedule = flowerSchedule.filter(e=>e.id!==id);
+  S('wg_flower_schedule', flowerSchedule);
+  sessionStorage.setItem('wg_flower_schedule_dirty','1');
+  pushConfigToCloud(true);
+  renderFlowerScheduleEditor();
+  renderRooms();
+}
+
+// Returns array of flower schedule events that match the given flower day.
+// A single-day event matches when dayStart === fd. A range event matches
+// when fd is within [dayStart, dayEnd] inclusive.
+function getFlowerScheduleForDay(fd){
+  if(fd === null || fd === undefined) return [];
+  return flowerSchedule.filter(ev => {
+    const start = parseInt(ev.dayStart);
+    if(isNaN(start)) return false;
+    const end = ev.dayEnd != null ? parseInt(ev.dayEnd) : start;
+    return fd >= start && fd <= end;
+  });
+}
+
+// ══════════════════════════════════════════════
 
 // ══════════════════════════════════════════════
 // SUPPORT ROOMS
@@ -8852,6 +8970,7 @@ async function pushConfigToCloud(silent=false){
   const _rolePermsDirty= sessionStorage.getItem('wg_role_perms_dirty')==='1';
   const _ipmRulesDirty = sessionStorage.getItem('wg_ipm_rules_dirty')==='1';
   const _ipmLogDirty   = sessionStorage.getItem('wg_ipm_log_dirty')==='1';
+  const _flowerScheduleDirty = sessionStorage.getItem('wg_flower_schedule_dirty')==='1';
   const _trimQueueDirty= sessionStorage.getItem('wg_trim_queue_dirty')==='1';
   const payload={
     action:'setConfig',
@@ -8862,6 +8981,7 @@ async function pushConfigToCloud(silent=false){
       gsUrl,
       ...(_ipmRulesDirty ? {ipmRules: L('wg_ipm_rules',[])} : {}),
       ...(_ipmLogDirty   ? {ipmLog:   L('wg_ipm_log',[])}   : {}),
+      ...(_flowerScheduleDirty ? {flowerSchedule: L('wg_flower_schedule',[])} : {}),
       customChores:L('wg_custom_chores',null),
       customTasks:L('wg_custom_tasks',[]),
       supplies:L('wg_supplies',[]),
@@ -8889,6 +9009,7 @@ async function pushConfigToCloud(silent=false){
     if(_rolePermsDirty)sessionStorage.removeItem('wg_role_perms_dirty');
     if(_ipmRulesDirty) sessionStorage.removeItem('wg_ipm_rules_dirty');
     if(_ipmLogDirty)   sessionStorage.removeItem('wg_ipm_log_dirty');
+    if(_flowerScheduleDirty) sessionStorage.removeItem('wg_flower_schedule_dirty');
     if(_trimQueueDirty)sessionStorage.removeItem('wg_trim_queue_dirty');
   }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
 }
@@ -8998,6 +9119,16 @@ async function pullConfigFromCloud(silent=false){
     if(d.calendarEvents&&Array.isArray(d.calendarEvents)){
       calendarEvents = d.calendarEvents;
       S('wg_cal_events', calendarEvents);
+    }
+    if(d.flowerSchedule&&Array.isArray(d.flowerSchedule)){
+      // Cloud is authoritative for flower schedule. Dirty-flag push protects
+      // against stale-device clobbers.
+      flowerSchedule = d.flowerSchedule;
+      S('wg_flower_schedule', flowerSchedule);
+      // If Settings is currently open, refresh the editor so changes appear
+      if(typeof renderFlowerScheduleEditor==='function' && document.getElementById('flower-schedule-editor')){
+        renderFlowerScheduleEditor();
+      }
     }
     if(d.ipmRules&&Array.isArray(d.ipmRules)){
       // Cloud is authoritative for the rules list. The "skip-empty push" guard in
