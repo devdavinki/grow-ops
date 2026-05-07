@@ -4815,6 +4815,8 @@ function confirmTrimItem(){
     trimQueue.splice(insertAt,0,item);
   }
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   closeTrimModal();
   renderTrimQueue();
 }
@@ -4823,17 +4825,23 @@ function markTrimDone(id){
   const item=trimQueue.find(i=>i.id===id);
   if(item)item.status='done';
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   renderTrimQueue();
 }
 function markTrimInProgress(id){
   const item=trimQueue.find(i=>i.id===id);
   if(item)item.status='trimming';
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   renderTrimQueue();
 }
 function removeTrimItem(id){
   trimQueue=trimQueue.filter(i=>i.id!==id);
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   renderTrimQueue();
 }
 function moveTrimItem(id,dir){
@@ -4843,6 +4851,8 @@ function moveTrimItem(id,dir){
   if(swap<0||swap>=trimQueue.length)return;
   [trimQueue[idx],trimQueue[swap]]=[trimQueue[swap],trimQueue[idx]];
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   renderTrimQueue();
   pushMetrcToCloud();
   // Keep METRC harvests tab in sync if visible
@@ -4863,6 +4873,8 @@ function updateTrimItemPriority(id, priority) {
     }
     // Don't re-sort — preserve manual ordering set by leads
     S('wg_trim_queue', trimQueue);
+    sessionStorage.setItem('wg_trim_queue_dirty','1');
+    pushConfigToCloud(true);
   }
   renderTrimQueue();
   pushMetrcToCloud();
@@ -4875,6 +4887,8 @@ function toggleMachineTrimmed(id){
   item.machineTrimmedBy=item.machineTrimmed?(loggedInMember?loggedInMember.name:'Unknown'):'';
   item.machineTrimmedAt=item.machineTrimmed?fmtTime():'';
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   renderTrimQueue();
   pushMetrcToCloud();
 }
@@ -5224,7 +5238,8 @@ function editPrerollEntry(id){
       pushWeightsToCloud();
     }
     S('wg_trim_queue',trimQueue);
-    pushConfigDebounced();
+    sessionStorage.setItem('wg_trim_queue_dirty','1');
+    pushConfigToCloud(true);
   }
   // Switch to the trim queue tab and scroll to the strain card.
   showPostTab('queue',document.querySelectorAll('#page-postprod .nav-tab')[0]);
@@ -5526,7 +5541,17 @@ async function pullMetrcFromCloud(silent=false){
     if(d.flowering &&shouldUse(d.flowering, metrcData.flowering)) { metrcData.flowering=d.flowering; S(METRC_KEYS.flowering,d.flowering); }
     if(d.harvests  &&shouldUse(d.harvests,  metrcData.harvests))  { metrcData.harvests=d.harvests;   S(METRC_KEYS.harvests,d.harvests); }
     if(d.harvestPriority){ metrcHarvestPriority=d.harvestPriority;S(METRC_KEYS.harvestPriority,d.harvestPriority); }
-    if(d.trimQueue&&d.trimQueue.length){ S('wg_trim_queue',d.trimQueue); }
+    if(d.trimQueue&&d.trimQueue.length){
+      // Merge by id — cloud wins for matching items, local-only items preserved.
+      // Prevents a cloud wipe (or a stale METRC sync from another device) from
+      // erasing local trim queue edits.
+      const local=L('wg_trim_queue',[]);
+      const cloudIds=new Set(d.trimQueue.map(t=>t.id));
+      const localOnly=local.filter(t=>!cloudIds.has(t.id));
+      const merged=[...d.trimQueue,...localOnly];
+      S('wg_trim_queue',merged);
+      trimQueue=merged;
+    }
     else if(d.harvests&&d.harvests.length){ syncHarvestsToTrimQueue(d.harvests); }
     const syncInfo={};
     ['mother','immature','vegetative','flowering','harvests'].forEach(k=>{
@@ -5763,9 +5788,10 @@ function approveWeight(itemId){
     item.archived=true;
     item.archivedAt=new Date().toISOString();
     S('wg_trim_queue',trimQueue);
+    sessionStorage.setItem('wg_trim_queue_dirty','1');
   }
   pushWeightsToCloud();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   // Append to Weight_Log sheet (single-line ledger, METRC-ready format)
   if(item){
     postToSheet('Weight_Log',[item.strain,item.harvestDate||'',w.bigBuds||'',w.smallBuds||'',
@@ -6560,6 +6586,8 @@ function moveHarvestItem(idx, dir, btn){
     return ia-ib;
   });
   S('wg_trim_queue',trimQueue);
+  sessionStorage.setItem('wg_trim_queue_dirty','1');
+  pushConfigToCloud(true);
   // Re-render both to get correct numbering and button states
   renderMetrcHarvests();
   renderTrimQueue();
@@ -6570,7 +6598,12 @@ function setHarvestPriority(batch,priority){
   // Also update trim queue item priority
   trimQueue=L('wg_trim_queue',[]);
   const qi=trimQueue.find(q=>q.harvestBatch===batch||q.strain===batch);
-  if(qi){qi.priority=priority;S('wg_trim_queue',trimQueue);}
+  if(qi){
+    qi.priority=priority;
+    S('wg_trim_queue',trimQueue);
+    sessionStorage.setItem('wg_trim_queue_dirty','1');
+    pushConfigToCloud(true);
+  }
   renderMetrcHarvests();
 }
 
@@ -8784,6 +8817,7 @@ async function pushConfigToCloud(silent=false){
   const _rolePermsDirty= sessionStorage.getItem('wg_role_perms_dirty')==='1';
   const _ipmRulesDirty = sessionStorage.getItem('wg_ipm_rules_dirty')==='1';
   const _ipmLogDirty   = sessionStorage.getItem('wg_ipm_log_dirty')==='1';
+  const _trimQueueDirty= sessionStorage.getItem('wg_trim_queue_dirty')==='1';
   const payload={
     action:'setConfig',
     data:{
@@ -8802,7 +8836,7 @@ async function pushConfigToCloud(silent=false){
       roomOverridesByDay,
       dryRooms,
       alertThresholds,
-      trimQueue:L('wg_trim_queue',[]),
+      ...(_trimQueueDirty ? {trimQueue:L('wg_trim_queue',[])} : {}),
       approvedTakedowns:L('wg_approved_takedowns',{}),
       calendarRules:L('wg_cal_rules',[]),
       calendarEvents:L('wg_cal_events',[]),
@@ -8820,6 +8854,7 @@ async function pushConfigToCloud(silent=false){
     if(_rolePermsDirty)sessionStorage.removeItem('wg_role_perms_dirty');
     if(_ipmRulesDirty) sessionStorage.removeItem('wg_ipm_rules_dirty');
     if(_ipmLogDirty)   sessionStorage.removeItem('wg_ipm_log_dirty');
+    if(_trimQueueDirty)sessionStorage.removeItem('wg_trim_queue_dirty');
   }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
 }
 
