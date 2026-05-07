@@ -3163,7 +3163,7 @@ function editCloneSession(idx){
   cloneSessions[idx]={...s,count:parseInt(newCount)||s.count,strain:newStrain.trim()||s.strain,note:newNote};
   S(getWeekKey(),cloneSessions);
   renderCloneTracker();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
 }
 
 // ══════════════════════════════════════════════
@@ -4656,10 +4656,45 @@ function finishLogin(member){
                 : (perms.pages && perms.pages[0])   ? perms.pages[0]
                                                     : 'assignments';
   showPage(landing);
+  // Start the background config poll. Pulls cloud config every 60 seconds so
+  // edits made on other devices (room dates, IPM rules, trim queue, supplies,
+  // permissions, etc.) propagate to this device without requiring manual
+  // refresh. Push side is already real-time via dirty-flag immediate pushes;
+  // this closes the loop on the receiving side.
+  startBackgroundConfigPoll();
 }
+
+let _bgConfigPollTimer = null;
+const BG_POLL_INTERVAL_MS = 60 * 1000;
+
+function startBackgroundConfigPoll(){
+  if(_bgConfigPollTimer) return; // already running
+  _bgConfigPollTimer = setInterval(() => {
+    // Don't poll if tab is hidden (saves API quota when nobody's looking)
+    if(document.hidden) return;
+    if(!loggedInMember || !gsUrl) return;
+    pullConfigFromCloud(true).catch(()=>{});
+  }, BG_POLL_INTERVAL_MS);
+}
+
+function stopBackgroundConfigPoll(){
+  if(_bgConfigPollTimer){
+    clearInterval(_bgConfigPollTimer);
+    _bgConfigPollTimer = null;
+  }
+}
+
+// When the tab becomes visible after being hidden, do an immediate pull so the
+// user doesn't have to wait up to 60 seconds to see fresh data on tab switch.
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && loggedInMember && gsUrl){
+    pullConfigFromCloud(true).catch(()=>{});
+  }
+});
 
 function switchUser(){
   loggedInMember=null;
+  stopBackgroundConfigPoll();
   localStorage.removeItem('wg_session');
   document.body.classList.add('pre-login');
   const roleSelect=document.getElementById('role-select');
@@ -5398,7 +5433,7 @@ function saveGsUrl(val){
   const st=document.getElementById('gs-url-status');
   if(st){st.textContent='Saved ✓';st.style.color='var(--green)';}
   // Push to cloud so other devices can pull this URL
-  pushConfigDebounced();
+  pushConfigToCloud(true);
 }
 // Push the current gsUrl (and full config) to the cloud immediately, bypassing
 // the 2-second debounce. Use this when you've just changed the URL and want
@@ -5763,7 +5798,7 @@ function submitWeightForVerification(itemId){
   trimWeights[itemId].approvedAt='';
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   renderTrimQueue();
   // Notify #postprod Slack — lead is the approver now
   const wh=webhooks['postprod'];
@@ -5810,7 +5845,7 @@ function rejectWeight(itemId){
   trimWeights[itemId].submittedAt='';
   S('wg_trim_weights',trimWeights);
   pushWeightsToCloud();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   renderTrimQueue();
 }
 
@@ -6757,7 +6792,7 @@ function updateChore(i, field, val) {
   chores[i][field] = val;
   S('wg_custom_chores', chores);
   renderChores();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
 }
 
 function removeChore(i) {
@@ -6765,7 +6800,7 @@ function removeChore(i) {
   chores.splice(i, 1);
   S('wg_custom_chores', chores);
   renderChoresEditor();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   renderChores();
 }
 
@@ -6809,7 +6844,7 @@ function removeCustomTask(i) {
   customTasks.splice(i, 1);
   S('wg_custom_tasks', customTasks);
   renderCustomTasksEditor();
-  pushConfigDebounced();
+  pushConfigToCloud(true);
 }
 
 function addCustomTask() {
@@ -8557,7 +8592,7 @@ function addCalendarRule(){
   if(!label){ alert('Add a label for what happens that day'); return; }
   calendarRules.push({ id: 'rule_'+Date.now(), dayOfFlower: day, label: label });
   S('wg_cal_rules', calendarRules);
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   dayInp.value = '';
   labelInp.value = '';
   renderCalendar();
@@ -8567,7 +8602,7 @@ function deleteCalendarRule(id){
   if(!confirm('Remove this recurring reminder?')) return;
   calendarRules = calendarRules.filter(r => r.id !== id);
   S('wg_cal_rules', calendarRules);
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   renderCalendar();
 }
 
@@ -8580,7 +8615,7 @@ function addCalendarEvent(){
   if(!label){ alert('Add a title for the event'); return; }
   calendarEvents.push({ id: 'evt_'+Date.now(), date: date, label: label });
   S('wg_cal_events', calendarEvents);
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   dateInp.value = '';
   labelInp.value = '';
   renderCalendar();
@@ -8590,7 +8625,7 @@ function deleteCalendarEvent(id){
   if(!confirm('Remove this event?')) return;
   calendarEvents = calendarEvents.filter(e => e.id !== id);
   S('wg_cal_events', calendarEvents);
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   renderCalendar();
 }
 
@@ -8672,7 +8707,7 @@ function confirmSupply() {
     supplies.unshift(item);
   }
   S('wg_supplies', supplies);
-  pushConfigDebounced();
+  pushConfigToCloud(true);
 
   // Post to sheet
   postToSheet('Supply_Log', [
@@ -8688,7 +8723,7 @@ function deleteSupply(id) {
   if (!confirm('Remove this supply entry?')) return;
   supplies = supplies.filter(s => s.id !== id);
   S('wg_supplies', supplies);
-  pushConfigDebounced();
+  pushConfigToCloud(true);
   renderSupplies();
 }
 
