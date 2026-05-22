@@ -1077,9 +1077,14 @@ button { cursor: pointer; }
       <div id="metrc-clones-grid" class="grid-3"></div>
     </div>
     <div id="metrc-sub-strains" style="display:none">
-      <div style="margin-bottom:12px">
+      <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <input id="metrc-strain-search" type="text" placeholder="Search by strain or code..." 
-          style="width:100%;max-width:320px;font-size:13px" oninput="renderMetrcStrains()"/>
+          style="flex:1;min-width:200px;max-width:320px;font-size:13px" oninput="renderMetrcStrains()"/>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:11px;color:var(--text3);font-weight:600">Sort:</span>
+          <button id="metrc-strain-sort-az" onclick="setStrainSort('az')" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--blue-bg);color:var(--text);cursor:pointer">A→Z</button>
+          <button id="metrc-strain-sort-priority" onclick="setStrainSort('priority')" style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer">Lowest stock first</button>
+        </div>
       </div>
       <div id="metrc-strains-grid" class="grid-3"></div>
     </div>
@@ -8198,18 +8203,32 @@ function buildMetrcTabNav(){
     {key:'strains', label:'Strains'},
     {key:'harvests',   label:'Harvests / Trim queue'},
   ];
+  // Restore the previously-active subtab if it's still allowed; otherwise
+  // fall back to the first allowed tab. This stops a background config pull
+  // (which re-runs buildMetrcTabNav) from snapping the user back to Mothers
+  // while they're working on Strains.
+  const firstAllowed = tabDefs.find(t => allowedTabs.includes(t.key));
+  const targetKey = (_activeMetrcTab && allowedTabs.includes(_activeMetrcTab))
+    ? _activeMetrcTab
+    : (firstAllowed ? firstAllowed.key : null);
   nav.innerHTML = tabDefs
     .filter(t => allowedTabs.includes(t.key))
-    .map((t,i) => `<button class="nav-tab${i===0?' active':''}" onclick="showMetrcTab('${t.key}',this)" style="font-size:12px">${t.label}</button>`)
+    .map((t) => `<button class="nav-tab${t.key===targetKey?' active':''}" onclick="showMetrcTab('${t.key}',this)" style="font-size:12px">${t.label}</button>`)
     .join('');
-  // Show first allowed tab
-  const first = tabDefs.find(t => allowedTabs.includes(t.key));
-  if(first) showMetrcTab(first.key, nav.querySelector('.nav-tab'));
+  // Render the restored (or default) tab
+  if(targetKey){
+    const btn = Array.from(nav.querySelectorAll('.nav-tab')).find(b => b.classList.contains('active'));
+    showMetrcTab(targetKey, btn || nav.querySelector('.nav-tab'));
+  }
 }
 
+// Remembers which METRC subtab is active so background config pulls (which
+// rebuild the nav) don't snap the user back to the default Mothers tab.
+let _activeMetrcTab = 'mothers';
 function showMetrcTab(tab,el){
   const allowedTabs = METRC_ROLE_TABS[currentRole] || METRC_ROLE_TABS.lead;
   if(!allowedTabs.includes(tab)) return;
+  _activeMetrcTab = tab;
   document.querySelectorAll('#metrc-tab-nav .nav-tab').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
   ['mothers','clones','strains','harvests'].forEach(t=>{
@@ -8335,7 +8354,25 @@ function renderMetrcStrains(){
   const totalVeg=vegRows.length;
   const totalFlower=flowerRows.length;
   const _sq=(document.getElementById('metrc-strain-search')?.value||'').toLowerCase().trim();
-  const strains=Object.keys(byStrain).filter(s=>!_sq||s.toLowerCase().includes(_sq)||(strainCodeOnly(s)||'').toLowerCase().includes(_sq)).sort((a,b)=>a.localeCompare(b));
+  const strains=Object.keys(byStrain).filter(s=>!_sq||s.toLowerCase().includes(_sq)||(strainCodeOnly(s)||'').toLowerCase().includes(_sq));
+  // Sort mode: 'az' (alphabetical) or 'priority' (lowest stock first).
+  // Priority tiers by your rule: fewest mothers first, ties broken by clones,
+  // then veg, then flower — so the genetics most at risk of being lost (no
+  // healthy moms/clones to pull from) float to the top. 'Unknown' always sinks.
+  if(_strainSortMode==='priority'){
+    strains.sort((a,b)=>{
+      if(a==='Unknown') return 1;
+      if(b==='Unknown') return -1;
+      const da=byStrain[a], db=byStrain[b];
+      if(da.mother!==db.mother) return da.mother-db.mother;
+      if(da.clone!==db.clone)   return da.clone-db.clone;
+      if(da.veg!==db.veg)       return da.veg-db.veg;
+      if(da.flower!==db.flower) return da.flower-db.flower;
+      return a.localeCompare(b);
+    });
+  } else {
+    strains.sort((a,b)=>a.localeCompare(b));
+  }
   const summary='<div style="grid-column:1/-1;display:flex;gap:18px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);margin-bottom:8px;flex-wrap:wrap">'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--purple)">'+totalMother+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Mothers</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].mother>0).length+' strains</div></div></div>'
     +'<div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:#06b6d4">'+totalClone+'</div><div><div style="font-size:12px;font-weight:600;color:var(--text)">Clones</div><div style="font-size:10px;color:var(--text3)">'+strains.filter(s=>byStrain[s].clone>0).length+' strains</div></div></div>'
@@ -8361,7 +8398,23 @@ function renderMetrcStrains(){
     const flowerLocs=Object.entries(d.flowerLocs).sort((a,b)=>b[1]-a[1])
       .map(function(e){return'<span style="font-size:10px;padding:2px 6px;background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r);font-family:var(--mono);color:var(--green)">'+e[0].replace('Grow Room ','R').replace('Flower Room ','R')+' \u00b7 '+e[1]+'</span>';}).join('');
     let html='<div class="card" style="border-left:3px solid '+accent+'">';
-    html+='<div style="font-size:14px;font-weight:700;color:'+(isUnk?'var(--text3)':'var(--text)')+';font-style:'+(isUnk?'italic':'normal')+';margin-bottom:6px">'+strainWithCode(strain)+'</div>';
+    const perliteOn = !!_strainPerlite[strain];
+    const safeStrain = strain.replace(/'/g,"\\'");
+    // Header row: strain name + perlite toggle. Perlite = this strain's new-gen
+    // mothers have been moved into the perlite mix (vs rockwool).
+    html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">';
+    html+='<div style="font-size:14px;font-weight:700;color:'+(isUnk?'var(--text3)':'var(--text)')+';font-style:'+(isUnk?'italic':'normal')+'">'+strainWithCode(strain)+'</div>';
+    if(!isUnk){
+      html+='<label title="Mothers in perlite mix" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;white-space:nowrap;padding:3px 7px;border-radius:var(--r);border:1px solid '+(perliteOn?'var(--green)':'var(--border2)')+';background:'+(perliteOn?'var(--green-bg)':'var(--bg3)')+';color:'+(perliteOn?'var(--green)':'var(--text3)')+';cursor:pointer">'+
+        '<input type="checkbox" '+(perliteOn?'checked':'')+' onchange="toggleStrainPerlite(\''+safeStrain+'\',this.checked)" style="margin:0"/>'+
+        '🌱 Perlite</label>';
+    }
+    html+='</div>';
+    // Low-stock cue in priority mode: strains with no mothers are the most at
+    // risk of being lost, so flag them explicitly rather than just sorting.
+    if(_strainSortMode==='priority' && !isUnk && d.mother===0){
+      html+='<div style="font-size:10px;font-weight:600;color:var(--red);margin-bottom:6px">⚠ No mothers — '+(d.clone>0?'clones only':(d.veg>0||d.flower>0)?'no moms or clones':'at risk')+'</div>';
+    }
     html+='<div style="display:flex;gap:14px;margin-bottom:8px;flex-wrap:wrap">';
     if(d.flower>0) html+='<div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--green)">'+d.flower+'</div><div style="font-size:10px;color:var(--text3)">flowering</div></div>';
     if(d.veg>0) html+='<div><div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--blue)">'+d.veg+'</div><div style="font-size:10px;color:var(--text3)">veg</div></div>';
@@ -8378,6 +8431,30 @@ function renderMetrcStrains(){
   grid.innerHTML=summary+cards;
 }
 
+// ── Strain sort mode (A→Z vs lowest-stock-first) ──
+let _strainSortMode = 'az';
+function setStrainSort(mode){
+  _strainSortMode = mode;
+  const azBtn = document.getElementById('metrc-strain-sort-az');
+  const prBtn = document.getElementById('metrc-strain-sort-priority');
+  if(azBtn) azBtn.style.background = (mode==='az') ? 'var(--blue-bg)' : 'var(--bg3)';
+  if(prBtn) prBtn.style.background = (mode==='priority') ? 'var(--blue-bg)' : 'var(--bg3)';
+  renderMetrcStrains();
+}
+
+// ── Perlite flag per strain ──
+// Marks that a strain's new-generation mothers have been transitioned into
+// the perlite mix (vs rockwool). Synced across devices via cloud config so
+// everyone sees the same flags. Keyed by strain name.
+let _strainPerlite = L('wg_strain_perlite', {}) || {};
+function toggleStrainPerlite(strain, on){
+  if(on) _strainPerlite[strain] = true;
+  else delete _strainPerlite[strain];
+  S('wg_strain_perlite', _strainPerlite);
+  sessionStorage.setItem('wg_strain_perlite_dirty','1');
+  pushConfigToCloud(true);
+  renderMetrcStrains();
+}
 
 function renderMetrcHarvests(){
   const list=document.getElementById('metrc-harvests-list');
@@ -10796,6 +10873,7 @@ async function pushConfigToCloud(silent=false){
   const _ipmLogDirty   = sessionStorage.getItem('wg_ipm_log_dirty')==='1';
   const _flowerScheduleDirty = sessionStorage.getItem('wg_flower_schedule_dirty')==='1';
   const _trimQueueDirty= sessionStorage.getItem('wg_trim_queue_dirty')==='1';
+  const _strainPerliteDirty = sessionStorage.getItem('wg_strain_perlite_dirty')==='1';
 
   // RACE-CONDITION GUARDS: suppress pushing empty arrays when cloud pull
   // hasn't completed yet. Applies to both legacy ipmRules and unified rules.
@@ -10836,6 +10914,7 @@ async function pushConfigToCloud(silent=false){
       dryRooms,
       alertThresholds,
       ...(_trimQueueDirty ? {trimQueue:L('wg_trim_queue',[])} : {}),
+      ...(_strainPerliteDirty ? {strainPerlite:L('wg_strain_perlite',{})} : {}),
       approvedTakedowns:L('wg_approved_takedowns',{}),
       calendarRules:L('wg_cal_rules',[]),
       calendarEvents:L('wg_cal_events',[]),
@@ -10856,6 +10935,7 @@ async function pushConfigToCloud(silent=false){
     if(_ipmLogDirty)   sessionStorage.removeItem('wg_ipm_log_dirty');
     if(_flowerScheduleDirty) sessionStorage.removeItem('wg_flower_schedule_dirty');
     if(_trimQueueDirty)sessionStorage.removeItem('wg_trim_queue_dirty');
+    if(_strainPerliteDirty)sessionStorage.removeItem('wg_strain_perlite_dirty');
   }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
 }
 
@@ -10944,6 +11024,18 @@ async function pullConfigFromCloud(silent=false){
     // Custom chores & tasks
     if(d.customChores){ S('wg_custom_chores',d.customChores); }
     if(d.customTasks&&d.customTasks.length){ customTasks=d.customTasks; S('wg_custom_tasks',customTasks); }
+
+    // Strain perlite flags — cloud is authoritative unless this device has an
+    // unpushed local edit pending (dirty flag still set). Avoids a stale pull
+    // wiping a checkbox the user just toggled but hasn't synced yet.
+    if(d.strainPerlite && typeof d.strainPerlite==='object'){
+      const localPending = sessionStorage.getItem('wg_strain_perlite_dirty')==='1';
+      if(!localPending){
+        _strainPerlite = d.strainPerlite;
+        S('wg_strain_perlite', _strainPerlite);
+        if(_activeMetrcTab==='strains' && typeof renderMetrcStrains==='function') renderMetrcStrains();
+      }
+    }
 
     // Supplies — merge by id (keep local entries not yet in cloud)
     if(d.supplies&&d.supplies.length){
