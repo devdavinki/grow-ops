@@ -4382,7 +4382,23 @@ async function logCloneCut(clearStrain=false,leadOverride=false){
 
 function resetCloneWeek(){
   if(!confirm('Reset this week\'s clone log?'))return;
-  cloneSessions=[];S(getWeekKey(),cloneSessions);renderCloneTracker();
+  const wk=getWeekKey();
+  // Clear local sessions for the week.
+  cloneSessions=[];S(wk,cloneSessions);
+  // Record a reset marker so the cloud (and other devices) honor the wipe.
+  // The 60s background pull would otherwise re-merge the old cloud sessions
+  // right back in. The marker stores the reset's ISO date plus a 24h clock
+  // time {date:'YYYY-MM-DD', time:'HH:MM'} in Central time. The pull drops any
+  // cloud session for this week logged at or before this instant, while a fresh
+  // cut logged afterward survives. Sessions carry a 12h "time" like "4:07 PM";
+  // the pull converts both to comparable minutes-of-day for the same-day case.
+  const nowCT=new Date().toLocaleString('en-US',{timeZone:'America/Chicago',hour12:false,
+    hour:'2-digit',minute:'2-digit'}).trim().replace(/^24:/,'00:');
+  const resetMark={date:dateToIso(TODAY), time:nowCT};
+  S('wg_cloneweek_reset_'+wk, resetMark);
+  // Push the emptied week + marker to the cloud now, so the reset sticks.
+  if(typeof pushConfigToCloud==='function'){ try{ pushConfigToCloud(true); }catch(e){} }
+  renderCloneTracker();
 }
 
 function renderCloneTracker(){
@@ -10964,6 +10980,7 @@ async function pushConfigToCloud(silent=false){
   }
   // Gather clone sessions for last 4 weeks
   const cloneSessions={};
+  const cloneResets={};
   for(let i=0;i<4;i++){
     const d=new Date(TODAY); d.setDate(d.getDate()-(i*7));
     const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1);
@@ -10972,6 +10989,12 @@ async function pushConfigToCloud(silent=false){
     const key='cloneweek_'+wk;
     const sessions=L(key,null);
     if(sessions&&sessions.length) cloneSessions[key]=sessions;
+    // Carry the reset marker (if any) so the wipe propagates to the cloud and
+    // other devices. Without this, an emptied week is simply omitted from the
+    // payload and the cloud keeps the stale sessions, which then flood back on
+    // the next pull.
+    const resetMark=L('wg_cloneweek_reset_'+key,null);
+    if(resetMark) cloneResets[key]=resetMark;
   }
   // Gather roomOverrides (task done/skip per room per day) for last 7 days
   // so task completions sync across devices — without this, when Hy finishes a
@@ -11034,6 +11057,7 @@ async function pushConfigToCloud(silent=false){
       alertLog:L('wg_alert_log',[]),
       todayLogs,
       cloneSessions,
+      cloneResets,
       roomOverridesByDay,
       dryRooms,
       alertThresholds,
@@ -11363,12 +11387,45 @@ async function pullConfigFromCloud(silent=false){
       });
     }
 
-    // Clone sessions — merge per week
+    // Clone reset markers — adopt the latest reset per week (local vs cloud),
+    // so a "Reset week" on ANY device wins everywhere. Stored before we merge
+    // sessions below, so the freshly-adopted marker is used in the same pass.
+    if(d.cloneResets){
+      Object.entries(d.cloneResets).forEach(([key,cloudMark])=>{
+        if(!cloudMark||!cloudMark.date) return;
+        const localMark=L('wg_cloneweek_reset_'+key,null);
+        const cloudKeyN=cloudMark.date+' '+(cloudMark.time||'00:00');
+        const localKeyN=localMark&&localMark.date ? localMark.date+' '+(localMark.time||'00:00') : '';
+        if(cloudKeyN>localKeyN) S('wg_cloneweek_reset_'+key,cloudMark);
+      });
+    }
+
+    // Clone sessions — merge per week, honoring any reset marker for that week.
+    // A reset drops every session logged at or before the reset instant; cuts
+    // logged afterward survive. Comparison is date + minutes-of-day so the
+    // same-day "reset this morning, new cut this afternoon" case works.
     if(d.cloneSessions){
+      const toMinKey=(dateStr,timeStr)=>{
+        // dateStr 'YYYY-MM-DD'; timeStr may be 12h "4:07 PM" (session) or
+        // 24h "16:07" (reset marker). Return 'YYYY-MM-DD#MMMM' (mins padded).
+        let mins=0; const t=(timeStr||'').trim();
+        const m12=t.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+        const m24=t.match(/^(\d{1,2}):(\d{2})$/);
+        if(m12){ let h=parseInt(m12[1])%12; if(/[Pp]/.test(m12[3]))h+=12; mins=h*60+parseInt(m12[2]); }
+        else if(m24){ mins=parseInt(m24[1])*60+parseInt(m24[2]); }
+        return (dateStr||'')+'#'+String(mins).padStart(4,'0');
+      };
       Object.entries(d.cloneSessions).forEach(([wk,sessions])=>{
+        const resetMark=L('wg_cloneweek_reset_'+wk,null);
+        let cloudSessions=sessions;
+        if(resetMark&&resetMark.date){
+          const resetKey=toMinKey(resetMark.date,resetMark.time);
+          // Drop cloud sessions logged at or before the reset instant.
+          cloudSessions=sessions.filter(s=>toMinKey(s.date,s.time)>resetKey);
+        }
         const localS=L(wk,[]);
         const localTimes=new Set(localS.map(s=>s.time+'_'+s.strain));
-        const merged=[...localS,...sessions.filter(s=>!localTimes.has(s.time+'_'+s.strain))];
+        const merged=[...localS,...cloudSessions.filter(s=>!localTimes.has(s.time+'_'+s.strain))];
         S(wk,merged);
         if(wk===getWeekKey()) cloneSessions=merged;
       });
