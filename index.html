@@ -976,6 +976,7 @@ button { cursor: pointer; }
       <button class="nav-tab active" onclick="showPostTab('queue',this)" style="font-size:12px">Trim queue</button>
       <button class="nav-tab" onclick="showPostTab('history',this)" style="font-size:12px">Trim history</button>
       <button class="nav-tab" id="preroll-subtab-btn" onclick="showPostTab('preroll',this)" style="font-size:12px;display:none">Pre-roll priority</button>
+      <button class="nav-tab" onclick="showPostTab('order',this)" style="font-size:12px">Order</button>
     </div>
 
     <!-- TRIM QUEUE -->
@@ -1002,6 +1003,18 @@ button { cursor: pointer; }
     <div id="postsub-preroll" style="display:none">
       <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Sorted by Purpl Pro THC % — highest first. Shows available small bud weight per strain.</div>
       <div id="preroll-list" style="display:grid;gap:8px;margin-bottom:1.5rem"></div>
+    </div>
+
+    <!-- ORDER (packaging) -->
+    <div id="postsub-order" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;color:var(--text2)">Work each order top to bottom. Enter weights as you go.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button onclick="renderOrders()" style="font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">↻ Refresh</button>
+          <span id="order-status" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+      </div>
+      <div id="order-list" style="display:grid;gap:10px;margin-bottom:1.5rem"></div>
     </div>
   </div>
 
@@ -1230,6 +1243,49 @@ button { cursor: pointer; }
       </div>
     </div>
     <div id="tuning-report-wrap"></div>
+  </div>
+
+  <!-- PACKAGING MODAL -->
+  <div class="modal-bg" id="pkg-modal-bg">
+    <div class="modal" style="max-width:460px">
+      <h3 id="pkg-modal-title">Package order</h3>
+      <div id="pkg-modal-meta" style="font-size:12px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:12px"></div>
+
+      <div id="pkg-weight-start">
+        <label>Starting weight (g)</label>
+        <input id="pkg-start" type="number" inputmode="decimal" step="0.1" placeholder="weigh the package before packaging" oninput="pkgCheckStart()"/>
+        <div id="pkg-start-flag" style="font-size:12px;margin:-4px 0 10px;display:none"></div>
+      </div>
+
+      <label id="pkg-qty-label"># actually packaged <span style="color:var(--text3);font-weight:400">(type the real count — may differ from the order)</span></label>
+      <input id="pkg-qty" type="number" inputmode="numeric" step="1" placeholder="e.g. 300" oninput="pkgCheckFinal()"/>
+      <div id="pkg-packaged-line" style="font-size:12px;color:var(--text3);margin:-4px 0 10px"></div>
+
+      <div id="pkg-weight-end">
+        <label>Ending weight (g)</label>
+        <input id="pkg-end" type="number" inputmode="decimal" step="0.1" placeholder="weigh whatever is left after packaging" oninput="pkgCheckFinal()"/>
+        <div id="pkg-final-line" style="font-size:12px;margin:-4px 0 10px;color:var(--text2)"></div>
+      </div>
+
+      <label>1st count by</label>
+      <input id="pkg-count" type="text" placeholder="who counted"/>
+      <label>Count verified by</label>
+      <input id="pkg-verify" type="text" placeholder="second person"/>
+      <label>Package # &amp; label verified by</label>
+      <input id="pkg-label" type="text" placeholder="who verified the tag/label"/>
+
+      <div id="pkg-override-box" style="display:none;background:var(--red-bg);border:1px solid var(--red-dim);border-radius:var(--r);padding:10px;margin:10px 0">
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--red);cursor:pointer">
+          <input id="pkg-override" type="checkbox" style="width:auto;margin-top:2px" onchange="pkgUpdateSubmitState()"/>
+          <span id="pkg-override-text">Starting weight is off by more than 30g. Re-check the jar and scale. Tick to confirm the weight you entered is correct — this package will be highlighted on the Weekly Menu for lead review.</span>
+        </label>
+      </div>
+
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closePkgModal()">Cancel</button>
+        <button class="btn-primary" id="pkg-submit-btn" onclick="confirmPackaging()">Submit</button>
+      </div>
+    </div>
   </div>
 
 <!-- LOGIN MODAL — visibility:visible !important overrides pre-login cascade -->
@@ -6802,6 +6858,8 @@ function showPostTab(tab,el){
   const histPane=document.getElementById('postsub-history');
   if(histPane) histPane.style.display=tab==='history'?'block':'none';
   document.getElementById('postsub-preroll').style.display=tab==='preroll'?'block':'none';
+  const orderPane=document.getElementById('postsub-order');
+  if(orderPane) orderPane.style.display=tab==='order'?'block':'none';
   if(tab==='queue'){
     const addBtn=document.getElementById('add-trim-btn');
     if(addBtn) addBtn.style.display=currentRole==='lead'?'inline-flex':'none';
@@ -6811,6 +6869,7 @@ function showPostTab(tab,el){
   }
   if(tab==='history') renderTrimHistory();
   if(tab==='preroll') renderPrerollPriority();
+  if(tab==='order') renderOrders();
 }
 
 
@@ -14030,6 +14089,285 @@ pullGrowlinkFromCloud = async function(silent){
   try{ runGuardrails(); }catch(e){ console.warn('[Guardrails] Error:',e); }
   return result;
 };
+
+
+// local HTML-escape (the app inlines .replace(/</g,'&lt;') elsewhere; this is scoped here)
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ════════════════════════════════════════════════════════════════════
+// ORDER / PACKAGING FEATURE — frontend
+// ════════════════════════════════════════════════════════════════════
+let _orderState = { orders: [], current: null };
+
+function gramsPerUnitJS(sizeLabel){
+  const s=String(sizeLabel||'').toLowerCase().trim();
+  if(s==='8th'||s==='eighth'||s.indexOf('3.5')>=0) return 3.5;
+  if(s.indexOf('quarter')>=0||s==='1/4') return 7;
+  if(s.indexOf('half oz')>=0||s.indexOf('half ounce')>=0||s==='1/2 oz') return 14;
+  if(s==='oz'||s.indexOf('ounce')>=0) return 28;
+  if(s.indexOf('gram')>=0||s==='1g') return 1;
+  const m=s.match(/(\d+)\s*pack\s*([\d.]+)\s*g/);
+  if(m) return parseFloat(m[1])*parseFloat(m[2]);
+  return null;
+}
+
+// Preroll detection: Type contains "preroll" OR Size contains "pack".
+function isPrerollOrder(o){
+  const t=String(o.type||'').toLowerCase();
+  const s=String(o.size||'').toLowerCase();
+  return t.indexOf('preroll')>=0 || s.indexOf('pack')>=0;
+}
+// Prerolls per pack from Size, e.g. "5 Pack 0.5g" -> 5. Singles default to 1.
+function prerollsPerPack(sizeLabel){
+  const s=String(sizeLabel||'').toLowerCase();
+  const m=s.match(/(\d+)\s*pack/);
+  return m?parseInt(m[1],10):1;
+}
+
+async function renderOrders(){
+  const list=document.getElementById('order-list');
+  const st=document.getElementById('order-status');
+  if(!list) return;
+  if(!gsUrl){ list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:24px;text-align:center">No backend URL configured. A lead can set it in Settings.</div>'; return; }
+  if(st){ st.textContent='Loading…'; }
+  list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:24px;text-align:center">Loading orders…</div>';
+  // Leads can see price; packagers cannot. Backend enforces this via action name.
+  const action = (currentRole==='lead') ? 'getOrdersLead' : 'getOrders';
+  try{
+    const res=await fetch(gsUrl+'?action='+action+'&t='+Date.now());
+    const json=await res.json();
+    if(!json.ok){ list.innerHTML='<div style="color:var(--red);font-size:13px;padding:24px;text-align:center">'+esc(json.error||'Could not load orders')+'</div>'; if(st)st.textContent=''; return; }
+    _orderState.orders=json.orders||[];
+    if(st) st.textContent='Last refreshed: '+fmtTime();
+    if(!_orderState.orders.length){ list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:24px;text-align:center">No orders on the sheet yet.</div>'; return; }
+    list.innerHTML=_orderState.orders.map((o,i)=>orderCardHTML(o,i)).join('');
+  }catch(e){
+    list.innerHTML='<div style="color:var(--red);font-size:13px;padding:24px;text-align:center">Load failed: '+esc(String(e))+'</div>';
+    if(st) st.textContent='';
+  }
+}
+
+function orderCardHTML(o,i){
+  const done=(o.status||'').toUpperCase().indexOf('PACKAGED')>=0;
+  const flagged=(o.status||'').toUpperCase()==='FLAGGED';
+  const gpu=o.gramsPerUnit!=null?o.gramsPerUnit:gramsPerUnitJS(o.size);
+  // only compute a "need" figure when the ordered qty is a real number
+  const qtyNum=Number(o.qtyOrdered);
+  const need=(gpu!=null && o.qtyOrdered!=='' && !isNaN(qtyNum))?(qtyNum*gpu):null;
+  let statusBadge='';
+  if(flagged) statusBadge='<span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">FLAGGED</span>';
+  else if(done) statusBadge='<span class="tag" style="background:var(--green-dim);color:var(--green);font-size:10px">✓ Packaged</span>';
+  else statusBadge='<span class="tag" style="background:var(--bg4);color:var(--text3);font-size:10px">Not packaged</span>';
+
+  const varLine=(o.variance)?('<span style="font-family:var(--mono);font-size:11px;color:'+((String(o.variance).indexOf('-')>=0||Math.abs(parseFloat(o.variance))>30)?'var(--red)':'var(--text2)')+'">Var '+esc(String(o.variance))+'</span>'):'';
+  const ambiguous=o.menuAmbiguous?'<div style="font-size:11px;color:var(--amber);margin-top:4px">⚠ RFID not matched to a single Weekly Menu package — lead must fix the RFID before packaging.</div>':'';
+  // detail line: RFID · size · qty (+ need only when numeric). NO price, ever.
+  const detail='RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+' · Qty '+esc(String(o.qtyOrdered))+(need!=null?(' · '+need+'g'):'');
+  const pkgTag=o.wsNotes?('<span class="tag" style="background:var(--bg4);color:var(--text2);font-size:10px;font-family:var(--mono)">Pkg# '+esc(o.wsNotes)+'</span>'):'';
+
+  return '<div class="card" style="border-left:3px solid '+(flagged?'var(--red)':done?'var(--green)':'var(--border)')+'">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
+      '<div>'+
+        '<div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(o.strain)+' <span style="font-weight:400;color:var(--text3);font-size:12px">'+esc(o.brand)+'</span></div>'+
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">'+detail+'</div>'+
+        ambiguous+
+      '</div>'+
+      '<div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end">'+statusBadge+pkgTag+varLine+'</div>'+
+    '</div>'+
+    '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn-primary" style="font-size:12px;padding:7px 14px" '+(o.menuAmbiguous?'disabled style="opacity:.5"':'')+' onclick="openPkgModal('+i+')">'+(done?'Edit packaging':'Package this')+'</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function openPkgModal(i){
+  const o=_orderState.orders[i];
+  if(!o) return;
+  _orderState.current=i;
+  const preroll=isPrerollOrder(o);
+  o._preroll=preroll;
+  const gpu=o.gramsPerUnit!=null?o.gramsPerUnit:gramsPerUnitJS(o.size);
+  o._gpu=gpu;
+  o._perPack=prerollsPerPack(o.size);
+  document.getElementById('pkg-modal-title').textContent='Package — '+o.strain;
+  // show/hide weight-only fields
+  document.getElementById('pkg-weight-start').style.display=preroll?'none':'block';
+  document.getElementById('pkg-weight-end').style.display=preroll?'none':'block';
+  // qty label + placeholder adapt to preroll vs weight
+  if(preroll){
+    document.getElementById('pkg-qty-label').innerHTML='# packs packaged <span style="color:var(--text3);font-weight:400">(packs, not singles)</span>';
+    document.getElementById('pkg-qty').placeholder='e.g. 50 packs';
+    document.getElementById('pkg-modal-meta').innerHTML=
+      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+'<br>RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+'<br>Ordered: <b>'+esc(String(o.qtyOrdered))+'</b> packs · 1 pack = '+o._perPack+' units'+
+      (o.menuGrams!=null?('<br>Menu has <b>'+Number(o.menuGrams).toFixed(0)+'</b> units available'):'');
+  } else {
+    document.getElementById('pkg-qty-label').innerHTML='# actually packaged <span style="color:var(--text3);font-weight:400">(type the real count — may differ from the order)</span>';
+    document.getElementById('pkg-qty').placeholder='e.g. 300';
+    document.getElementById('pkg-modal-meta').innerHTML=
+      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+'<br>RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+'<br>Ordered: <b>'+esc(String(o.qtyOrdered))+'</b>'+
+      (gpu!=null?(' · 1 unit = '+gpu+'g'):' · <span style="color:var(--amber)">unknown unit size</span>');
+  }
+  // prefill if re-editing
+  document.getElementById('pkg-start').value=o.startWeight||'';
+  document.getElementById('pkg-end').value=o.endWeight||'';
+  document.getElementById('pkg-count').value=o.countBy||'';
+  document.getElementById('pkg-verify').value=o.verifiedBy||'';
+  document.getElementById('pkg-label').value=o.labelVerifiedBy||'';
+  document.getElementById('pkg-override').checked=false;
+  document.getElementById('pkg-qty').value='';
+  document.getElementById('pkg-packaged-line').textContent='';
+  pkgCheckStart(); pkgCheckFinal(); pkgUpdateSubmitState();
+  document.getElementById('pkg-modal-bg').classList.add('open');
+}
+function closePkgModal(){ document.getElementById('pkg-modal-bg').classList.remove('open'); _orderState.current=null; }
+
+// Start-weight check vs current Weekly Menu grams. Flags >30g.
+function pkgCheckStart(){
+  const o=_orderState.orders[_orderState.current]; if(!o) return;
+  const flagEl=document.getElementById('pkg-start-flag');
+  const box=document.getElementById('pkg-override-box');
+  if(o._preroll){ flagEl.style.display='none'; return; } // prerolls have no weight start-check
+  const start=parseFloat(document.getElementById('pkg-start').value);
+  if(isNaN(start)||o.menuGrams==null){ flagEl.style.display='none'; box.style.display='none'; pkgUpdateSubmitState(); return; }
+  const sv=start-Number(o.menuGrams);
+  const off=Math.abs(sv)>30;
+  flagEl.style.display='block';
+  flagEl.innerHTML='Menu has '+Number(o.menuGrams).toFixed(0)+'g for this package · start variance <b style="font-family:var(--mono)">'+(sv>=0?'+':'')+sv.toFixed(0)+'g</b>'+(off?' <span style="color:var(--red)">— over 30g, verify</span>':' <span style="color:var(--green)">— OK</span>');
+  flagEl.style.color=off?'var(--red)':'var(--text2)';
+  box.style.display=off?'block':'none';
+  pkgUpdateSubmitState();
+}
+
+// Final variance preview = endWeight − (menuGrams − packagedG). Always shown.
+function pkgCheckFinal(){
+  const o=_orderState.orders[_orderState.current]; if(!o) return;
+  const pl=document.getElementById('pkg-packaged-line');
+  const line=document.getElementById('pkg-final-line');
+  const qty=parseFloat(document.getElementById('pkg-qty').value);
+
+  if(o._preroll){
+    // PREROLL: qty is PACKS. units = packs × perPack. deduct from menu units.
+    const units=(!isNaN(qty))?qty*o._perPack:NaN;
+    pl.textContent=(!isNaN(units))?(qty+' packs × '+o._perPack+' = '+units+' units'):'';
+    line.textContent='';
+    if(!isNaN(units)&&o.menuGrams!=null){
+      const remaining=Number(o.menuGrams)-units;
+      const over=remaining<0;
+      line.innerHTML='Menu units will go '+Number(o.menuGrams).toFixed(0)+' − '+units+' = <b style="font-family:var(--mono);color:'+(over?'var(--red)':'var(--green)')+'">'+remaining.toFixed(0)+' units</b>'+(over?'<br><span style="color:var(--red);font-size:11px">⚠ More than the menu shows — needs lead override</span>':'');
+    }
+    return;
+  }
+
+  // BUD/SHAKE: weight-based (unchanged)
+  const gpu=o._gpu;
+  const packagedG=(gpu!=null&&!isNaN(qty))?qty*gpu:NaN;
+  pl.textContent=(!isNaN(packagedG))?(qty+' × '+gpu+'g = '+packagedG.toFixed(1)+'g packaged'):'';
+  const end=parseFloat(document.getElementById('pkg-end').value);
+  if(isNaN(end)||o.menuGrams==null||isNaN(packagedG)){ line.textContent=''; return; }
+  const expectedEnd=Number(o.menuGrams)-packagedG;
+  const fv=end-expectedEnd;
+  line.innerHTML='Expected leftover '+expectedEnd.toFixed(0)+'g · final variance <b style="font-family:var(--mono);color:'+(Math.abs(fv)>100?'var(--red)':Math.abs(fv)>30?'var(--amber)':'var(--green)')+'">'+(fv>=0?'+':'')+fv.toFixed(0)+'g</b><br><span style="color:var(--text3);font-size:11px">Menu weight will update to '+end.toFixed(0)+'g</span>';
+}
+
+function pkgUpdateSubmitState(){
+  const o=_orderState.orders[_orderState.current]; if(!o) return;
+  const btn=document.getElementById('pkg-submit-btn');
+  const box=document.getElementById('pkg-override-box');
+  const overTxt=document.getElementById('pkg-override-text');
+  let off=false;
+  if(o._preroll){
+    // flag when packaged units exceed menu units available
+    const qty=parseFloat(document.getElementById('pkg-qty').value);
+    const units=(!isNaN(qty))?qty*o._perPack:NaN;
+    off=(!isNaN(units)&&o.menuGrams!=null&&units>Number(o.menuGrams));
+    if(box) box.style.display=off?'block':'none';
+    if(off&&overTxt) overTxt.textContent='Packaging more units than the Weekly Menu shows available. This shouldn\'t happen. Tick to confirm the count is correct — this package will be highlighted on the menu for lead review.';
+  } else {
+    const start=parseFloat(document.getElementById('pkg-start').value);
+    off=(!isNaN(start)&&o.menuGrams!=null&&Math.abs(start-Number(o.menuGrams))>30);
+    if(off&&overTxt) overTxt.textContent='Starting weight is off by more than 30g. Re-check the jar and scale. Tick to confirm the weight you entered is correct — this package will be highlighted on the Weekly Menu for lead review.';
+  }
+  const overrideChecked=document.getElementById('pkg-override').checked;
+  const blocked=off&&!overrideChecked;
+  btn.disabled=blocked;
+  btn.style.opacity=blocked?'0.5':'1';
+  btn.style.cursor=blocked?'not-allowed':'pointer';
+}
+
+async function confirmPackaging(){
+  const o=_orderState.orders[_orderState.current]; if(!o) return;
+  const qty=parseFloat(document.getElementById('pkg-qty').value);
+  const overrode=document.getElementById('pkg-override').checked;
+  let payload;
+
+  if(o._preroll){
+    // PREROLL: qty is packs. units deduct from menu. No weighing.
+    if(isNaN(qty)||qty<0){ alert('Enter the number of packs packaged.'); return; }
+    const units=qty*o._perPack;
+    const over=(o.menuGrams!=null&&units>Number(o.menuGrams));
+    if(over&&!overrode){ alert('Packaging more units than the menu shows — confirm the override box first.'); return; }
+    payload={
+      action:'submitPackaging',
+      rowIndex:o.rowIndex,
+      rfid:o.rfid,
+      isPreroll:true,
+      actualQty:qty,             // packs
+      unitsPackaged:units,       // singles deducted from menu
+      perPack:o._perPack,
+      overrode:over&&overrode,
+      countBy:document.getElementById('pkg-count').value.trim(),
+      verifiedBy:document.getElementById('pkg-verify').value.trim(),
+      labelVerifiedBy:document.getElementById('pkg-label').value.trim(),
+    };
+  } else {
+    // BUD/SHAKE: weight-based (unchanged)
+    const start=parseFloat(document.getElementById('pkg-start').value);
+    const end=parseFloat(document.getElementById('pkg-end').value);
+    const gpu=o._gpu;
+    if(isNaN(start)||isNaN(end)){ alert('Enter both starting and ending weight.'); return; }
+    if(isNaN(qty)||qty<0){ alert('Enter the number actually packaged.'); return; }
+    const packagedG=(gpu!=null)?qty*gpu:0;
+    const off=(o.menuGrams!=null&&Math.abs(start-Number(o.menuGrams))>30);
+    if(off&&!overrode){ alert('Starting weight is off by more than 30g — confirm the override box first.'); return; }
+    payload={
+      action:'submitPackaging',
+      rowIndex:o.rowIndex,
+      rfid:o.rfid,
+      startWeight:start,
+      endWeight:end,
+      actualQty:qty,
+      packagedG:packagedG,
+      overrode:off&&overrode,
+      countBy:document.getElementById('pkg-count').value.trim(),
+      verifiedBy:document.getElementById('pkg-verify').value.trim(),
+      labelVerifiedBy:document.getElementById('pkg-label').value.trim(),
+    };
+  }
+  const btn=document.getElementById('pkg-submit-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try{
+    // text/plain avoids CORS preflight AND lets us read the response (unlike no-cors)
+    const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    const json=await res.json();
+    if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); btn.disabled=false; btn.textContent='Submit'; return; }
+    let msg='Saved. ';
+    if(json.isPreroll){
+      if(json.menuUpdated) msg+='Weekly Menu units updated to '+json.newUnits+'. ';
+      if(json.overUnits) msg+='Packaged more than available — package highlighted on the menu for lead review. ';
+    } else {
+      if(json.menuUpdated) msg+='Weekly Menu updated to '+(json.newGrams!=null?json.newGrams:'')+'g. ';
+      if(json.startFlagged) msg+='Start was off '+(json.startVar>=0?'+':'')+Math.round(json.startVar)+'g — package highlighted on the menu for lead review. ';
+      if(json.finalVar!=null) msg+='Final variance '+(json.finalVar>=0?'+':'')+Math.round(json.finalVar)+'g.';
+    }
+    if(json.menuAmbiguous) msg+=' NOTE: RFID did not match a single menu package, so the menu was NOT updated — tell a lead.';
+    closePkgModal();
+    btn.textContent='Submit';
+    renderOrders();
+    setTimeout(()=>alert(msg),100);
+  }catch(e){
+    alert('Save failed: '+e); btn.disabled=false; btn.textContent='Submit';
+  }
+}
 
 </script>
 </body>
