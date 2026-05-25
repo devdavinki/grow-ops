@@ -1267,6 +1267,11 @@ button { cursor: pointer; }
         <div id="pkg-final-line" style="font-size:12px;margin:-4px 0 10px;color:var(--text2)"></div>
       </div>
 
+      <div id="pkg-smalls-row">
+        <label>Smalls weight (g) <span style="color:var(--text3);font-weight:400">(optional — noted on the Weekly Menu)</span></label>
+        <input id="pkg-smalls" type="number" inputmode="decimal" step="0.1" placeholder="weight of small buds from this package"/>
+      </div>
+
       <label>1st count by</label>
       <input id="pkg-count" type="text" placeholder="who counted"/>
       <label>Count verified by</label>
@@ -14216,6 +14221,10 @@ function openPkgModal(i){
   document.getElementById('pkg-override').checked=false;
   document.getElementById('pkg-qty').value='';
   document.getElementById('pkg-packaged-line').textContent='';
+  // smalls field: buds-type orders only, optional, reset blank
+  const isBuds=String(o.type||'').toLowerCase().indexOf('bud')>=0;
+  document.getElementById('pkg-smalls-row').style.display=(isBuds&&!preroll)?'block':'none';
+  document.getElementById('pkg-smalls').value='';
   pkgCheckStart(); pkgCheckFinal(); pkgUpdateSubmitState();
   document.getElementById('pkg-modal-bg').classList.add('open');
 }
@@ -14337,6 +14346,7 @@ async function confirmPackaging(){
       endWeight:end,
       actualQty:qty,
       packagedG:packagedG,
+      smallsG:(function(){var s=parseFloat(document.getElementById('pkg-smalls').value);return isNaN(s)?null:s;})(),
       overrode:off&&overrode,
       countBy:document.getElementById('pkg-count').value.trim(),
       verifiedBy:document.getElementById('pkg-verify').value.trim(),
