@@ -14236,12 +14236,13 @@ function pkgCheckStart(){
   const flagEl=document.getElementById('pkg-start-flag');
   const box=document.getElementById('pkg-override-box');
   if(o._preroll){ flagEl.style.display='none'; return; } // prerolls have no weight start-check
+  const base=(o.baseline!=null?o.baseline:o.menuGrams); // original if packaged before, else current menu
   const start=parseFloat(document.getElementById('pkg-start').value);
-  if(isNaN(start)||o.menuGrams==null){ flagEl.style.display='none'; box.style.display='none'; pkgUpdateSubmitState(); return; }
-  const sv=start-Number(o.menuGrams);
+  if(isNaN(start)||base==null){ flagEl.style.display='none'; box.style.display='none'; pkgUpdateSubmitState(); return; }
+  const sv=start-Number(base);
   const off=Math.abs(sv)>30;
   flagEl.style.display='block';
-  flagEl.innerHTML='Menu has '+Number(o.menuGrams).toFixed(0)+'g for this package · start variance <b style="font-family:var(--mono)">'+(sv>=0?'+':'')+sv.toFixed(0)+'g</b>'+(off?' <span style="color:var(--red)">— over 30g, verify</span>':' <span style="color:var(--green)">— OK</span>');
+  flagEl.innerHTML=(o.wasPackaged?'Original start ':'Menu has ')+Number(base).toFixed(0)+'g for this package · start variance <b style="font-family:var(--mono)">'+(sv>=0?'+':'')+sv.toFixed(0)+'g</b>'+(off?' <span style="color:var(--red)">— over 30g, verify</span>':' <span style="color:var(--green)">— OK</span>');
   flagEl.style.color=off?'var(--red)':'var(--text2)';
   box.style.display=off?'block':'none';
   pkgUpdateSubmitState();
@@ -14259,10 +14260,11 @@ function pkgCheckFinal(){
     const units=(!isNaN(qty))?qty*o._perPack:NaN;
     pl.textContent=(!isNaN(units))?(qty+' packs × '+o._perPack+' = '+units+' units'):'';
     line.textContent='';
-    if(!isNaN(units)&&o.menuGrams!=null){
-      const remaining=Number(o.menuGrams)-units;
+    const baseP=(o.baseline!=null?o.baseline:o.menuGrams);
+    if(!isNaN(units)&&baseP!=null){
+      const remaining=Number(baseP)-units;
       const over=remaining<0;
-      line.innerHTML='Menu units will go '+Number(o.menuGrams).toFixed(0)+' − '+units+' = <b style="font-family:var(--mono);color:'+(over?'var(--red)':'var(--green)')+'">'+remaining.toFixed(0)+' units</b>'+(over?'<br><span style="color:var(--red);font-size:11px">⚠ More than the menu shows — needs lead override</span>':'');
+      line.innerHTML=(o.wasPackaged?'From original ':'Menu units ')+Number(baseP).toFixed(0)+' − '+units+' = <b style="font-family:var(--mono);color:'+(over?'var(--red)':'var(--green)')+'">'+remaining.toFixed(0)+' units</b>'+(over?'<br><span style="color:var(--red);font-size:11px">⚠ More than available — needs lead override</span>':'');
     }
     return;
   }
@@ -14272,8 +14274,9 @@ function pkgCheckFinal(){
   const packagedG=(gpu!=null&&!isNaN(qty))?qty*gpu:NaN;
   pl.textContent=(!isNaN(packagedG))?(qty+' × '+gpu+'g = '+packagedG.toFixed(1)+'g packaged'):'';
   const end=parseFloat(document.getElementById('pkg-end').value);
-  if(isNaN(end)||o.menuGrams==null||isNaN(packagedG)){ line.textContent=''; return; }
-  const expectedEnd=Number(o.menuGrams)-packagedG;
+  const baseB=(o.baseline!=null?o.baseline:o.menuGrams);
+  if(isNaN(end)||baseB==null||isNaN(packagedG)){ line.textContent=''; return; }
+  const expectedEnd=Number(baseB)-packagedG;
   const fv=end-expectedEnd;
   line.innerHTML='Expected leftover '+expectedEnd.toFixed(0)+'g · final variance <b style="font-family:var(--mono);color:'+(Math.abs(fv)>100?'var(--red)':Math.abs(fv)>30?'var(--amber)':'var(--green)')+'">'+(fv>=0?'+':'')+fv.toFixed(0)+'g</b><br><span style="color:var(--text3);font-size:11px">Menu weight will update to '+end.toFixed(0)+'g</span>';
 }
@@ -14288,12 +14291,12 @@ function pkgUpdateSubmitState(){
     // flag when packaged units exceed menu units available
     const qty=parseFloat(document.getElementById('pkg-qty').value);
     const units=(!isNaN(qty))?qty*o._perPack:NaN;
-    off=(!isNaN(units)&&o.menuGrams!=null&&units>Number(o.menuGrams));
+    off=(!isNaN(units)&&(o.baseline!=null?o.baseline:o.menuGrams)!=null&&units>Number(o.baseline!=null?o.baseline:o.menuGrams));
     if(box) box.style.display=off?'block':'none';
     if(off&&overTxt) overTxt.textContent='Packaging more units than the Weekly Menu shows available. This shouldn\'t happen. Tick to confirm the count is correct — this package will be highlighted on the menu for lead review.';
   } else {
     const start=parseFloat(document.getElementById('pkg-start').value);
-    off=(!isNaN(start)&&o.menuGrams!=null&&Math.abs(start-Number(o.menuGrams))>30);
+    off=(!isNaN(start)&&(o.baseline!=null?o.baseline:o.menuGrams)!=null&&Math.abs(start-Number(o.baseline!=null?o.baseline:o.menuGrams))>30);
     if(off&&overTxt) overTxt.textContent='Starting weight is off by more than 30g. Re-check the jar and scale. Tick to confirm the weight you entered is correct — this package will be highlighted on the Weekly Menu for lead review.';
   }
   const overrideChecked=document.getElementById('pkg-override').checked;
@@ -14313,7 +14316,8 @@ async function confirmPackaging(){
     // PREROLL: qty is packs. units deduct from menu. No weighing.
     if(isNaN(qty)||qty<0){ alert('Enter the number of packs packaged.'); return; }
     const units=qty*o._perPack;
-    const over=(o.menuGrams!=null&&units>Number(o.menuGrams));
+    const _baseO=(o.baseline!=null?o.baseline:o.menuGrams);
+    const over=(_baseO!=null&&units>Number(_baseO));
     if(over&&!overrode){ alert('Packaging more units than the menu shows — confirm the override box first.'); return; }
     payload={
       action:'submitPackaging',
@@ -14336,7 +14340,8 @@ async function confirmPackaging(){
     if(isNaN(start)||isNaN(end)){ alert('Enter both starting and ending weight.'); return; }
     if(isNaN(qty)||qty<0){ alert('Enter the number actually packaged.'); return; }
     const packagedG=(gpu!=null)?qty*gpu:0;
-    const off=(o.menuGrams!=null&&Math.abs(start-Number(o.menuGrams))>30);
+    const _baseB2=(o.baseline!=null?o.baseline:o.menuGrams);
+    const off=(_baseB2!=null&&Math.abs(start-Number(_baseB2))>30);
     if(off&&!overrode){ alert('Starting weight is off by more than 30g — confirm the override box first.'); return; }
     payload={
       action:'submitPackaging',
