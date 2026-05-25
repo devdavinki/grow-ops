@@ -1998,6 +1998,9 @@ const IPM_SUPPORT_ROOMS = [
   {id:'dry1',   name:'Dry room 1'},
   {id:'dry2',   name:'Dry room 2'},
 ];
+// Destination location written to the METRC clone export (clones land here as
+// immature plants regardless of which room the mother lives in).
+const CLONE_DEST_LOCATION = 'Veg Room Immature';
 function getIpmRoom(id){
   return rooms.find(r=>r.id===id) || IPM_SUPPORT_ROOMS.find(r=>r.id===id) || null;
 }
@@ -4322,16 +4325,35 @@ async function logCloneCut(clearStrain=false,leadOverride=false){
   pushConfigToCloud(true); // immediate — clone saves must sync right away
   renderCloneTracker();
 
+  // ── Build the sheet row to match the METRC clone export format ──
+  // Export columns: Plant Number | Batch Name | Plants Type | Plants Count |
+  //                 Location Name | Strain Name | Actual Date
+  // Batch Name = "MMDDYY ACR LAST4" (e.g. "052526 KM3 0510").
+  // We keep the ISO timestamp but put it at the END so it can be copied around.
+  const acr = strainCodeOnly(strain) || strain.replace(/[^a-z0-9]/gi,'').slice(0,4).toUpperCase();
+  const last4 = (motherLabel||'').replace(/\s+/g,'').slice(-4) || motherTag;
+  const mmddyy = (()=>{ const d=TODAY; const p=n=>String(n).padStart(2,'0');
+    return p(d.getMonth()+1)+p(d.getDate())+String(d.getFullYear()).slice(-2); })();
+  const batchName = `${mmddyy} ${acr} ${last4}`;
+  const actualDate = `${TODAY.getMonth()+1}/${TODAY.getDate()}/${TODAY.getFullYear()}`; // M/D/YYYY
+  const fullTag = motherLabel || ('OVERRIDE_'+motherTag);
+  // Column order: the Apps Script prepends an ISO timestamp as column 1, then
+  // we put `who` as column 2 (metadata), then the clean METRC export block in
+  // columns 3-9 for copy-paste. Final sheet row:
+  // [ISO timestamp] | Who | Plant Number | Batch Name | Plants Type |
+  // Plants Count | Location Name | Strain Name | Actual Date.
+  const sheetRow = [who, fullTag, batchName, 'Clone', count, CLONE_DEST_LOCATION, strain, actualDate];
+
   // ── Sheet write WITH success confirmation ──
   setHint('Saving to sheet…','var(--text3)');
-  const result=await postToSheet('Clone_Log',[dateToIso(TODAY),fmtTime(),who,strain,count,motherTag,motherLabel]);
+  const result=await postToSheet('Clone_Log', sheetRow);
   if(!result.ok){
     setHint('⚠ Sheet write failed — saved locally only. Click here to retry.','var(--amber)');
     if(hint){
       hint.style.cursor='pointer';
       hint.onclick=async ()=>{
         setHint('Retrying…','var(--text3)');
-        const r2=await postToSheet('Clone_Log',[session.date,session.time,session.who,session.strain,session.count,session.motherTag,session.motherLabel]);
+        const r2=await postToSheet('Clone_Log', sheetRow);
         if(r2.ok){ setHint('✓ Saved on retry','var(--green)'); hint.onclick=null; hint.style.cursor=''; setTimeout(()=>setHint(''),3000); }
         else { setHint('⚠ Still failed — check Settings → Apps Script URL. Tap to retry.','var(--red)'); }
       };
@@ -6970,12 +6992,16 @@ async function testGsUrl(){
 async function postToSheet(sheetName,rowData){
   if(!gsUrl) return {ok:false,error:'no gsUrl configured'};
   try{
+    // Prepended timestamp: use America/Chicago local time (matches fmtTime used
+    // in the rows) instead of a UTC 'Z' ISO string, whose hour reads as wrong.
+    const ts = new Date().toLocaleString('en-US',{timeZone:'America/Chicago',
+      year:'numeric',month:'2-digit',day:'2-digit',hour:'numeric',minute:'2-digit',second:'2-digit'});
     // text/plain content-type avoids CORS preflight on Apps Script web apps
     // and still allows us to read the response (no-cors mode would hide it).
     const res=await fetch(gsUrl,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({sheet:sheetName,timestamp:new Date().toISOString(),row:rowData})
+      body:JSON.stringify({sheet:sheetName,timestamp:ts,row:rowData})
     });
     if(!res.ok){
       console.warn('[postToSheet] HTTP error',sheetName,res.status);
@@ -8702,10 +8728,13 @@ function showStrainAutocomplete(val){
   const suggestions=getMetrcStrainSuggestions(val);
   if(!suggestions.length||!val||val.length<2){box.style.display='none';return;}
   box.style.display='block';
-  box.innerHTML=suggestions.slice(0,12).map(s=>`<div onclick="selectStrain('${s.strain.replace(/'/g,"\'")}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-    <div style="font-weight:600;color:var(--text)">${s.strain}</div>
+  box.innerHTML=suggestions.slice(0,12).map(s=>{
+    const acr=strainCodeOnly(s.strain);
+    const acrTag=acr?` <span style="font-family:var(--mono);font-weight:700;color:var(--blue)">${acr}</span>`:'';
+    return `<div onclick="selectStrain('${s.strain.replace(/'/g,"\'")}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+    <div style="font-weight:600;color:var(--text)">${s.strain}${acrTag}</div>
     <div style="font-size:11px;color:var(--text3)">${s.mothers} mothers · ${s.locStr}</div>
-  </div>`).join('');
+  </div>`;}).join('');
 }
 function selectStrain(strain){
   const input=document.getElementById('ce-strain');
@@ -8732,7 +8761,9 @@ function showCloneStrainInfo(strain){
   const locCounts={};
   mothers.forEach(m=>{const l=m['Location']||'Unknown';locCounts[l]=(locCounts[l]||0)+1;});
   const locStr=Object.entries(locCounts).map(([l,n])=>`<strong>${n}</strong> in ${l.replace('Mothers Room','Mothers Rm').replace('Veg Room Veg','Veg Rm')}`).join(' · ');
-  text.innerHTML=`<strong style="color:var(--green)">${strain}</strong> — <strong>${mothers.length}</strong> mother${mothers.length!==1?'s':''} · ${locStr}`;
+  const acr=strainCodeOnly(strain);
+  const acrTag=acr?` <span style="font-family:var(--mono);font-weight:700;color:var(--blue);background:var(--blue-bg);padding:1px 7px;border-radius:var(--r);margin-left:4px">${acr}</span>`:'';
+  text.innerHTML=`<strong style="color:var(--green)">${strain}</strong>${acrTag} — <strong>${mothers.length}</strong> mother${mothers.length!==1?'s':''} · ${locStr}`;
   panel.style.background='var(--green-bg)';panel.style.borderColor='var(--green-dim)';
   panel.style.display='block';
 }
