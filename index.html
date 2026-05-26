@@ -14145,7 +14145,23 @@ async function renderOrders(){
     _orderState.orders=json.orders||[];
     if(st) st.textContent='Last refreshed: '+fmtTime();
     if(!_orderState.orders.length){ list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:24px;text-align:center">No orders on the sheet yet.</div>'; return; }
-    list.innerHTML=_orderState.orders.map((o,i)=>orderCardHTML(o,i)).join('');
+    // Sort for display WITHOUT reindexing _orderState (modal uses original index).
+    // Groups: [0] un-packaged (top) → [1] flagged (still prominent) → [2] done (bottom).
+    // Within each group, keep original order-form order.
+    const rank=function(o){
+      const s=(o.status||'').toUpperCase();
+      if(s==='FLAGGED') return 1;
+      if(s.indexOf('PACKAGED')>=0) return 2;
+      return 0;
+    };
+    const ordered=_orderState.orders
+      .map((o,i)=>({o:o,i:i}))
+      .sort((a,b)=>{
+        const ra=rank(a.o), rb=rank(b.o);
+        if(ra!==rb) return ra-rb;
+        return a.i-b.i;
+      });
+    list.innerHTML=ordered.map(x=>orderCardHTML(x.o,x.i)).join('');
   }catch(e){
     list.innerHTML='<div style="color:var(--red);font-size:13px;padding:24px;text-align:center">Load failed: '+esc(String(e))+'</div>';
     if(st) st.textContent='';
@@ -14170,7 +14186,9 @@ function orderCardHTML(o,i){
   const detail='RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+' · Qty '+esc(String(o.qtyOrdered))+(need!=null?(' · '+need+'g'):'');
   const pkgTag=o.wsNotes?('<span class="tag" style="background:var(--bg4);color:var(--text2);font-size:10px;font-family:var(--mono)">Pkg# '+esc(o.wsNotes)+'</span>'):'';
 
-  return '<div class="card" style="border-left:3px solid '+(flagged?'var(--red)':done?'var(--green)':'var(--border)')+'">'+
+  // fully-done (packaged, not flagged) cards are greyed and sink to the bottom
+  const dimStyle=(done&&!flagged)?'opacity:0.55;':'';
+  return '<div class="card" style="border-left:3px solid '+(flagged?'var(--red)':done?'var(--green)':'var(--border)')+';'+dimStyle+'">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
       '<div>'+
         '<div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(o.strain)+' <span style="font-weight:400;color:var(--text3);font-size:12px">'+esc(o.brand)+'</span></div>'+
