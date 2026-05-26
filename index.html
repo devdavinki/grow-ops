@@ -1288,7 +1288,8 @@ button { cursor: pointer; }
 
       <div class="modal-btns">
         <button class="btn-cancel" onclick="closePkgModal()">Cancel</button>
-        <button class="btn-primary" id="pkg-submit-btn" onclick="confirmPackaging()">Submit</button>
+        <button class="btn-cancel" id="pkg-save-btn" onclick="savePackagingProgress()" style="border-color:var(--amber);color:var(--amber)">Save progress</button>
+        <button class="btn-primary" id="pkg-submit-btn" onclick="confirmPackaging()">Complete packaging</button>
       </div>
     </div>
   </div>
@@ -14150,9 +14151,10 @@ async function renderOrders(){
     // Within each group, keep original order-form order.
     const rank=function(o){
       const s=(o.status||'').toUpperCase();
-      if(s==='FLAGGED') return 1;
-      if(s.indexOf('PACKAGED')>=0) return 2;
-      return 0;
+      if(s==='IN PROGRESS') return 1;   // needs finishing — near top
+      if(s==='FLAGGED') return 2;       // packaged but needs lead review
+      if(s.indexOf('PACKAGED')>=0) return 3; // done — bottom
+      return 0;                          // un-packaged — top
     };
     const ordered=_orderState.orders
       .map((o,i)=>({o:o,i:i}))
@@ -14175,10 +14177,18 @@ function orderCardHTML(o,i){
   // only compute a "need" figure when the ordered qty is a real number
   const qtyNum=Number(o.qtyOrdered);
   const need=(gpu!=null && o.qtyOrdered!=='' && !isNaN(qtyNum))?(qtyNum*gpu):null;
+  const inProgress=(o.status||'').toUpperCase()==='IN PROGRESS';
   let statusBadge='';
   if(flagged) statusBadge='<span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">FLAGGED</span>';
   else if(done) statusBadge='<span class="tag" style="background:var(--green-dim);color:var(--green);font-size:10px">✓ Packaged</span>';
+  else if(inProgress) statusBadge='<span class="tag" style="background:var(--amber-dim,#fdf0d5);color:var(--amber);font-size:10px">In progress</span>';
   else statusBadge='<span class="tag" style="background:var(--bg4);color:var(--text3);font-size:10px">Not packaged</span>';
+  // in-progress checklist: which fields are filled so far
+  let progressLine='';
+  if(inProgress){
+    const mark=function(v){return (v!==''&&v!=null)?'✓':'—';};
+    progressLine='<div style="font-size:11px;color:var(--amber);margin-top:3px;font-family:var(--mono)">start '+mark(o.startWeight)+' · count '+mark(o.packaged)+' · final '+mark(o.endWeight)+'</div>';
+  }
 
   const varLine=(o.variance)?('<span style="font-family:var(--mono);font-size:11px;color:'+((String(o.variance).indexOf('-')>=0||Math.abs(parseFloat(o.variance))>30)?'var(--red)':'var(--text2)')+'">Var '+esc(String(o.variance))+'</span>'):'';
   const ambiguous=o.menuAmbiguous?'<div style="font-size:11px;color:var(--amber);margin-top:4px">⚠ RFID not matched to a single Weekly Menu package — lead must fix the RFID before packaging.</div>':'';
@@ -14193,12 +14203,13 @@ function orderCardHTML(o,i){
       '<div>'+
         '<div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(o.strain)+' <span style="font-weight:400;color:var(--text3);font-size:12px">'+esc(o.brand)+'</span></div>'+
         '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">'+detail+'</div>'+
+        progressLine+
         ambiguous+
       '</div>'+
       '<div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end">'+statusBadge+pkgTag+varLine+'</div>'+
     '</div>'+
     '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button class="btn-primary" style="font-size:12px;padding:7px 14px" '+(o.menuAmbiguous?'disabled style="opacity:.5"':'')+' onclick="openPkgModal('+i+')">'+(done?'Edit packaging':'Package this')+'</button>'+
+      '<button class="btn-primary" style="font-size:12px;padding:7px 14px" '+(o.menuAmbiguous?'disabled style="opacity:.5"':'')+' onclick="openPkgModal('+i+')">'+(done?'Edit packaging':inProgress?'Continue packaging':'Package this')+'</button>'+
     '</div>'+
   '</div>';
 }
@@ -14382,7 +14393,7 @@ async function confirmPackaging(){
     // text/plain avoids CORS preflight AND lets us read the response (unlike no-cors)
     const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     const json=await res.json();
-    if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); btn.disabled=false; btn.textContent='Submit'; return; }
+    if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); btn.disabled=false; btn.textContent='Complete packaging'; return; }
     let msg='Saved. ';
     if(json.isPreroll){
       if(json.menuUpdated) msg+='Weekly Menu units updated to '+json.newUnits+'. ';
@@ -14394,11 +14405,41 @@ async function confirmPackaging(){
     }
     if(json.menuAmbiguous) msg+=' NOTE: RFID did not match a single menu package, so the menu was NOT updated — tell a lead.';
     closePkgModal();
-    btn.textContent='Submit';
+    btn.textContent='Complete packaging';
     renderOrders();
     setTimeout(()=>alert(msg),100);
   }catch(e){
-    alert('Save failed: '+e); btn.disabled=false; btn.textContent='Submit';
+    alert('Save failed: '+e); btn.disabled=false; btn.textContent='Complete packaging';
+  }
+}
+
+// Save partial progress: writes whatever's filled, leaves order IN PROGRESS,
+// does NOT touch the Weekly Menu. Buds-focused (prerolls are one-shot).
+async function savePackagingProgress(){
+  const o=_orderState.orders[_orderState.current]; if(!o) return;
+  const payload={
+    action:'savePackagingProgress',
+    rowIndex:o.rowIndex,
+    rfid:o.rfid,
+    startWeight:document.getElementById('pkg-start').value.trim(),
+    endWeight:document.getElementById('pkg-end').value.trim(),
+    actualQty:document.getElementById('pkg-qty').value.trim(),
+    countBy:document.getElementById('pkg-count').value.trim(),
+    verifiedBy:document.getElementById('pkg-verify').value.trim(),
+    labelVerifiedBy:document.getElementById('pkg-label').value.trim(),
+  };
+  const sbtn=document.getElementById('pkg-save-btn');
+  sbtn.disabled=true; const sOld=sbtn.textContent; sbtn.textContent='Saving…';
+  try{
+    const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    const json=await res.json();
+    if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); sbtn.disabled=false; sbtn.textContent=sOld; return; }
+    closePkgModal();
+    sbtn.textContent=sOld;
+    renderOrders();
+    setTimeout(()=>alert('Progress saved. This order is now In progress — anyone can open it to finish.'),100);
+  }catch(e){
+    alert('Save failed: '+e); sbtn.disabled=false; sbtn.textContent=sOld;
   }
 }
 
