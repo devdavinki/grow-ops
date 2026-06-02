@@ -9438,11 +9438,11 @@ const SENSOR_POSITION_MAP = {
 
   // ── Room 2 (3 tables)
   '0471a067-5098-42c0-812a-8c748be553cd': {table:2, pos:'F'},  // T2F #20008517
-  '941d8ffa-cc2b-4a49-b3ca-d3192930f530': {table:3, pos:'F'},  // T3F #20008311 — confirmed vs Growlink device config 5/27 (Growlink labels this UUID 'T3 F #20008311')
+  '941d8ffa-cc2b-4a49-b3ca-d3192930f530': {table:1, pos:'B'},  // T1B #20008092
   'a98d09c6-96ce-4972-bdf6-31841b009ce7': {table:2, pos:'B'},  // T2B #20008770
   'd0018236-23e1-490d-8b11-7455b7992f73': {table:3, pos:'B'},  // T3B #20008078
   'cfdb5929-8edc-4ec3-8bf4-230cdf4bf1ed': {table:1, pos:'F'},  // T1F #20008088
-  'bae2e5c6-7125-4487-875a-4f95c659ab34': {table:1, pos:'B'},  // T1B #20008092 — confirmed vs Growlink device config 5/27 (Growlink labels this UUID 'T1 B #20008092')
+  'bae2e5c6-7125-4487-875a-4f95c659ab34': {table:3, pos:'F'},  // T3F #20008311
 
   // ── Room 3 (3 tables)
   'c4cdeb61-7301-4604-a7e3-7eb0546706a0': {table:2, pos:'F'},  // T2F #20008754
@@ -9477,8 +9477,8 @@ const SENSOR_POSITION_MAP = {
   // ── Room 7 (3 tables)
   'ed59a59f-a78b-47cd-a64e-1dd166d4ed91': {table:1, pos:'F'},  // T1F #20008308
   'd602277d-1cd5-4377-8624-05e2b8575383': {table:2, pos:'F'},  // T2F #20008753
-  '044ecbdd-9491-402b-a9f7-e903fcc742ef': {table:2, pos:'B'},  // T2B #20008756 — confirmed vs Growlink device config 5/27 (was T1B; Growlink labels #20008756 'T2 B')
-  'c2ce6a13-7236-488f-9500-575c161439a7': {table:1, pos:'B'},  // T1B #20008304 — confirmed vs Growlink device config 5/27 (was T2B; Growlink labels #20008304 'T1 B')
+  '044ecbdd-9491-402b-a9f7-e903fcc742ef': {table:1, pos:'B'},  // T1B #20008756 (stream order swap)
+  'c2ce6a13-7236-488f-9500-575c161439a7': {table:2, pos:'B'},  // T2B #20008304 (stream order swap)
   '3c8953e2-0c19-4f77-a3bb-8c11b90e4c56': {table:3, pos:'F'},  // T3F #20008299
   'aa2e29d8-f97a-49b6-86b0-97698e2e8654': {table:3, pos:'B'},  // T3B #20008295
 
@@ -14130,6 +14130,17 @@ function prerollsPerPack(sizeLabel){
   return m?parseInt(m[1],10):1;
 }
 
+// fetch() with no timeout will hang forever on a stalled network / cold Apps
+// Script execution. AbortController gives us a hard ceiling. Returns the
+// Response; throws AbortError on timeout, other errors as usual. Default 30s.
+function fetchWithTimeout(url, opts, timeoutMs){
+  const ms = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 30000;
+  const ctrl = new AbortController();
+  const timer = setTimeout(function(){ ctrl.abort(); }, ms);
+  const merged = Object.assign({}, opts || {}, {signal: ctrl.signal});
+  return fetch(url, merged).finally(function(){ clearTimeout(timer); });
+}
+
 async function renderOrders(){
   const list=document.getElementById('order-list');
   const st=document.getElementById('order-status');
@@ -14140,7 +14151,7 @@ async function renderOrders(){
   // Leads can see price; packagers cannot. Backend enforces this via action name.
   const action = (currentRole==='lead') ? 'getOrdersLead' : 'getOrders';
   try{
-    const res=await fetch(gsUrl+'?action='+action+'&t='+Date.now());
+    const res=await fetchWithTimeout(gsUrl+'?action='+action+'&t='+Date.now(), null, 30000);
     const json=await res.json();
     if(!json.ok){ list.innerHTML='<div style="color:var(--red);font-size:13px;padding:24px;text-align:center">'+esc(json.error||'Could not load orders')+'</div>'; if(st)st.textContent=''; return; }
     _orderState.orders=json.orders||[];
@@ -14165,7 +14176,12 @@ async function renderOrders(){
       });
     list.innerHTML=ordered.map(x=>orderCardHTML(x.o,x.i)).join('');
   }catch(e){
-    list.innerHTML='<div style="color:var(--red);font-size:13px;padding:24px;text-align:center">Load failed: '+esc(String(e))+'</div>';
+    // AbortError = our 30s timeout fired. Otherwise it's a real fetch/parse error.
+    var msg = (e && e.name === 'AbortError')
+      ? 'Loading timed out (30s). Network or backend may be busy.'
+      : 'Load failed: '+esc(String(e));
+    list.innerHTML='<div style="color:var(--red);font-size:13px;padding:24px;text-align:center">'+msg+
+      '<br><br><button onclick="renderOrders()" style="font-size:13px;padding:8px 18px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer">↻ Retry</button></div>';
     if(st) st.textContent='';
   }
 }
@@ -14392,7 +14408,8 @@ async function confirmPackaging(){
   btn.disabled=true; btn.textContent='Saving…';
   try{
     // text/plain avoids CORS preflight AND lets us read the response (unlike no-cors)
-    const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    // 60s timeout — submit does lots of writes (Order Form, Weekly Menu, METRC_Export upsert).
+    const res=await fetchWithTimeout(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)},60000);
     const json=await res.json();
     if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); btn.disabled=false; btn.textContent='Complete packaging'; return; }
     let msg='Saved. ';
@@ -14410,7 +14427,10 @@ async function confirmPackaging(){
     renderOrders();
     setTimeout(()=>alert(msg),100);
   }catch(e){
-    alert('Save failed: '+e); btn.disabled=false; btn.textContent='Complete packaging';
+    var emsg = (e && e.name === 'AbortError')
+      ? 'Save timed out (60s). Check the sheet — the order may have saved anyway. If not, tap Complete packaging again.'
+      : 'Save failed: '+e;
+    alert(emsg); btn.disabled=false; btn.textContent='Complete packaging';
   }
 }
 
@@ -14432,7 +14452,7 @@ async function savePackagingProgress(){
   const sbtn=document.getElementById('pkg-save-btn');
   sbtn.disabled=true; const sOld=sbtn.textContent; sbtn.textContent='Saving…';
   try{
-    const res=await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    const res=await fetchWithTimeout(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)},30000);
     const json=await res.json();
     if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); sbtn.disabled=false; sbtn.textContent=sOld; return; }
     closePkgModal();
@@ -14440,7 +14460,10 @@ async function savePackagingProgress(){
     renderOrders();
     setTimeout(()=>alert('Progress saved. This order is now In progress — anyone can open it to finish.'),100);
   }catch(e){
-    alert('Save failed: '+e); sbtn.disabled=false; sbtn.textContent=sOld;
+    var smsg = (e && e.name === 'AbortError')
+      ? 'Save timed out (30s). Check the sheet — progress may have saved anyway.'
+      : 'Save failed: '+e;
+    alert(smsg); sbtn.disabled=false; sbtn.textContent=sOld;
   }
 }
 
