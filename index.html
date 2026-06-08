@@ -2627,8 +2627,11 @@ function getScoutHistory(roomId, daysBack){
     const iso = dateToIso(d);
     const log = L('wg_log_'+iso, []);
     log.forEach(e => {
+      // Skip soft-deleted (tombstoned) entries — edit/delete propagates across
+      // devices via the editedAt last-write-wins merge in pullConfigFromCloud.
+      if(e.deleted) return;
       if(e.taskId === 'ipm_scout' && e.roomId === roomId && e.status === 'done'){
-        out.push({date: iso, time: e.time||'', who: e.who||'', notes: e.notes||'', pct: e.pct||''});
+        out.push({id: e.id, date: iso, time: e.time||'', who: e.who||'', notes: e.notes||'', pct: e.pct||'', editedBy: e.editedBy||'', editedAt: e.editedAt||''});
       }
     });
   }
@@ -2641,7 +2644,12 @@ function countScoutHistory(roomId){
   return getScoutHistory(roomId, 14).length;
 }
 
+// Holds the room currently shown in the scout-history modal so edit/delete
+// handlers know what to re-render after a change.
+let _scoutHistCtx = { roomId:null, roomName:'' };
+
 function showScoutHistory(roomId, roomName){
+  _scoutHistCtx = { roomId: roomId, roomName: roomName };
   const entries = getScoutHistory(roomId, 30);
   let bg = document.getElementById('scout-history-modal-bg');
   if(!bg){
@@ -2661,22 +2669,28 @@ function showScoutHistory(roomId, roomName){
             return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
           } catch(_){ return e.date; }
         })();
-        return `<div style="border-bottom:1px solid var(--border);padding:10px 0">
+        const editedTag = e.editedAt ? `<span style="font-size:10px;color:var(--amber);font-style:italic">edited${e.editedBy?' by '+esc(e.editedBy):''}</span>` : '';
+        return `<div id="scout-row-${e.id}" style="border-bottom:1px solid var(--border);padding:10px 0">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
             <div style="font-size:13px;font-weight:600;color:var(--text)">${dLabel}${e.time?` · <span style="font-weight:400;color:var(--text3)">${e.time}</span>`:''}</div>
-            <div style="font-size:11px;color:var(--text3)">${e.who||''}</div>
+            <div style="font-size:11px;color:var(--text3)">${esc(e.who||'')}</div>
           </div>
-          ${e.pct?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${e.pct}% canopy</div>`:''}
-          ${e.notes?`<div style="font-size:12px;color:var(--text2);margin-top:4px;white-space:pre-wrap">${e.notes}</div>`:'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">No notes recorded</div>'}
+          ${e.pct?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(e.pct)}% canopy</div>`:''}
+          ${e.notes?`<div style="font-size:12px;color:var(--text2);margin-top:4px;white-space:pre-wrap">${esc(e.notes)}</div>`:'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">No notes recorded</div>'}
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            ${editedTag}
+            <button onclick="beginScoutEdit(${e.id},'${e.date}','${roomId}')" style="margin-left:auto;font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--teal);cursor:pointer">Edit</button>
+            <button onclick="deleteScoutEntry(${e.id},'${e.date}')" style="font-size:11px;padding:3px 9px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--red);cursor:pointer">Delete</button>
+          </div>
         </div>`;
       }).join('')
     : '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">No scouting history found in the last 30 days.</div>';
   modal.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:14px;font-weight:700;color:var(--text)">Scout history — ${roomName}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text)">Scout history — ${esc(roomName)}</div>
       <button onclick="closeScoutHistory()" style="font-size:12px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Close</button>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Last 30 days</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Last 30 days · edits & deletes sync to everyone</div>
     <div>${rows}</div>
   `;
   bg.classList.add('open');
@@ -2685,6 +2699,71 @@ function showScoutHistory(roomId, roomName){
 function closeScoutHistory(){
   const bg = document.getElementById('scout-history-modal-bg');
   if(bg) bg.classList.remove('open');
+}
+
+// ── Scout entry edit / delete ──────────────────────────────────────────────
+// Scouts are stored as today-log rows (taskId 'ipm_scout'). Editing or deleting
+// one stamps editedAt/editedBy and persists; the change rides the normal config
+// sync (pushConfigToCloud → backend merge → pullConfigFromCloud LWW) so it shows
+// for everyone. Delete is a soft tombstone (deleted:true) — a hard delete would
+// resurrect when a stale device re-pushes the row.
+function _findLogEntry(date, id){
+  const log = L('wg_log_'+date, []);
+  const idx = log.findIndex(e => e && e.id === id);
+  return { log, idx };
+}
+function _persistLogDay(date, log){
+  S('wg_log_'+date, log);
+  if(date === dateToIso(TODAY)){ todayLog = log; }
+  pushConfigToCloud(true); // immediate — the correction must land before navigation
+  try { renderAssignments(); } catch(_){}
+  try { renderTodayLog(); } catch(_){}
+}
+function beginScoutEdit(id, date, roomId){
+  const { log, idx } = _findLogEntry(date, id);
+  if(idx < 0) return;
+  const e = log[idx];
+  const row = document.getElementById('scout-row-'+id);
+  if(!row) return;
+  const roomOpts = rooms.map(r => `<option value="${r.id}"${r.id===e.roomId?' selected':''}>${esc(r.name)}</option>`).join('');
+  row.innerHTML = `
+    <div style="padding:4px 0">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Correcting a scout logged ${date}${e.time?' · '+e.time:''}${e.who?' by '+esc(e.who):''}</div>
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Room</label>
+      <select id="scout-edit-room-${id}" style="width:100%;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;margin-bottom:8px">${roomOpts}</select>
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">% canopy (optional)</label>
+      <input id="scout-edit-pct-${id}" type="number" inputmode="decimal" value="${esc(e.pct||'')}" style="width:100%;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;margin-bottom:8px"/>
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Notes</label>
+      <textarea id="scout-edit-notes-${id}" rows="3" style="width:100%;padding:7px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;resize:vertical">${esc(e.notes||'')}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="saveScoutEdit(${id},'${date}')" style="font-size:12px;padding:6px 14px;border-radius:var(--r);border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer">Save</button>
+        <button onclick="showScoutHistory(_scoutHistCtx.roomId,_scoutHistCtx.roomName)" style="font-size:12px;padding:6px 14px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+}
+function saveScoutEdit(id, date){
+  const { log, idx } = _findLogEntry(date, id);
+  if(idx < 0) return;
+  const roomSel = document.getElementById('scout-edit-room-'+id);
+  const pctEl   = document.getElementById('scout-edit-pct-'+id);
+  const notesEl = document.getElementById('scout-edit-notes-'+id);
+  if(roomSel) log[idx].roomId = roomSel.value;
+  if(pctEl)   log[idx].pct    = pctEl.value.trim();
+  if(notesEl) log[idx].notes  = notesEl.value.trim();
+  log[idx].editedAt = new Date().toISOString();
+  log[idx].editedBy = loggedInMember ? loggedInMember.name : 'Unknown';
+  _persistLogDay(date, log);
+  showScoutHistory(_scoutHistCtx.roomId, _scoutHistCtx.roomName);
+}
+function deleteScoutEntry(id, date){
+  if(!confirm('Delete this scout entry? It will be removed for everyone on the app.')) return;
+  const { log, idx } = _findLogEntry(date, id);
+  if(idx < 0) return;
+  log[idx].deleted  = true;
+  log[idx].editedAt = new Date().toISOString();
+  log[idx].editedBy = loggedInMember ? loggedInMember.name : 'Unknown';
+  _persistLogDay(date, log);
+  showScoutHistory(_scoutHistCtx.roomId, _scoutHistCtx.roomName);
 }
 
 function buildAssignments(role){
@@ -4859,10 +4938,12 @@ function skipTask(roomId,taskId){
 function renderTodayLog(){
   const list=document.getElementById('today-log-list');
   const summary=document.getElementById('log-summary');
-  const done=todayLog.filter(e=>e.status==='done').length;
-  summary.innerHTML=`<span style="color:var(--green)">${done} completed</span><span style="color:var(--text3);margin-left:10px">${todayLog.length} total entries today</span>`;
-  if(!todayLog.length){list.innerHTML=`<div class="empty-state">No tasks logged yet today.</div>`;return;}
-  list.innerHTML=[...todayLog].reverse().map(e=>`
+  // Hide soft-deleted (tombstoned) entries from the log view and counts.
+  const visLog=todayLog.filter(e=>!e.deleted);
+  const done=visLog.filter(e=>e.status==='done').length;
+  summary.innerHTML=`<span style="color:var(--green)">${done} completed</span><span style="color:var(--text3);margin-left:10px">${visLog.length} total entries today</span>`;
+  if(!visLog.length){list.innerHTML=`<div class="empty-state">No tasks logged yet today.</div>`;return;}
+  list.innerHTML=[...visLog].reverse().map(e=>`
     <div class="log-entry">
       <div class="log-status" style="background:${e.status==='done'?'var(--green)':'var(--text3)'}"></div>
       <div class="log-info">
@@ -11423,14 +11504,26 @@ async function pullConfigFromCloud(silent=false){
       }
     }
 
-    // Today logs — merge per day
+    // Today logs — merge per day, last-write-wins by entry id.
+    // Each entry has a stable id (creation Date.now()). An optional editedAt
+    // ISO string is bumped whenever a row is edited or soft-deleted. On conflict
+    // (same id on both sides) the side with the newer editedAt wins, so edits
+    // and deletes (deleted:true tombstones) propagate across devices — not just
+    // additions. Entries unique to either side are kept (preserves the old
+    // union behavior for brand-new rows).
     if(d.todayLogs){
-      Object.entries(d.todayLogs).forEach(([date,log])=>{
+      const _stamp = e => (e && e.editedAt) ? e.editedAt : '';
+      Object.entries(d.todayLogs).forEach(([date,cloudLog])=>{
         const localLog=L('wg_log_'+date,[]);
-        // Merge: add cloud entries not in local
-        const localIds=new Set(localLog.map(e=>e.id));
-        const merged=[...localLog,...log.filter(e=>!localIds.has(e.id))];
-        merged.sort((a,b)=>a.id-b.id);
+        const byId={};
+        localLog.forEach(e=>{ if(e&&e.id!=null) byId[e.id]=e; });
+        (cloudLog||[]).forEach(e=>{
+          if(!e||e.id==null) return;
+          const ex=byId[e.id];
+          if(!ex){ byId[e.id]=e; }                       // new from cloud
+          else if(_stamp(e) > _stamp(ex)){ byId[e.id]=e; } // cloud edit is newer
+        });
+        const merged=Object.values(byId).sort((a,b)=>a.id-b.id);
         S('wg_log_'+date,merged);
         if(date===dateToIso(TODAY)) todayLog=merged;
       });
@@ -14158,14 +14251,16 @@ async function renderOrders(){
     if(st) st.textContent='Last refreshed: '+fmtTime();
     if(!_orderState.orders.length){ list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:24px;text-align:center">No orders on the sheet yet.</div>'; return; }
     // Sort for display WITHOUT reindexing _orderState (modal uses original index).
-    // Groups: [0] un-packaged (top) → [1] flagged (still prominent) → [2] done (bottom).
+    // Groups: [0] IN PROGRESS (pinned to top until completed — someone is mid-package
+    //   and shouldn't have to scroll past untouched orders to finish) → [1] un-packaged
+    //   → [2] flagged (packaged, needs lead review) → [3] done (bottom).
     // Within each group, keep original order-form order.
     const rank=function(o){
       const s=(o.status||'').toUpperCase();
-      if(s==='IN PROGRESS') return 1;   // needs finishing — near top
-      if(s==='FLAGGED') return 2;       // packaged but needs lead review
+      if(s==='IN PROGRESS') return 0;   // actively being packaged — pin to very top
       if(s.indexOf('PACKAGED')>=0) return 3; // done — bottom
-      return 0;                          // un-packaged — top
+      if(s==='FLAGGED') return 2;       // packaged but needs lead review
+      return 1;                          // un-packaged — below in-progress
     };
     const ordered=_orderState.orders
       .map((o,i)=>({o:o,i:i}))
