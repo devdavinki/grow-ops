@@ -8228,7 +8228,10 @@ async function prefetchPerfScores(){
 async function updateDryback24h(){
   if(!gsUrl) return;
   try{
-    const res = await fetch(gsUrl+'?action=getSheet&sheet=GL_History&t='+Date.now());
+    // Only the last 24h is used below — send `since` so the backend ships a
+    // bounded tail instead of the whole (tens-of-thousands-of-rows) sheet.
+    const _since24 = new Date(Date.now() - 24*60*60*1000).toISOString();
+    const res = await fetch(gsUrl+'?action=getSheet&sheet=GL_History&since='+encodeURIComponent(_since24)+'&t='+Date.now());
     const json = await res.json();
     if(!json.ok || !json.rows || json.rows.length < 2) return;
     const rows = json.rows;
@@ -10409,7 +10412,7 @@ async function openTableShotsModal(roomId, roomName, tableNum){
     // Server-side filter: only this room, only the last 49 hours of GL_History
     // (matches the 49h window pullIrrigationEvents uses, so events line up)
     const sinceISO = new Date(Date.now() - 49*60*60*1000).toISOString();
-    const evUrl = u+'?action=getSheet&sheet=GL_IrrigationEvents&room='+encodeURIComponent(roomId);
+    const evUrl = u+'?action=getSheet&sheet=GL_IrrigationEvents&room='+encodeURIComponent(roomId)+'&since='+encodeURIComponent(sinceISO);
     const hsUrl = u+'?action=getSheet&sheet=GL_History&room='+encodeURIComponent(roomId)
                 + '&since='+encodeURIComponent(sinceISO);
 
