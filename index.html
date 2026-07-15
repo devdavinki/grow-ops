@@ -14344,11 +14344,11 @@ function openPkgModal(i){
   document.getElementById('pkg-weight-end').style.display=preroll?'none':'block';
   // qty label + placeholder adapt to preroll vs weight
   if(preroll){
-    document.getElementById('pkg-qty-label').innerHTML='# packs packaged <span style="color:var(--text3);font-weight:400">(packs, not singles)</span>';
+    document.getElementById('pkg-qty-label').innerHTML='# packs packaged';
     document.getElementById('pkg-qty').placeholder='e.g. 50 packs';
     document.getElementById('pkg-modal-meta').innerHTML=
-      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+'<br>RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+'<br>Ordered: <b>'+esc(String(o.qtyOrdered))+'</b> packs · 1 pack = '+o._perPack+' units'+
-      (o.menuGrams!=null?('<br>Menu has <b>'+Number(o.menuGrams).toFixed(0)+'</b> units available'):'');
+      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+'<br>RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+'<br>Ordered: <b>'+esc(String(o.qtyOrdered))+'</b> packs'+
+      (o.menuGrams!=null?('<br>Menu has <b>'+Number(o.menuGrams).toFixed(0)+'</b> packs available'):'');
   } else {
     document.getElementById('pkg-qty-label').innerHTML='# actually packaged <span style="color:var(--text3);font-weight:400">(type the real count — may differ from the order)</span>';
     document.getElementById('pkg-qty').placeholder='e.g. 300';
@@ -14457,19 +14457,18 @@ async function confirmPackaging(){
   let payload;
 
   if(o._preroll){
-    // PREROLL: qty is packs. units deduct from menu. No weighing.
+    // PREROLL: qty is packs. Menu row is the pre-packaged SKU; menu units col
+    // holds pack count. Deduct qty directly. No weighing, no units math.
     if(isNaN(qty)||qty<0){ alert('Enter the number of packs packaged.'); return; }
-    const units=qty*o._perPack;
     const _baseO=(o.baseline!=null?o.baseline:o.menuGrams);
-    const over=(_baseO!=null&&units>Number(_baseO));
-    if(over&&!overrode){ alert('Packaging more units than the menu shows — confirm the override box first.'); return; }
+    const over=(_baseO!=null&&qty>Number(_baseO));
+    if(over&&!overrode){ alert('Packaging more packs than the menu shows — confirm the override box first.'); return; }
     payload={
       action:'submitPackaging',
       rowIndex:o.rowIndex,
       rfid:o.rfid,
       isPreroll:true,
-      actualQty:qty,             // packs
-      unitsPackaged:units,       // singles deducted from menu
+      actualQty:qty,             // packs — menu deducts by this directly
       perPack:o._perPack,
       overrode:over&&overrode,
       countBy:document.getElementById('pkg-count').value.trim(),
@@ -14512,7 +14511,7 @@ async function confirmPackaging(){
     if(!json.ok){ alert('Save failed: '+(json.error||'unknown')); btn.disabled=false; btn.textContent='Complete packaging'; return; }
     let msg='Saved. ';
     if(json.isPreroll){
-      if(json.menuUpdated) msg+='Weekly Menu units updated to '+json.newUnits+'. ';
+      if(json.menuUpdated) msg+='Weekly Menu updated to '+json.newUnits+' packs. ';
       if(json.overUnits) msg+='Packaged more than available — package highlighted on the menu for lead review. ';
     } else {
       if(json.menuUpdated) msg+='Weekly Menu updated to '+(json.newGrams!=null?json.newGrams:'')+'g. ';
