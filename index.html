@@ -9302,10 +9302,20 @@ function getDryRoomBatches(dryKey){
     seen[batch].plants += plants;
   });
 
-  // Filter out permanently approved takedowns so they never reappear after METRC re-upload
+  // Filter out permanently approved takedowns so they never reappear after METRC re-upload.
+  // Two-layer defense:
+  //   (a) approvedTakedowns permKey — primary, survives METRC re-uploads
+  //   (b) dryRooms.takedowns[tdKey].approved — safety net for the case where the
+  //       permKey doesn't match (e.g. harvest date parsed differently on rebuild,
+  //       or approval happened before METRC data was loaded and _matchedGroup was
+  //       undefined so the permKey was written with harvestDate='unknown').
   return Object.values(seen).filter(b => {
     const permKey = dryKey + '|' + (b.roomTag||'') + '|' + (b.harvestDate||'unknown');
-    return !approvedTakedowns[permKey];
+    if (approvedTakedowns[permKey]) return false;
+    const tdKey = dryKey + '|' + (b.roomTag||'');
+    const td = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[tdKey];
+    if (td && td.approved === true) return false;
+    return true;
   });
 }
 
@@ -11354,15 +11364,27 @@ async function pullConfigFromCloud(silent=false){
       S('wg_supplies',supplies);
     }
 
-    // Trim queue — cloud is authoritative for order/priority/notes/roomId.
-    // Order persists across devices: the lead reorders → push to cloud → other
-    // devices pull → see the same order. New METRC-derived items not yet in cloud
-    // (just added on this device since last push) are kept and appended.
+    // Trim queue — cloud is authoritative for order/priority/notes/roomId,
+    // BUT local's archived state is sticky: once a lead archives an item
+    // locally, cloud can't un-archive it on the next pull. Without this,
+    // a routine pull that runs between the approve-click and the push landing
+    // on the server would clobber the local archived=true state and the item
+    // would reappear in the active queue with its data intact, waiting for
+    // approval again. Cloud archived=true is honored either way (once archived,
+    // stays archived).
     if(d.trimQueue&&Array.isArray(d.trimQueue)){
       const local=L('wg_trim_queue',[]);
+      const localById=new Map(local.map(t=>[t.id,t]));
+      const cloudMerged=d.trimQueue.map(cItem=>{
+        const lItem=localById.get(cItem.id);
+        if(lItem&&lItem.archived===true&&cItem.archived!==true){
+          return {...cItem, archived:true, archivedAt:lItem.archivedAt||cItem.archivedAt||new Date().toISOString()};
+        }
+        return cItem;
+      });
       const cloudIds=new Set(d.trimQueue.map(t=>t.id));
       const localOnly=local.filter(t=>!cloudIds.has(t.id));
-      trimQueue=[...d.trimQueue,...localOnly];
+      trimQueue=[...cloudMerged,...localOnly];
       S('wg_trim_queue',trimQueue);
     }
 
