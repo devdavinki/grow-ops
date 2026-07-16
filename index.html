@@ -5863,8 +5863,20 @@ const DEFAULT_TEAM=[
 // ── VERSION CHECK: runs first, clears stale localStorage before anything initializes
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
-  // Preserve room config and settings, wipe everything else
-  const _keepKeys = ['wg_rooms_v2','wg_webhooks'];
+  // Preserve user-authored data + timestamp tiebreakers when APP_VERSION bumps.
+  // ── wg_rooms_v2, wg_webhooks:       user-set room configs and Slack webhook URLs
+  // ── wg_rooms_edited_at, wg_team_edited_at: last-edit timestamps that the config
+  //    pull merge uses to decide when local is newer than cloud. If these get
+  //    wiped, the tiebreaker defaults to 0 and cloud always wins on the next
+  //    pull — including cases where cloud has stale data from a failed silent
+  //    push, silently reverting the user's launch/flip dates.
+  // ── wg_team, wg_team_deleted: same class — if wiped, DEFAULT_TEAM gets pushed
+  //    to cloud during the initial-load window, overwriting the current roster.
+  const _keepKeys = [
+    'wg_rooms_v2', 'wg_webhooks',
+    'wg_rooms_edited_at', 'wg_team_edited_at',
+    'wg_team', 'wg_team_deleted',
+  ];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
   localStorage.clear();
