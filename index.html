@@ -9335,28 +9335,30 @@ function getDryRoomBatches(dryKey){
     }
   });
 
-  // Filter out permanently approved takedowns so they never reappear after METRC re-upload.
-  // Multi-layer defense:
-  //   (a) approvedTakedowns permKey with current (possibly inferred) roomTag — primary
-  //   (b) dryRooms.takedowns[tdKey].approved — safety net for permKey mismatches
-  //   (c) legacy empty-tag permKey/tdKey — backward compat for batches approved
-  //       before the R#-inference fix (they'd have been keyed with roomTag='')
+  // Filter out permanently approved takedowns. An approval could be keyed
+  // under several roomTag variants depending on state at the time it was
+  // recorded — we check ALL applicable variants for each batch:
+  //   • current roomTag (empty, actual R#, or inferred R#)
+  //   • 'Unknown' (the render's fallback when b.roomTag is empty — the approve
+  //     button passes 'Unknown' as the roomTag, so approvals of un-tagged
+  //     batches get keyed under 'Unknown' not '')
+  //   • pre-inference variants for batches whose roomTag was just inferred
+  //     (they used to render/approve under either '' or 'Unknown')
   return Object.values(seen).filter(b => {
     const hd = b.harvestDate || 'unknown';
-    const permKey = dryKey + '|' + (b.roomTag||'') + '|' + hd;
-    if (approvedTakedowns[permKey]) return false;
-    const tdKey = dryKey + '|' + (b.roomTag||'');
-    const td = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[tdKey];
-    if (td && td.approved === true) return false;
-    // Backward-compat: for batches whose roomTag was just inferred, also check
-    // the pre-inference empty-tag variants (these were the keys used when the
-    // batch was previously approved without an R# in its name).
+    const rt = b.roomTag || '';
+    const tagVariants = new Set([rt]);
+    if (!rt) tagVariants.add('Unknown');
     if (b._inferredRoomTag) {
-      const legacyPermKey = dryKey + '||' + hd;
-      if (approvedTakedowns[legacyPermKey]) return false;
-      const legacyTdKey = dryKey + '|';
-      const td0 = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[legacyTdKey];
-      if (td0 && td0.approved === true) return false;
+      tagVariants.add('');
+      tagVariants.add('Unknown');
+    }
+    for (const tag of tagVariants) {
+      const permKey = dryKey + '|' + tag + '|' + hd;
+      if (approvedTakedowns[permKey]) return false;
+      const tdKey = dryKey + '|' + tag;
+      const td = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[tdKey];
+      if (td && td.approved === true) return false;
     }
     return true;
   });
