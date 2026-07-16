@@ -9302,19 +9302,50 @@ function getDryRoomBatches(dryKey){
     seen[batch].plants += plants;
   });
 
+  // Infer missing roomTag from same-date siblings.
+  // Convention: same MMDDYY harvest date = same source room. If a batch was
+  // named without its R# suffix (e.g. "061826 KM3" instead of "061826 KM3 R7")
+  // but another batch on the same date DOES carry an R#, inherit it so the
+  // batch shares the same permKey/tdKey and follows the approval automatically.
+  // Only infer when EXACTLY ONE R# exists for that date — if two rooms happen
+  // to share a date, ambiguity forces manual attention (roomTag stays blank).
+  const dateToTags = {};
+  Object.values(seen).forEach(g => {
+    if (g.roomTag && g.harvestDate) {
+      if (!dateToTags[g.harvestDate]) dateToTags[g.harvestDate] = new Set();
+      dateToTags[g.harvestDate].add(g.roomTag);
+    }
+  });
+  Object.values(seen).forEach(g => {
+    if (!g.roomTag && g.harvestDate && dateToTags[g.harvestDate] && dateToTags[g.harvestDate].size === 1) {
+      g.roomTag = Array.from(dateToTags[g.harvestDate])[0];
+      g._inferredRoomTag = true;
+    }
+  });
+
   // Filter out permanently approved takedowns so they never reappear after METRC re-upload.
-  // Two-layer defense:
-  //   (a) approvedTakedowns permKey — primary, survives METRC re-uploads
-  //   (b) dryRooms.takedowns[tdKey].approved — safety net for the case where the
-  //       permKey doesn't match (e.g. harvest date parsed differently on rebuild,
-  //       or approval happened before METRC data was loaded and _matchedGroup was
-  //       undefined so the permKey was written with harvestDate='unknown').
+  // Multi-layer defense:
+  //   (a) approvedTakedowns permKey with current (possibly inferred) roomTag — primary
+  //   (b) dryRooms.takedowns[tdKey].approved — safety net for permKey mismatches
+  //   (c) legacy empty-tag permKey/tdKey — backward compat for batches approved
+  //       before the R#-inference fix (they'd have been keyed with roomTag='')
   return Object.values(seen).filter(b => {
-    const permKey = dryKey + '|' + (b.roomTag||'') + '|' + (b.harvestDate||'unknown');
+    const hd = b.harvestDate || 'unknown';
+    const permKey = dryKey + '|' + (b.roomTag||'') + '|' + hd;
     if (approvedTakedowns[permKey]) return false;
     const tdKey = dryKey + '|' + (b.roomTag||'');
     const td = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[tdKey];
     if (td && td.approved === true) return false;
+    // Backward-compat: for batches whose roomTag was just inferred, also check
+    // the pre-inference empty-tag variants (these were the keys used when the
+    // batch was previously approved without an R# in its name).
+    if (b._inferredRoomTag) {
+      const legacyPermKey = dryKey + '||' + hd;
+      if (approvedTakedowns[legacyPermKey]) return false;
+      const legacyTdKey = dryKey + '|';
+      const td0 = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[legacyTdKey];
+      if (td0 && td0.approved === true) return false;
+    }
     return true;
   });
 }
