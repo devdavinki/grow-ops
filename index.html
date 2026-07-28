@@ -5882,11 +5882,17 @@ if(_storedVersion !== APP_VERSION) {
   //    approvals. Wipe here means the version-bumped device pushes an empty
   //    object to the sheet-backed cloud storage, which clears the approvals
   //    for ALL devices on their next pull — so approved harvests reappear.
+  // ── wg_trim_queue, wg_trim_queue_deleted: trim queue state + deletion
+  //    tombstones. Wipe cascades the same way: empty local trimQueue gets
+  //    pushed to cloud, then METRC auto-populate re-adds every harvest that
+  //    was previously archived or deleted. Tombstones prevent auto-add from
+  //    resurrecting explicitly-deleted items across devices.
   const _keepKeys = [
     'wg_rooms_v2', 'wg_webhooks',
     'wg_rooms_edited_at', 'wg_team_edited_at',
     'wg_team', 'wg_team_deleted',
     'wg_dry_rooms', 'wg_approved_takedowns',
+    'wg_trim_queue', 'wg_trim_queue_deleted',
   ];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
@@ -6367,6 +6373,12 @@ function renderSettings(){
 // POST PRODUCTION
 // ══════════════════════════════════════════════
 let trimQueue=L('wg_trim_queue',[]);
+// Deletion tombstones — IDs of trim queue items that have been explicitly
+// removed. METRC auto-populate consults this list so it doesn't resurrect
+// deleted items on every harvest re-upload. Union-merged with cloud on pull
+// (same pattern as _deletedTeamNames), pushed only when the trim queue is
+// dirty.
+let _deletedTrimIds=L('wg_trim_queue_deleted',[]);
 let trimWeights=L('wg_trim_weights',{});
 
 function openAddTrimItem(editId){
@@ -6447,6 +6459,12 @@ function markTrimInProgress(id){
 }
 function removeTrimItem(id){
   trimQueue=trimQueue.filter(i=>i.id!==id);
+  // Add to tombstone list so METRC auto-populate doesn't re-add it, and so
+  // other devices pulling config know this ID is intentionally deleted.
+  if(_deletedTrimIds.indexOf(id)<0){
+    _deletedTrimIds.push(id);
+    S('wg_trim_queue_deleted',_deletedTrimIds);
+  }
   S('wg_trim_queue',trimQueue);
   sessionStorage.setItem('wg_trim_queue_dirty','1');
   pushConfigToCloud(true);
@@ -8455,8 +8473,12 @@ function syncHarvestsToTrimQueue(rows){
     const date = rawDate || dateFromBatch;
     if(!batch) return;
     if(trimQueue.find(q=>q.harvestBatch===batch)) return;
+    // Compute the ID we'd use for this batch, then skip if it's tombstoned.
+    // Deletion is intentional and permanent — don't resurrect on next METRC pull.
+    const _prospectiveId = 'tq_'+batch.replace(/[^a-z0-9]/gi,'_');
+    if(_deletedTrimIds.indexOf(_prospectiveId)>=0) return;
     const item = {
-      id: 'tq_'+batch.replace(/[^a-z0-9]/gi,'_'),
+      id: _prospectiveId,
       strain: batch,
       harvestBatch: batch,
       harvestDate: date,
@@ -11277,6 +11299,7 @@ async function pushConfigToCloud(silent=false){
       dryRooms,
       alertThresholds,
       ...(_trimQueueDirty ? {trimQueue:L('wg_trim_queue',[])} : {}),
+      ...(_trimQueueDirty ? {deletedTrimIds:L('wg_trim_queue_deleted',[])} : {}),
       ...(_strainPerliteDirty ? {strainPerlite:L('wg_strain_perlite',{})} : {}),
       ...(_prerollThcDirty ? {prerollThc:L('wg_preroll_thc',{})} : {}),
       approvedTakedowns:L('wg_approved_takedowns',{}),
@@ -11442,6 +11465,19 @@ async function pullConfigFromCloud(silent=false){
       const localOnly=local.filter(t=>!cloudIds.has(t.id));
       trimQueue=[...cloudMerged,...localOnly];
       S('wg_trim_queue',trimQueue);
+    }
+
+    // Trim queue deletion tombstones — union with cloud (any device that
+    // tombstoned an ID means it stays deleted for everyone), then filter
+    // the just-merged trimQueue so tombstoned IDs drop out even if some
+    // device's older push still had them present.
+    if(Array.isArray(d.deletedTrimIds)){
+      const merged=new Set([..._deletedTrimIds, ...d.deletedTrimIds]);
+      _deletedTrimIds=[...merged];
+      S('wg_trim_queue_deleted',_deletedTrimIds);
+      const before=trimQueue.length;
+      trimQueue=trimQueue.filter(t=>!merged.has(t.id));
+      if(trimQueue.length!==before) S('wg_trim_queue',trimQueue);
     }
 
     // Approved takedowns — append-only union. Once a takedown is approved on
