@@ -5865,6 +5865,11 @@ const DEFAULT_TEAM=[
 const _storedVersion = L('wg_app_version','0');
 if(_storedVersion !== APP_VERSION) {
   // Preserve user-authored data + timestamp tiebreakers when APP_VERSION bumps.
+  // Anything NOT in this list gets wiped from localStorage on version change,
+  // and then re-read a moment later as its empty default. If a push fires
+  // during the ~800ms window before the cloud pull completes, the empty
+  // default gets pushed to cloud — permanently destroying the data for
+  // everyone.
   // ── wg_rooms_v2, wg_webhooks:       user-set room configs and Slack webhook URLs
   // ── wg_rooms_edited_at, wg_team_edited_at: last-edit timestamps that the config
   //    pull merge uses to decide when local is newer than cloud. If these get
@@ -5873,10 +5878,15 @@ if(_storedVersion !== APP_VERSION) {
   //    push, silently reverting the user's launch/flip dates.
   // ── wg_team, wg_team_deleted: same class — if wiped, DEFAULT_TEAM gets pushed
   //    to cloud during the initial-load window, overwriting the current roster.
+  // ── wg_dry_rooms, wg_approved_takedowns: dry room takedown submissions and
+  //    approvals. Wipe here means the version-bumped device pushes an empty
+  //    object to the sheet-backed cloud storage, which clears the approvals
+  //    for ALL devices on their next pull — so approved harvests reappear.
   const _keepKeys = [
     'wg_rooms_v2', 'wg_webhooks',
     'wg_rooms_edited_at', 'wg_team_edited_at',
     'wg_team', 'wg_team_deleted',
+    'wg_dry_rooms', 'wg_approved_takedowns',
   ];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
