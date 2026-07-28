@@ -2303,7 +2303,7 @@ function renderRooms(){
     // when the room is in flower and inside the day range (1–66). All roles
     // see this so packagers/growers know what today's tank additive is.
     let additiveHTML='';
-    if(additive && stage==='flower' && fd!==null && fd>=1 && fd<=66){
+    if(additive && (stage==='flower' || stage==='late') && fd!==null && fd>=1 && fd<=66){
       const wandTag = additive.wand ? `<span style="font-size:10px;font-weight:600;color:var(--purple);background:var(--purple-dim);padding:2px 7px;border-radius:var(--r);margin-left:6px">Wand ${additive.wand}</span>` : '';
       const tierTag = additive.tier2 ? `<span style="font-size:9px;font-weight:600;color:var(--amber);background:var(--amber-bg);padding:2px 6px;border-radius:var(--r);margin-left:6px">Tier 2</span>` : '';
       additiveHTML = `<div style="margin-top:10px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);border-left:3px solid var(--green)">
@@ -2415,11 +2415,9 @@ function renderRooms(){
         taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${dt.label}<span class="sub">${_phaseDetail}</span>${dt.daysLeft!==undefined?`<span class="sub" style="margin-top:2px">${dt.daysLeft===0?'<span class="alert-txt">Last day</span>':dt.daysLeft+' days remaining'}</span>`:''}${winBar}</div></div>`);
       }
     }
-    // lead and fertigator see additive
-    if((roomView==='full')&&additive&&stage==='flower'){
-      const dotCls=additive.tier2?'dot-amber':'dot-gray';
-      taskList.push(`<div class="task-item-sm"><span class="task-dot ${dotCls}"></span><div class="task-text">${additive.name}<span class="sub">${additive.dose}${additive.tier2?' · Tier 2':''}</span></div></div>`);
-    }
+    // Additive display consolidated into the bottom-of-card "Today's additive"
+    // panel (see additiveHTML above). Removed from task list to avoid showing
+    // twice for lead/fertigator roles.
     // Flower schedule events for today (lead-defined day-of-flower reminders).
     // Visible to anyone who can see the room — these are operational reminders
     // (defol windows, environment changes, irrigation tweaks) the whole crew
