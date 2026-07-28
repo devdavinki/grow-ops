@@ -1390,23 +1390,44 @@ let rooms = L('wg_rooms_v2', DEFAULT_ROOMS);
 rooms = rooms.map((r,i)=>({...DEFAULT_ROOMS[i],...r}));
 
 const ADDITIVES={
-  29:{name:'Supa Stiky',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
-  31:{name:'H&G Amino Treatment',dose:'0.3 ml/gal',pill:'pill-amino',tier2:true},
-  32:{name:'Supa Stiky',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
-  33:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
-  35:{name:'SLF-100',dose:'2.0 ml/gal',pill:'pill-slf',tier2:true},
-  36:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
-  38:{name:'H&G Amino Treatment',dose:'0.3 ml/gal',pill:'pill-amino',tier2:true},
-  39:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
-  40:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
-  42:{name:'SLF-100',dose:'2.0 ml/gal',pill:'pill-slf',tier2:true},
-  43:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
-  45:{name:'H&G Amino Treatment',dose:'0.3 ml/gal',pill:'pill-amino',tier2:true},
-  46:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
-  47:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
-  49:{name:'SLF-100 + Drip Clean',dose:'2.0 + 0.4 ml/gal',pill:'pill-slf',tier2:true},
-  50:{name:'Supa Stiky (X1)',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
-  56:{name:'Supa Stiky (X1)',dose:'2.0 ml/gal',pill:'pill-stiky',tier2:true},
+  // S1 Blue — Peak Entry (D29–35, EC 2.8→3.0)
+  29:{name:'Mammoth P (TRIAL)',dose:'1.0 ml/gal',pill:'pill-stack',tier2:true,wand:'W#1'},
+  30:{name:'Supa Stiky',dose:'3.0 ml/gal',pill:'pill-stiky',tier2:true},
+  31:{name:'Recharge (TRIAL)',dose:'wand tea only',pill:'pill-amino',tier2:true,wand:'W#2'},
+  32:{name:'Botanicare Vitamino',dose:'5.0 ml/gal',pill:'pill-amino',tier2:true},
+  33:{name:'Supa Stiky',dose:'3.0 ml/gal',pill:'pill-stiky',tier2:true,wand:'W#3'},
+  34:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  35:{name:'Base',dose:'—',pill:'pill-base',tier2:false},
+  // S2 Indigo — True Peak (D36–42, EC 3.0 HOLD)
+  36:{name:'Mammoth P (TRIAL)',dose:'1.0 ml/gal',pill:'pill-stack',tier2:true,wand:'W#1'},
+  37:{name:'Supa Stiky',dose:'6.0 ml/gal',pill:'pill-stiky',tier2:true},
+  38:{name:'Recharge (TRIAL)',dose:'wand tea only',pill:'pill-amino',tier2:true,wand:'W#2'},
+  39:{name:'Botanicare Vitamino',dose:'5.0 ml/gal',pill:'pill-amino',tier2:true},
+  40:{name:'Supa Stiky',dose:'6.0 ml/gal',pill:'pill-stiky',tier2:true,wand:'W#3'},
+  41:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  42:{name:'Base',dose:'—',pill:'pill-base',tier2:false},
+  // S3 Violet — Peak HOLD (D43–49, EC 3.0 HOLD)
+  43:{name:'Mammoth P (TRIAL)',dose:'1.0 ml/gal',pill:'pill-stack',tier2:true,wand:'W#1'},
+  44:{name:'Supa Stiky',dose:'6.0 ml/gal',pill:'pill-stiky',tier2:true},
+  45:{name:'Recharge (TRIAL)',dose:'wand tea only',pill:'pill-amino',tier2:true,wand:'W#2'},
+  46:{name:'Botanicare Vitamino (FINAL amino)',dose:'5.0 ml/gal',pill:'pill-amino',tier2:true},
+  47:{name:'Supa Stiky',dose:'6.0 ml/gal',pill:'pill-stiky',tier2:true,wand:'W#3'},
+  48:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  49:{name:'Base (no SLF)',dose:'—',pill:'pill-base',tier2:false},
+  // S4 FILL HOLD — engine ON (D50–56, EC 2.9 HOLD)
+  50:{name:'Mammoth P (TRIAL) — FILL HOLD opens',dose:'1.0 ml/gal',pill:'pill-stack',tier2:true,wand:'W#1'},
+  51:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
+  52:{name:'Recharge (TRIAL)',dose:'wand tea only',pill:'pill-amino',tier2:true,wand:'W#2'},
+  53:{name:'Athena Stack (KEY precursor)',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  54:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true,wand:'W#3'},
+  55:{name:'Base',dose:'—',pill:'pill-base',tier2:false},
+  56:{name:'Athena Stack',dose:'1.0–1.5 ml/gal',pill:'pill-stack',tier2:true},
+  // S5 Fill-Hold Close (D57–60, EC 2.9→2.8)
+  57:{name:'Mammoth P (FINAL)',dose:'1.0 ml/gal',pill:'pill-stack',tier2:true,wand:'W#1'},
+  58:{name:'Supa Stiky',dose:'4.0 ml/gal',pill:'pill-stiky',tier2:true},
+  59:{name:'Recharge (FINAL)',dose:'wand tea only',pill:'pill-amino',tier2:true,wand:'W#2'},
+  60:{name:'SLF-100 — FILL WINDOW CLOSE',dose:'2.0 ml/gal',pill:'pill-slf',tier2:true},
+  // Compressed Finish (D61–66) — Base / plain only, no tank additives, plain wands continue
 };
 
 const DEFOL_WINDOWS=[
@@ -1517,7 +1538,9 @@ function getDefolTasksForRoom(room){
 
 function getAdditiveForRoom(room){
   const fd=flowerDay(room);
-  if(fd===null||fd<1||fd>57)return null;
+  if(fd===null||fd<1||fd>66)return null;
+  // D61–66 is compressed finish landing — base/plain only, no tank additives.
+  if(fd>=61)return {name:'Base / plain only — landing',dose:'—',pill:'pill-base',tier2:false};
   return ADDITIVES[fd]||{name:'Base feed only',dose:'—',pill:'pill-base',tier2:false};
 }
 
@@ -2276,6 +2299,23 @@ function renderRooms(){
     const additive=getAdditiveForRoom(room);
     const overrides=roomOverrides[room.id]||{};
 
+    // Additive-of-the-day panel — always shown at the bottom of the card
+    // when the room is in flower and inside the day range (1–66). All roles
+    // see this so packagers/growers know what today's tank additive is.
+    let additiveHTML='';
+    if(additive && stage==='flower' && fd!==null && fd>=1 && fd<=66){
+      const wandTag = additive.wand ? `<span style="font-size:10px;font-weight:600;color:var(--purple);background:var(--purple-dim);padding:2px 7px;border-radius:var(--r);margin-left:6px">Wand ${additive.wand}</span>` : '';
+      const tierTag = additive.tier2 ? `<span style="font-size:9px;font-weight:600;color:var(--amber);background:var(--amber-bg);padding:2px 6px;border-radius:var(--r);margin-left:6px">Tier 2</span>` : '';
+      additiveHTML = `<div style="margin-top:10px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);border-left:3px solid var(--green)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Today\'s additive · Day ${fd}</div>
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+          <span class="add-pill ${additive.pill}" style="font-size:11px">${additive.name}</span>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-left:4px">${additive.dose}</span>
+          ${wandTag}${tierTag}
+        </div>
+      </div>`;
+    }
+
     let stageClass='stage-'+stage;
     let badgeClass='badge-'+stage;
     let badgeText=stage==='veg'?'Veg':stage==='flower'?'Flower':stage==='late'?'Late flower':stage==='harvest'?'Harvest':stage==='empty'?'Empty':'—';
@@ -2544,6 +2584,7 @@ function renderRooms(){
           ${strainPills}
         </div>`;
       })()}
+      ${additiveHTML}
       ${taskHTML}
       ${room.note?`<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${room.note}</div>`:''}
     `;
@@ -4963,7 +5004,7 @@ function clearTodayLog(){todayLog=[];S('wg_log_'+dateToIso(TODAY),todayLog);rend
 function renderAdditiveTable(){
   const tbody=document.getElementById('additive-tbody');
   tbody.innerHTML='';
-  const phases={1:'Week 1',8:'Week 2',15:'Week 3',22:'Week 4',29:'Week 5',36:'Week 6',43:'Week 7',50:'X1 phase',57:'Late flower'};
+  const phases={1:'F1 Foundation',5:'F2',10:'F3',15:'E1 Expansion',19:'E2',23:'E3',26:'E4 Pre-Stack',29:'S1 · Peak Entry',36:'S2 · True Peak',43:'S3 · Peak HOLD',50:'S4 · FILL HOLD',57:'S5 · Fill-Hold Close',61:'Landing (L1–L3)'};
   for(let d=1;d<=CYCLE;d++){
     const ad=ADDITIVES[d]||null;
     const fd=rooms.map(r=>flowerDay(r)).find(fd=>fd===d);
@@ -4980,7 +5021,7 @@ function renderAdditiveTable(){
       <td>${ad?`<span class="add-pill ${ad.pill}">${ad.name}</span>`:`<span class="add-pill pill-base">Base feed only</span>`}</td>
       <td style="font-family:var(--mono);font-size:12px">${ad?.dose||'—'}</td>
       <td>${ad?.tier2?`<span class="tag tag-amber" style="font-size:9px">#flower-rooms</span>`:d<65?`<span class="tag tag-blue" style="font-size:9px">#daily-dispatch</span>`:''}</td>
-      <td style="font-size:11px;color:var(--text3)">${d===28?'<span style="color:var(--red)">Hard cutoff defol</span>':d>=60&&d<=63?'Pre-harvest defol window':d>=64&&d<=65?'X3 landing zone':d===CYCLE?'CHOP DAY — Day 66 morning':''}</td>
+      <td style="font-size:11px;color:var(--text3)">${d===28?'<span style="color:var(--red)">Hard cutoff defol</span>':d===46?'<span style="color:var(--amber)">Final amino day</span>':d===50?'<span style="color:var(--green)">Fill Hold opens — engine ON</span>':d===60?'<span style="color:var(--blue)">Fill window closes (SLF-100)</span>':d===61?'Landing L1 — fade begins':d===63?'Landing L2':d===65?'Landing L3 — finish floor':d===CYCLE?'<span style="color:var(--red)">CHOP DAY — Day 66 AM peak milky</span>':''}</td>
     `;
     tbody.appendChild(tr);
   }
@@ -7646,10 +7687,11 @@ const MAXX_PHASES=[
   {id:'S1', name:'S1 Stack',        start:29, end:35, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:58, nightRH:58, ecMin:2.8, ecMax:3.0, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:70, subECMin:3.5, subECMax:4.8, dryback:10, shotNote:'Peak entry. Push EC steadily. Supa Stiky Day 29.'},
   {id:'S2', name:'S2 True Peak',    start:36, end:42, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:56, nightRH:56, ecMin:3.0, ecMax:3.1, vpdMin:1.2, vpdMax:1.6, vwcMin:53, vwcMax:68, subECMin:3.8, subECMax:5.2, dryback:11, shotNote:'TRUE PEAK. *3.1 only earned if dryback uniformity, runoff trend, leaf integrity all hold. Spray window closes Day 42.'},
   {id:'S3', name:'S3 Peak Hold',    start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.7, ecMax:3.1, vpdMin:1.2, vpdMax:1.6, vwcMin:52, vwcMax:67, subECMin:3.5, subECMax:5.0, dryback:11, shotNote:'Steeper descent. Hold peak briefly then ramp down. Round 2 defol opens Day 42.'},
-  {id:'X1', name:'X1 Ripening Trigger', start:50, end:56, light:75, co2:900, dayTemp:75, nightTemp:67, rh:48, nightRH:47, ecMin:1.4, ecMax:2.0, vpdMin:1.0, vpdMax:1.4, vwcMin:50, vwcMax:65, subECMin:3.0, subECMax:4.5, dryback:12, shotNote:'v1.5 ripening trigger. EC cliff 2.7→2.0. NO H₂O₂. Pull all additives, base only. Reduce shot frequency.'},
-  {id:'X2A',name:'X2A Cascade',     start:57, end:60, light:60, co2:800,  dayTemp:74, nightTemp:65, rh:44, nightRH:43, ecMin:1.2, ecMax:1.4, vpdMin:1.0, vpdMax:1.4, vwcMin:48, vwcMax:62, subECMin:2.0, subECMax:3.5, dryback:13, shotNote:'Cascade engages. Active fade. Push dryback. 3–4 shots/day.'},
-  {id:'X2B',name:'X2B Maturation',  start:61, end:63, light:50, co2:700,  dayTemp:72, nightTemp:64, rh:42, nightRH:41, ecMin:1.0, ecMax:1.2, vpdMin:0.9, vpdMax:1.3, vwcMin:45, vwcMax:60, subECMin:1.5, subECMax:2.5, dryback:15, shotNote:'Active ripening. Resin-friendly. Pre-harvest defol Day 60–63. Minimal water.'},
-  {id:'X3', name:'X3 Landing Zone', start:64, end:66, light:40, co2:500,  dayTemp:68, nightTemp:63, rh:40, nightRH:39, ecMin:0.8, ecMax:1.0, vpdMin:null,vpdMax:null, vwcMin:35, vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Final ripening. Cool finish preserves terpenes. CHOP DAY 66 MORNING.'},
+  {id:'FH1', name:'FH1 Fill Hold',   start:50, end:56, light:100, co2:1350, dayTemp:80, nightTemp:72, rh:54, nightRH:54, ecMin:2.9, ecMax:2.9, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'v1.6 FILL HOLD — engine ON. Was X1 cut in v1.5. Feed 2.9 (−0.1 from S3, no cliff). Heads fill; do NOT cut water at Day 50.'},
+  {id:'FH2', name:'FH2 Fill Close',  start:57, end:60, light:95,  co2:1300, dayTemp:79, nightTemp:71, rh:52, nightRH:52, ecMin:2.8, ecMax:2.9, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'SLF-100 close moved to D60 (salt clearance AFTER heads fill). D60 SLF-100 2.0 ml/gal — FILL WINDOW CLOSE.'},
+  {id:'L1',  name:'L1 Landing',      start:61, end:62, light:75,  co2:1150, dayTemp:78, nightTemp:71, rh:51, nightRH:51, ecMin:2.3, ecMax:2.6, vpdMin:1.1, vpdMax:1.5, vwcMin:50, vwcMax:60, subECMin:2.5, subECMax:3.8, dryback:12, shotNote:'Compressed fade begins. Base / plain only. Re-index blueprint to actual trigger day — never re-apply Maxx Peak on the calendar day (drops into L3 cliff).'},
+  {id:'L2',  name:'L2 Landing',      start:63, end:64, light:65,  co2:800,  dayTemp:75, nightTemp:70, rh:50, nightRH:50, ecMin:1.6, ecMax:2.0, vpdMin:1.0, vpdMax:1.4, vwcMin:45, vwcMax:55, subECMin:2.0, subECMax:3.0, dryback:12, shotNote:'Senescence cues. Light 65%, CO₂ 800.'},
+  {id:'L3',  name:'L3 Finish Floor', start:65, end:66, light:40,  co2:600,  dayTemp:72, nightTemp:70, rh:50, nightRH:50, ecMin:1.0, ecMax:1.3, vpdMin:null,vpdMax:null, vwcMin:40, vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Finish floor — HVAC hard floor 70°F / 50% RH, never below. CHOP D66 AM at peak milky.'},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
