@@ -14522,14 +14522,26 @@ function openPkgModal(i){
     document.getElementById('pkg-qty-label').innerHTML='# packs packaged';
     document.getElementById('pkg-qty').placeholder='e.g. 50 packs';
     document.getElementById('pkg-modal-meta').innerHTML=
-      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+'<br>RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+'<br>Ordered: <b>'+esc(String(o.qtyOrdered))+'</b> packs'+
-      (o.menuGrams!=null?('<br>Menu has <b>'+Number(o.menuGrams).toFixed(0)+'</b> packs available'):'');
+      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+' · '+esc(o.size)+'<br>'+
+      '<div style="display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;font-family:var(--mono);font-size:11px;margin-top:6px">'+
+        '<span style="color:var(--text3)">Source RFID:</span><span>'+esc(o.rfid||'—')+'</span>'+
+        '<span style="color:var(--text3)">New pkg#:</span><span>'+(o.wsNotes?esc(o.wsNotes):'<span style="color:var(--amber)">not assigned</span>')+'</span>'+
+        '<span style="color:var(--text3)">METRC approval:</span><span>'+(o.approvalNum?esc(o.approvalNum):(o.itemName&&o.itemName.indexOf('VERIFY')>=0?'<span style="color:var(--amber)">needs verify</span>':'<span style="color:var(--text3)">—</span>'))+'</span>'+
+      '</div>'+
+      '<div style="margin-top:6px">Ordered: <b>'+esc(String(o.qtyOrdered))+'</b> packs'+
+      (o.menuGrams!=null?(' · Menu has <b>'+Number(o.menuGrams).toFixed(0)+'</b> packs available'):'')+'</div>';
   } else {
     document.getElementById('pkg-qty-label').innerHTML='# actually packaged <span style="color:var(--text3);font-weight:400">(type the real count — may differ from the order)</span>';
     document.getElementById('pkg-qty').placeholder='e.g. 300';
     document.getElementById('pkg-modal-meta').innerHTML=
-      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+'<br>RFID '+esc(o.rfid||'—')+' · '+esc(o.size)+'<br>Ordered: <b>'+esc(String(o.qtyOrdered))+'</b>'+
-      (gpu!=null?(' · 1 unit = '+gpu+'g'):' · <span style="color:var(--amber)">unknown unit size</span>');
+      '<b>'+esc(o.strain)+'</b> '+esc(o.brand)+' · '+esc(o.size)+'<br>'+
+      '<div style="display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;font-family:var(--mono);font-size:11px;margin-top:6px">'+
+        '<span style="color:var(--text3)">Source RFID:</span><span>'+esc(o.rfid||'—')+'</span>'+
+        '<span style="color:var(--text3)">New pkg#:</span><span>'+(o.wsNotes?esc(o.wsNotes):'<span style="color:var(--amber)">not assigned</span>')+'</span>'+
+        '<span style="color:var(--text3)">METRC approval:</span><span>'+(o.approvalNum?esc(o.approvalNum):(o.itemName&&o.itemName.indexOf('VERIFY')>=0?'<span style="color:var(--amber)">needs verify</span>':'<span style="color:var(--text3)">—</span>'))+'</span>'+
+      '</div>'+
+      '<div style="margin-top:6px">Ordered: <b>'+esc(String(o.qtyOrdered))+'</b>'+
+      (gpu!=null?(' · 1 unit = '+gpu+'g'):' · <span style="color:var(--amber)">unknown unit size</span>')+'</div>';
   }
   // prefill if re-editing
   document.getElementById('pkg-start').value=o.startWeight||'';
