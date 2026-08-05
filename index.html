@@ -476,16 +476,16 @@ button { cursor: pointer; }
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div>
-            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Clones cut</label>
-            <input id="ce-count" type="number" min="1" inputmode="numeric" placeholder="0"
-              style="width:100%;font-size:22px;font-weight:700;text-align:center;padding:12px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"/>
-          </div>
-          <div>
             <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Mother tag <span style="font-weight:400">(last 4)</span></label>
             <input id="ce-mother-tag" type="text" maxlength="4" inputmode="numeric" placeholder="2184"
               style="width:100%;font-size:22px;font-weight:700;text-align:center;letter-spacing:.2em;padding:12px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"
               oninput="onMotherTagInput(this.value)"/>
             <div id="ce-mother-hint" style="font-size:11px;color:var(--text3);margin-top:4px;min-height:16px;line-height:1.4"></div>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Clones cut</label>
+            <input id="ce-count" type="number" min="1" inputmode="numeric" placeholder="0"
+              style="width:100%;font-size:22px;font-weight:700;text-align:center;padding:12px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"/>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
