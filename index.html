@@ -1494,7 +1494,10 @@ function phaseReminders(room){
   const fd=flowerDay(room);
   if(!fd) return [];
   const reminders=[];
-  if(fd===29) reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
+  if(fd===29) {
+    reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
+    reminders.push({type:'reminder',icon:'🌬️',text:'Day 29 — Replace Air Filters.'});
+  }
   return reminders;
 }
 
