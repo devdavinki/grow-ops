@@ -1494,7 +1494,10 @@ function phaseReminders(room){
   const fd=flowerDay(room);
   if(!fd) return [];
   const reminders=[];
-  if(fd===29) reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
+  if(fd===29) {
+    reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
+    reminders.push({type:'reminder',icon:'🌬️',text:'Day 29 — Replace Air Filters.'});
+  }
   return reminders;
 }
 
@@ -7663,11 +7666,23 @@ function renderChores(){
 }
 
 // ══════════════════════════════════════════════
-// MAXX OS v1.5 PHASES + EC RAINBOW v1.3.2 + GROWLINK BLUEPRINTS
+// MAXX OS v1.6 PEAK "FORTRESS FINISH" (HYBRID) + EC RAINBOW v1.3.2 + GROWLINK BLUEPRINTS
 // ══════════════════════════════════════════════
-// Maxx OS v1.5 — full Growlink blueprint setpoints (May 7, 2026)
-// Changes vs v1.4: F1/F2 softer entry · X1/X2A/X2B revised ripening cascade ·
-// X3 shortened to 64-66 (3 days) · X4 removed · chop Day 66 morning.
+// Maxx v1.6 Peak — Fortress Finish (2026-07-30 revision).
+// Front + mid (F1–S3, D1–49): unchanged from stock v1.6 Peak. VPD values now
+// pinned to specific day/night targets from the Entry Sheet rather than loose
+// ranges (vpdMin=nightVPD target, vpdMax=dayVPD target — alertThresholds
+// T1/T2 spread provides the acceptable band around each).
+// Back-half REBUILT for bud-rot protection:
+//   · FH1 split into FH1a (D50-53) and FH1b (D54-56) for finer control
+//   · Temp steps down (79→78→77→76→74→72°F day) to keep VPD in the 1.5–1.6
+//     Fortress band as RH drops. Temperature is the trim, VPD is the anchor.
+//   · RH drops aggressively (54→53→51→49→47→45→44%) — night RH always < day RH
+//     so leaf-to-dew-point margin widens 15°→20° through the finish.
+//   · Day/night temp swing tightens through the finish (smaller lights-off
+//     humidity surge exactly when buds are densest).
+// HVAC HARD FLOOR: 70°F / 50% RH. Fortress Finish lands 4°F above floor.
+// Harvest: D65 preferred, D66 ceiling.
 // EC ranges per phase reflect v1.3.2 daily-ramp endpoints (use ecForDay() for
 // today's exact target — phase ranges shown as background context).
 // nightRH = separate night RH target; vpdMin/Max = VPD range; vwcMin/Max = substrate moisture range
@@ -7675,21 +7690,25 @@ function renderChores(){
 const MAXX_PHASES=[
   // Vegetative phase — used for unflipped rooms
   {id:'VEG', name:'Vegetative', start:null, end:null, light:50, co2:900, dayTemp:83, nightTemp:79, rh:70, nightRH:75, ecMin:null, ecMax:null, vpdMin:null, vpdMax:null, vwcMin:null, vwcMax:null, subECMin:null, subECMax:null, dryback:null, shotNote:'Veg phase. Maintain canopy, prep for flip.'},
-  {id:'F1', name:'F1 Foundation',   start:1,  end:4,  light:50, co2:800,  dayTemp:78, nightTemp:76, rh:78, nightRH:77, ecMin:2.0, ecMax:2.1, vpdMin:0.8, vpdMax:1.1, vwcMin:65, vwcMax:80, subECMin:2.5, subECMax:3.5, dryback:5,  shotNote:'v1.5 softer entry. Small frequent shots. Build root zone.'},
-  {id:'F2', name:'F2 Foundation',   start:5,  end:9,  light:70, co2:1050, dayTemp:80, nightTemp:74, rh:75, nightRH:74, ecMin:2.1, ecMax:2.4, vpdMin:0.9, vpdMax:1.2, vwcMin:65, vwcMax:78, subECMin:2.5, subECMax:3.5, dryback:6,  shotNote:'Mid-step ramp. 4-6 shots/day. Watch for stretch.'},
-  {id:'F3', name:'F3 Foundation',   start:10, end:14, light:90, co2:1150, dayTemp:80, nightTemp:74, rh:73, nightRH:73, ecMin:2.2, ecMax:2.4, vpdMin:1.0, vpdMax:1.3, vwcMin:63, vwcMax:75, subECMin:2.8, subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. First shot 1-2h after lights on.'},
-  {id:'E1', name:'E1 Expansion',    start:15, end:18, light:100,co2:1250, dayTemp:80, nightTemp:73, rh:70, nightRH:70, ecMin:2.4, ecMax:2.5, vpdMin:1.0, vpdMax:1.4, vwcMin:62, vwcMax:75, subECMin:3.0, subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Match irrigation to transpiration.'},
-  {id:'E2', name:'E2 Expansion',    start:19, end:22, light:100,co2:1300, dayTemp:80, nightTemp:73, rh:68, nightRH:68, ecMin:2.5, ecMax:2.6, vpdMin:1.1, vpdMax:1.5, vwcMin:60, vwcMax:73, subECMin:3.0, subECMax:4.2, dryback:9,  shotNote:'High transpiration. Runoff EC 3.0–4.5 target.'},
-  {id:'E3', name:'E3 Expansion',    start:23, end:25, light:100,co2:1350, dayTemp:80, nightTemp:73, rh:66, nightRH:66, ecMin:2.6, ecMax:2.7, vpdMin:1.1, vpdMax:1.5, vwcMin:60, vwcMax:73, subECMin:3.2, subECMax:4.5, dryback:9,  shotNote:'Approach peak veg mass. Maintain runoff 15–20%.'},
-  {id:'E4', name:'E4 Pre-Stack',    start:26, end:28, light:100,co2:1400, dayTemp:80, nightTemp:73, rh:64, nightRH:64, ecMin:2.7, ecMax:2.8, vpdMin:1.1, vpdMax:1.5, vwcMin:58, vwcMax:72, subECMin:3.2, subECMax:4.5, dryback:10, shotNote:'Crown formation push. Tighten dryback. Hard cutoff defol Day 28.'},
-  {id:'S1', name:'S1 Stack',        start:29, end:35, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:58, nightRH:58, ecMin:2.8, ecMax:3.0, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:70, subECMin:3.5, subECMax:4.8, dryback:10, shotNote:'Peak entry. Push EC steadily. Supa Stiky Day 29.'},
-  {id:'S2', name:'S2 True Peak',    start:36, end:42, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:56, nightRH:56, ecMin:3.0, ecMax:3.1, vpdMin:1.2, vpdMax:1.6, vwcMin:53, vwcMax:68, subECMin:3.8, subECMax:5.2, dryback:11, shotNote:'TRUE PEAK. *3.1 only earned if dryback uniformity, runoff trend, leaf integrity all hold. Spray window closes Day 42.'},
-  {id:'S3', name:'S3 Peak Hold',    start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.7, ecMax:3.1, vpdMin:1.2, vpdMax:1.6, vwcMin:52, vwcMax:67, subECMin:3.5, subECMax:5.0, dryback:11, shotNote:'Steeper descent. Hold peak briefly then ramp down. Round 2 defol opens Day 42.'},
-  {id:'FH1', name:'FH1 Fill Hold',   start:50, end:56, light:100, co2:1350, dayTemp:80, nightTemp:72, rh:54, nightRH:54, ecMin:2.9, ecMax:2.9, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'v1.6 FILL HOLD — engine ON. Was X1 cut in v1.5. Feed 2.9 (−0.1 from S3, no cliff). Heads fill; do NOT cut water at Day 50.'},
-  {id:'FH2', name:'FH2 Fill Close',  start:57, end:60, light:95,  co2:1300, dayTemp:79, nightTemp:71, rh:52, nightRH:52, ecMin:2.8, ecMax:2.9, vpdMin:1.2, vpdMax:1.6, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'SLF-100 close moved to D60 (salt clearance AFTER heads fill). D60 SLF-100 2.0 ml/gal — FILL WINDOW CLOSE.'},
-  {id:'L1',  name:'L1 Landing',      start:61, end:62, light:75,  co2:1150, dayTemp:78, nightTemp:71, rh:51, nightRH:51, ecMin:2.3, ecMax:2.6, vpdMin:1.1, vpdMax:1.5, vwcMin:50, vwcMax:60, subECMin:2.5, subECMax:3.8, dryback:12, shotNote:'Compressed fade begins. Base / plain only. Re-index blueprint to actual trigger day — never re-apply Maxx Peak on the calendar day (drops into L3 cliff).'},
-  {id:'L2',  name:'L2 Landing',      start:63, end:64, light:65,  co2:800,  dayTemp:75, nightTemp:70, rh:50, nightRH:50, ecMin:1.6, ecMax:2.0, vpdMin:1.0, vpdMax:1.4, vwcMin:45, vwcMax:55, subECMin:2.0, subECMax:3.0, dryback:12, shotNote:'Senescence cues. Light 65%, CO₂ 800.'},
-  {id:'L3',  name:'L3 Finish Floor', start:65, end:66, light:40,  co2:600,  dayTemp:72, nightTemp:70, rh:50, nightRH:50, ecMin:1.0, ecMax:1.3, vpdMin:null,vpdMax:null, vwcMin:40, vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Finish floor — HVAC hard floor 70°F / 50% RH, never below. CHOP D66 AM at peak milky.'},
+  {id:'F1', name:'F1 Foundation',   start:1,  end:4,  light:50, co2:950,  dayTemp:78, nightTemp:76, rh:78, nightRH:77, ecMin:2.0, ecMax:2.1, vpdMin:0.70, vpdMax:0.72, vwcMin:65, vwcMax:80, subECMin:2.5, subECMax:3.5, dryback:5,  shotNote:'v1.6 softer entry. Small frequent shots. Build root zone. Day VPD 0.72, night 0.70.'},
+  {id:'F2', name:'F2 Foundation',   start:5,  end:9,  light:70, co2:1050, dayTemp:80, nightTemp:74, rh:75, nightRH:74, ecMin:2.1, ecMax:2.4, vpdMin:0.75, vpdMax:0.87, vwcMin:65, vwcMax:78, subECMin:2.5, subECMax:3.5, dryback:6,  shotNote:'Mid-step ramp. 4-6 shots/day. Day VPD 0.87, night 0.75. Watch for stretch.'},
+  {id:'F3', name:'F3 Foundation',   start:10, end:14, light:90, co2:1150, dayTemp:80, nightTemp:74, rh:73, nightRH:73, ecMin:2.2, ecMax:2.4, vpdMin:0.77, vpdMax:0.94, vwcMin:63, vwcMax:75, subECMin:2.8, subECMax:3.8, dryback:7,  shotNote:'Begin structured dryback. Day VPD 0.94, night 0.77. First shot 1-2h after lights on.'},
+  {id:'E1', name:'E1 Expansion',    start:15, end:18, light:100,co2:1250, dayTemp:80, nightTemp:73, rh:72, nightRH:70, ecMin:2.4, ecMax:2.5, vpdMin:0.83, vpdMax:0.98, vwcMin:62, vwcMax:75, subECMin:3.0, subECMax:4.0, dryback:8,  shotNote:'Plants expanding fast. Day VPD 0.98, night 0.83. Match irrigation to transpiration.'},
+  {id:'E2', name:'E2 Expansion',    start:19, end:22, light:100,co2:1300, dayTemp:80, nightTemp:73, rh:70, nightRH:70, ecMin:2.5, ecMax:2.6, vpdMin:0.83, vpdMax:1.05, vwcMin:60, vwcMax:73, subECMin:3.0, subECMax:4.2, dryback:9,  shotNote:'High transpiration. Day VPD 1.05, night 0.83. Runoff EC 3.0–4.5 target.'},
+  {id:'E3', name:'E3 Expansion',    start:23, end:25, light:100,co2:1350, dayTemp:80, nightTemp:73, rh:68, nightRH:68, ecMin:2.6, ecMax:2.7, vpdMin:0.89, vpdMax:1.12, vwcMin:60, vwcMax:73, subECMin:3.2, subECMax:4.5, dryback:9,  shotNote:'Approach peak veg mass. Day VPD 1.12, night 0.89. Maintain runoff 15–20%.'},
+  {id:'E4', name:'E4 Pre-Stack',    start:26, end:28, light:100,co2:1400, dayTemp:80, nightTemp:73, rh:66, nightRH:64, ecMin:2.7, ecMax:2.8, vpdMin:1.00, vpdMax:1.19, vwcMin:58, vwcMax:72, subECMin:3.2, subECMax:4.5, dryback:10, shotNote:'Crown formation push. Day VPD 1.19, night 1.00. Tighten dryback. Hard cutoff defol Day 28.'},
+  {id:'S1', name:'S1 Stack',        start:29, end:35, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:58, nightRH:58, ecMin:2.8, ecMax:3.0, vpdMin:1.13, vpdMax:1.47, vwcMin:55, vwcMax:70, subECMin:3.5, subECMax:4.8, dryback:10, shotNote:'Peak entry. Push EC steadily. Day VPD 1.47, night 1.13. Supa Stiky Day 29.'},
+  {id:'S2', name:'S2 True Peak',    start:36, end:42, light:100,co2:1400, dayTemp:80, nightTemp:72, rh:56, nightRH:56, ecMin:3.0, ecMax:3.1, vpdMin:1.18, vpdMax:1.54, vwcMin:53, vwcMax:68, subECMin:3.8, subECMax:5.2, dryback:11, shotNote:'TRUE PEAK. Day VPD 1.54, night 1.18. *3.1 only earned if dryback uniformity, runoff trend, leaf integrity all hold. Spray window closes Day 42.'},
+  {id:'S3', name:'S3 Peak Hold',    start:43, end:49, light:100,co2:1350, dayTemp:80, nightTemp:72, rh:55, nightRH:55, ecMin:2.7, ecMax:3.1, vpdMin:1.21, vpdMax:1.57, vwcMin:52, vwcMax:67, subECMin:3.5, subECMax:5.0, dryback:11, shotNote:'Peak hold. Day VPD 1.57, night 1.21. Round 2 defol opens Day 42. Fortress Finish begins Day 50.'},
+  // ── FORTRESS FINISH — rebuilt back end (2026-07-30). VPD is the anchor,
+  //    temp is the trim. Every step ratchets RH down and drops temp to keep
+  //    VPD in the 1.5–1.6 kPa fortress band. Night RH < day RH throughout.
+  {id:'FH1a',name:'FH1a Fortress Entry',start:50, end:53, light:100, co2:1350, dayTemp:79, nightTemp:72, rh:53, nightRH:52, ecMin:2.9, ecMax:2.9, vpdMin:1.29, vpdMax:1.59, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'Fortress opens. Engine ON, feed 2.9. Day VPD 1.59, night 1.29. Pre-stage the dehu before the 10 AM–2 PM transpiration peak.'},
+  {id:'FH1b',name:'FH1b Fortress Hold', start:54, end:56, light:100, co2:1350, dayTemp:78, nightTemp:72, rh:51, nightRH:50, ecMin:2.9, ecMax:2.9, vpdMin:1.34, vpdMax:1.60, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'RH steps down again. Day VPD 1.60, night 1.34. Watch dew-point spread — if leaf-to-DP margin drops below 8°F any night, condensation alarm regardless of RH number.'},
+  {id:'FH2', name:'FH2 Fill Close',     start:57, end:60, light:95,  co2:1300, dayTemp:77, nightTemp:71, rh:49, nightRH:47, ecMin:2.8, ecMax:2.9, vpdMin:1.37, vpdMax:1.62, vwcMin:55, vwcMax:65, subECMin:3.5, subECMax:4.2, dryback:15, shotNote:'Day VPD 1.62, night 1.37. D60 SLF-100 2.0 ml/gal — FILL WINDOW CLOSE (salt clearance AFTER heads fill).'},
+  {id:'L1',  name:'L1 Landing',         start:61, end:62, light:75,  co2:1150, dayTemp:76, nightTemp:71, rh:47, nightRH:45, ecMin:2.3, ecMax:2.6, vpdMin:1.42, vpdMax:1.62, vwcMin:50, vwcMax:60, subECMin:2.5, subECMax:3.8, dryback:12, shotNote:'Compressed fade begins. Day VPD 1.62, night 1.42. Base / plain only. Re-index blueprint to actual trigger day — never re-apply Maxx Peak on the calendar day.'},
+  {id:'L2',  name:'L2 Landing',         start:63, end:64, light:65,  co2:800,  dayTemp:74, nightTemp:70, rh:45, nightRH:44, ecMin:1.6, ecMax:2.0, vpdMin:1.40, vpdMax:1.58, vwcMin:45, vwcMax:55, subECMin:2.0, subECMax:3.0, dryback:12, shotNote:'Senescence cues. Day VPD 1.58, night 1.40. Light 65%, CO₂ 800.'},
+  {id:'L3',  name:'L3 Finish Floor',    start:65, end:66, light:40,  co2:600,  dayTemp:72, nightTemp:69, rh:44, nightRH:43, ecMin:1.0, ecMax:1.3, vpdMin:1.38, vpdMax:1.50, vwcMin:40, vwcMax:50, subECMin:null,subECMax:null, dryback:null, shotNote:'Finish floor. Day VPD 1.50, night 1.38. HARVEST D65 preferred, D66 ceiling. Fortress-dry room protects even slow cultivars.'},
 ];
 function getPhaseForDay(fd){return MAXX_PHASES.find(p=>fd>=p.start&&fd<=p.end)||null;}
 
