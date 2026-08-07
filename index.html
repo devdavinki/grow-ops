@@ -1208,7 +1208,7 @@ button { cursor: pointer; }
   <div id="page-blueprint" class="page">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div>
-        <div class="section-title">Maxx OS v1.5 — Growlink Blueprint</div>
+        <div class="section-title">Maxx OS v1.6 Peak — Fortress Finish · Growlink Blueprint</div>
         <div style="font-size:12px;color:var(--text3);margin-top:2px">Phase setpoints · Alert thresholds (amber = T2 log, red = T1 Slack after sustain)</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1352,7 +1352,7 @@ button { cursor: pointer; }
 // DATA
 // ══════════════════════════════════════════════
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const APP_VERSION = '3.8'; // Maxx OS v1.5 + EC Rainbow v1.3.2: revised ripening cascade, daily EC ramp, X3 shortened to 64-66
+const APP_VERSION = '3.9'; // Maxx OS v1.6 Peak Fortress Finish (2026-07-30) + EC Rainbow v1.3.2: FH1 split into FH1a/FH1b, VPD-anchored back-half, RH ratchet-down for bud-rot protection
 const CYCLE = 66; const FLOWER_DAYS = 65; const DARK_DAYS = 0; // No dark period — harvest = flip + 65 = Day 66
 const CLONE_LEAD = 28; const TALL_ROOMS = ['r4','r5'];
 const PAIRED = ['r1','r2'];
@@ -2460,7 +2460,7 @@ function renderRooms(){
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${badges.join('')}</div>
       </div>
-      ${tlHTML}${progHTML}${phaseHTML}${nudgeHTML}
+      ${tlHTML}${progHTML}${phaseHTML}${renderHealthBannerHTML(room.name)}${nudgeHTML}
       ${(()=>{
         // Growlink live env strip
         const gl=getGrowlinkForRoom(room.name);
@@ -5935,6 +5935,7 @@ if(_storedVersion !== APP_VERSION) {
     'wg_team', 'wg_team_deleted',
     'wg_dry_rooms', 'wg_approved_takedowns',
     'wg_trim_queue', 'wg_trim_queue_deleted',
+    'wg_room_health',
   ];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
@@ -8268,6 +8269,11 @@ let metrcHarvestPriority=L(METRC_KEYS.harvestPriority,{});
 // ── GROWLINK LIVE DATA ──────────────────────────────────────────
 // Keyed by Growlink room name, populated by pullGrowlinkFromCloud()
 let growlinkData = L('wg_growlink_rooms', {});
+// Room health summaries — Fortress Finish monitoring. Keys are room display
+// names (e.g. "Room 5"). Each value is an object with per-parameter day/night
+// out-of-band details, computed on the backend from GL_History and cached
+// there for 15 min. Pulled alongside growlinkData every time we refresh.
+let roomHealthData = L('wg_room_health', {});
 let dryRooms = L('wg_dry_rooms', {'Dry Room 1':{note:'',order:[],takedowns:{}},'Dry Room 2':{note:'',order:[],takedowns:{}}});
 // Permanent approved takedowns — keyed "dryKey|roomTag|harvestDate"
 // Survives METRC re-uploads; once approved the harvest never reappears on the dry room card
@@ -8306,10 +8312,76 @@ async function pullGrowlinkFromCloud(silent=false){
     setTimeout(()=>{try{renderSupportRooms();}catch(e){}},0);
     // Update 24h dryback averages from GL_History if available
     setTimeout(()=>{try{updateDryback24h();}catch(e){}},200);
+    // Pull room health summaries (Fortress Finish monitoring) in the background
+    setTimeout(()=>{try{pullRoomHealthFromCloud(true);}catch(e){}},300);
     // Pre-fetch performance scores in background (leads only) so modal opens instantly
     // setTimeout(()=>{try{prefetchPerfScores();}catch(e){}},500); // Performance scores hidden — re-enable when scoring is refined
 
   }catch(e){ if(!silent) console.warn('Growlink pull failed:',e); }
+}
+
+// ── ROOM HEALTH ─────────────────────────────────────────────────────────
+// Fetch the precomputed room health summaries from the backend. The heavy
+// GL_History walk happens server-side inside growlinkLiveRefresh (every 10
+// min). We just read a small JSON payload and cache it locally.
+async function pullRoomHealthFromCloud(silent=false){
+  if(!gsUrl) return;
+  try{
+    const res=await fetchWithTimeout(gsUrl+'?action=getRoomHealth&t='+Date.now(), null, 15000);
+    const json=await res.json();
+    if(!json||!json.ok||!json.summaries) return;
+    roomHealthData=json.summaries;
+    S('wg_room_health', roomHealthData);
+    if(!silent) console.log('Room health pulled:', Object.keys(roomHealthData).length, 'rooms');
+    renderRooms();
+  }catch(e){ if(!silent) console.warn('Room health pull failed:', e); }
+}
+
+// Compact one-line renderer for a single (parameter, shift) out-of-band entry.
+// param: 'temp'|'rh'|'vpd'|'dp'   shift: 'day'|'night'
+function renderHealthLine(param, shift, entry){
+  if(!entry) return '';
+  const paramLabel = param==='temp'?'Temp':param==='rh'?'RH':param==='vpd'?'VPD':'DP spread';
+  const unit = param==='temp'?'°F':param==='rh'?'%':param==='vpd'?'kPa':'°F';
+  const sign = entry.delta>0?'+':'';
+  const shiftLabel = shift==='day'?'day':'night';
+  return `<div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.4">
+    <span style="color:var(--amber);font-weight:700">⚠</span>
+    <span style="font-weight:600">${paramLabel} avg ${entry.avg}${unit}</span>
+    <span style="color:var(--text3)">·</span>
+    <span style="color:var(--amber)">${sign}${entry.delta}${unit} ${shift==='day'?'above':'off'} ${shiftLabel} target</span>
+    <span style="color:var(--text3)">·</span>
+    <span style="color:var(--text3)">since ${entry.outSinceLabel}</span>
+  </div>`;
+}
+
+function renderHealthBannerHTML(roomName){
+  const summary = roomHealthData && roomHealthData[roomName];
+  if(!summary || !summary.parameters) return '';
+  const P = summary.parameters;
+  const lines = [];
+  // Stack in a consistent order: temp → RH → VPD → DP spread. Day first, then night.
+  const order = ['temp','rh','vpd','dp'];
+  for(const param of order){
+    for(const shift of ['day','night']){
+      const entry = P[param] && P[param][shift];
+      if(entry) lines.push(renderHealthLine(param, shift, entry));
+    }
+  }
+  // Absolute DP floor violations (nights where DP spread went under 8°F)
+  if(P.dp && P.dp.floorViolationNights > 0){
+    lines.push(`<div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.4">
+      <span style="color:var(--red);font-weight:700">■</span>
+      <span style="font-weight:600;color:var(--red)">DP spread under 8°F floor</span>
+      <span style="color:var(--text3)">·</span>
+      <span>${P.dp.floorViolationNights} night${P.dp.floorViolationNights===1?'':'s'} in last 7 days</span>
+    </div>`);
+  }
+  if(!lines.length) return '';
+  return `<div style="margin-bottom:10px;padding:8px 10px;background:var(--amber-bg,rgba(255,190,60,0.06));border:1px solid var(--amber,#f0b429);border-left:3px solid var(--amber,#f0b429);border-radius:var(--r);display:grid;gap:3px">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:2px">Out of range · past 7 days</div>
+    ${lines.join('')}
+  </div>`;
 }
 
 // Pre-fetch all room performance scores into localStorage cache
@@ -13989,7 +14061,7 @@ function showBlueprint_status(msg){
 }
 
 
-// Maxx OS v1.5 phase thresholds — uses lead overrides if set, else defaults
+// Maxx OS v1.6 phase thresholds — uses lead overrides if set, else defaults
 // T2 = amber (inner band / log only), T1 = red (outer band / Slack after sustain)
 function getGuardrailsForPhase(phaseId){
   const p = MAXX_PHASES.find(x=>x.id===phaseId);
