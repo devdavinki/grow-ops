@@ -1494,9 +1494,21 @@ function phaseReminders(room){
   const fd=flowerDay(room);
   if(!fd) return [];
   const reminders=[];
+  // Humidifier reminder fires on Day 29 exactly — controllable remotely, no
+  // weekend shift needed.
   if(fd===29) {
     reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
-    reminders.push({type:'reminder',icon:'🌬️',text:'Day 29 — Replace Air Filters.'});
+  }
+  // Air filter reminder can't be done remotely — needs someone on-site. If D29
+  // lands on Sat or Sun, push the reminder to Monday. That means it may show
+  // on Day 29 (weekday), Day 30 (D29 was Sunday), or Day 31 (D29 was Saturday).
+  const _dow = new Date().getDay();   // 0=Sun, 1=Mon, ..., 6=Sat
+  const _airFilterToday =
+    (fd===29 && _dow >= 1 && _dow <= 5) ||   // D29 falls on a weekday — show today
+    ((fd===30 || fd===31) && _dow === 1);    // D29 was Sat/Sun — show on Monday
+  if(_airFilterToday) {
+    const _delayed = (fd!==29) ? ' (delayed from weekend)' : '';
+    reminders.push({type:'reminder',icon:'🌬️',text:'Day 29 — Replace Air Filters.'+_delayed});
   }
   return reminders;
 }
