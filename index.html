@@ -4514,7 +4514,12 @@ async function logCloneCut(clearStrain=false,leadOverride=false){
   }
 
   // ── Append locally + sync ──
-  const session={strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)};
+  // Session ID lets edits and deletes find the exact sheet row later, so
+  // the Clone_Log sheet stays in sync with what the app shows. Legacy
+  // sessions (from before this ship) won't have an ID — those get an
+  // explicit warning when edited so operators know the sheet wasn't updated.
+  const sessionId = 'cs_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  const session={sessionId,strain,count,who,motherTag,motherLabel,time:fmtTime(),date:dateToIso(TODAY)};
   if(leadOverride) session.override=true;
   cloneSessions.push(session);
   S(getWeekKey(),cloneSessions);
@@ -4538,7 +4543,9 @@ async function logCloneCut(clearStrain=false,leadOverride=false){
   // columns 3-9 for copy-paste. Final sheet row:
   // [ISO timestamp] | Who | Plant Number | Batch Name | Plants Type |
   // Plants Count | Location Name | Strain Name | Actual Date.
-  const sheetRow = [who, fullTag, batchName, 'Clone', count, CLONE_DEST_LOCATION, strain, actualDate];
+  // Column J holds the session ID — the primary key edits and deletes use
+  // to locate this row later. METRC copy-paste block stays as columns 3-9.
+  const sheetRow = [who, fullTag, batchName, 'Clone', count, CLONE_DEST_LOCATION, strain, actualDate, sessionId];
 
   // ── Sheet write WITH success confirmation ──
   setHint('Saving to sheet…','var(--text3)');
@@ -4666,12 +4673,12 @@ function renderCloneTracker(){
           <div class="log-title">${s.count} clones — ${strainWithCode(s.strain)}${s.motherTag?` <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:6px">mother …${s.motherTag}</span>`:''}</div>
           <div class="log-meta">${s.who} · ${s.date} · ${s.time}</div>
         </div>
-        ${(loggedInMember?.role==='lead'||loggedInMember?.name===s.who)?`<button onclick="editCloneSession(${i})" style="font-size:10px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer;flex-shrink:0;margin-top:2px">Edit</button>`:''}
+        ${(loggedInMember?.role==='lead'||loggedInMember?.name===s.who)?`<button onclick="editCloneSession(${i})" style="font-size:10px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text3);cursor:pointer;flex-shrink:0;margin-top:2px">Edit</button> <button onclick="deleteCloneSession(${i})" style="font-size:10px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--red);background:none;color:var(--red);cursor:pointer;flex-shrink:0;margin-top:2px">Delete</button>`:''}
       </div>`).join('');
   }
 }
 
-function editCloneSession(idx){
+async function editCloneSession(idx){
   const s=cloneSessions[idx];
   if(!s) return;
   const newCount=prompt('Edit clone count:',s.count);
@@ -4679,10 +4686,58 @@ function editCloneSession(idx){
   const newStrain=prompt('Edit strain:',s.strain);
   if(newStrain===null) return;
   const newNote=prompt('Edit note (optional):',s.note||'');
-  cloneSessions[idx]={...s,count:parseInt(newCount)||s.count,strain:newStrain.trim()||s.strain,note:newNote};
+  const updated={...s,count:parseInt(newCount)||s.count,strain:newStrain.trim()||s.strain,note:newNote};
+  cloneSessions[idx]=updated;
   S(getWeekKey(),cloneSessions);
   renderCloneTracker();
   pushConfigToCloud(true);
+  // Sync the change to the Clone_Log sheet so exports stay truthful.
+  if(!s.sessionId){
+    alert('Edit saved in app.\n\nSheet row was NOT updated — this entry pre-dates the edit-sync fix and has no session ID. You may need to manually correct the row on the Clone_Log sheet.');
+    return;
+  }
+  try{
+    const res=await fetch(gsUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'updateCloneRow', sessionId:s.sessionId, fields:{count:updated.count, strain:updated.strain}})
+    });
+    const result=await res.json();
+    if(!result.ok){
+      alert('Edit saved in app but sheet update failed:\n\n'+(result.error||'unknown error')+'\n\nThe app and Clone_Log sheet are now OUT OF SYNC. Please correct the sheet manually or edit again to retry.');
+    }
+  }catch(e){
+    alert('Edit saved in app but sheet update failed (network error): '+String(e)+'\n\nThe app and Clone_Log sheet are now OUT OF SYNC.');
+  }
+}
+
+async function deleteCloneSession(idx){
+  const s=cloneSessions[idx];
+  if(!s) return;
+  const label = s.count + ' × ' + (s.strain||'?') + ' from ' + (s.motherLabel||s.motherTag||'?');
+  if(!confirm('Delete this clone entry?\n\n'+label+'\n\nThis removes the row from the Clone_Log sheet too. Cannot be undone.')) return;
+  // Remove locally first
+  const removed = cloneSessions.splice(idx, 1)[0];
+  S(getWeekKey(),cloneSessions);
+  renderCloneTracker();
+  pushConfigToCloud(true);
+  if(!removed.sessionId){
+    alert('Entry removed from app.\n\nSheet row was NOT deleted — this entry pre-dates the edit-sync fix and has no session ID. You may need to manually remove the row from the Clone_Log sheet.');
+    return;
+  }
+  try{
+    const res=await fetch(gsUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'deleteCloneRow', sessionId:removed.sessionId})
+    });
+    const result=await res.json();
+    if(!result.ok){
+      alert('Entry removed from app but sheet delete failed:\n\n'+(result.error||'unknown error')+'\n\nThe Clone_Log sheet still has this row. Please delete it manually.');
+    }
+  }catch(e){
+    alert('Entry removed from app but sheet delete failed (network error): '+String(e)+'\n\nThe Clone_Log sheet still has this row.');
+  }
 }
 
 // ══════════════════════════════════════════════
