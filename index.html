@@ -1494,10 +1494,15 @@ function phaseReminders(room){
   const fd=flowerDay(room);
   if(!fd) return [];
   const reminders=[];
-  // Humidifier reminder fires on Day 29 exactly — controllable remotely, no
-  // weekend shift needed.
+  // Humidifier reminders — both remotely controllable, no weekend shift.
+  // D29: turn down (S1 Stack RH drops to 58%).
+  // D50: turn OFF entirely — Fortress Finish opens, RH drops to 53%/52%
+  //      day/night. Humidifiers running here would fight the dehumidifiers.
   if(fd===29) {
     reminders.push({type:'reminder',icon:'💧',text:'Day 29 — Turn down humidifiers. RH target drops to 58% (S1 Stack phase).'});
+  }
+  if(fd===50) {
+    reminders.push({type:'reminder',icon:'💧',text:'Day 50 — Turn OFF humidifiers. Fortress Finish opens (FH1a), RH drops to 53% day / 52% night.'});
   }
   // Air filter reminder can't be done remotely — needs someone on-site. If D29
   // lands on Sat or Sun, push the reminder to Monday. That means it may show
