@@ -14713,7 +14713,9 @@ function openPkgModal(i){
   document.getElementById('pkg-verify').value=o.verifiedBy||'';
   document.getElementById('pkg-label').value=o.labelVerifiedBy||'';
   document.getElementById('pkg-override').checked=false;
-  document.getElementById('pkg-qty').value='';
+  // Restore the previously-entered packaged count so re-edits show the full
+  // picture (start weight, end weight, packages packed) — not just weights.
+  document.getElementById('pkg-qty').value=o.packaged||'';
   document.getElementById('pkg-packaged-line').textContent='';
   // smalls field: buds-type orders only, optional, reset blank
   const isBuds=String(o.type||'').toLowerCase().indexOf('bud')>=0;
