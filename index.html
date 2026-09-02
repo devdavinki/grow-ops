@@ -14706,25 +14706,16 @@ function openPkgModal(i){
       '<div style="margin-top:6px">Ordered: <b>'+esc(String(o.qtyOrdered))+'</b>'+
       (gpu!=null?(' · 1 unit = '+gpu+'g'):' · <span style="color:var(--amber)">unknown unit size</span>')+'</div>';
   }
-  // Prefill only if the row has an active packaging session tied to it.
-  // Row status must contain PROGRESS or PACKAGED — proof that a packager
-  // actually filled these fields via the app.
-  //
-  // Guards against the "reused row" trap: if a row previously held a
-  // different strain that got packaged, then the strain/RFID cells were
-  // manually edited to a new order, the residual col K/L/G/O/P/Q values
-  // are stale and don't belong to the current order. Without this gate,
-  // opening the modal would prefill those stale numbers as if they were
-  // the current packager's own entries.
-  const _status = String(o.status || '').toUpperCase();
-  const _hasPriorSession = _status.indexOf('PROGRESS') >= 0 || _status.indexOf('PACKAGED') >= 0;
-  document.getElementById('pkg-start').value  = _hasPriorSession ? (o.startWeight     || '') : '';
-  document.getElementById('pkg-end').value    = _hasPriorSession ? (o.endWeight       || '') : '';
-  document.getElementById('pkg-count').value  = _hasPriorSession ? (o.countBy         || '') : '';
-  document.getElementById('pkg-verify').value = _hasPriorSession ? (o.verifiedBy      || '') : '';
-  document.getElementById('pkg-label').value  = _hasPriorSession ? (o.labelVerifiedBy || '') : '';
-  document.getElementById('pkg-qty').value    = _hasPriorSession ? (o.packaged        || '') : '';
+  // prefill if re-editing
+  document.getElementById('pkg-start').value=o.startWeight||'';
+  document.getElementById('pkg-end').value=o.endWeight||'';
+  document.getElementById('pkg-count').value=o.countBy||'';
+  document.getElementById('pkg-verify').value=o.verifiedBy||'';
+  document.getElementById('pkg-label').value=o.labelVerifiedBy||'';
   document.getElementById('pkg-override').checked=false;
+  // Restore the previously-entered packaged count so re-edits show the full
+  // picture (start weight, end weight, packages packed) — not just weights.
+  document.getElementById('pkg-qty').value=o.packaged||'';
   document.getElementById('pkg-packaged-line').textContent='';
   // smalls field: buds-type orders only, optional, reset blank
   const isBuds=String(o.type||'').toLowerCase().indexOf('bud')>=0;
