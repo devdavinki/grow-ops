@@ -9490,13 +9490,16 @@ function approveDryTakedown(dryKey, roomTag){
   if(dryRooms[dryKey]?.order){
     dryRooms[dryKey].order=dryRooms[dryKey].order.filter(t=>t!==roomTag);
   }
-  // Permanently record this approval so it survives METRC re-uploads
-  // Key includes harvest date so a future harvest from the same room isn't blocked
+  // Permanently record this approval so it survives METRC re-uploads and
+  // dry-room moves. Write BOTH the new any-dry-room key format AND the
+  // legacy dry-room-prefixed format — so rollback to an older client
+  // version still sees the approval. Both keys point to the same record.
   const _batchesForApproval = getDryRoomBatches(dryKey);
   const _matchedGroup = _batchesForApproval.find(b => (b.roomTag||'') === roomTag);
   const _harvestDate = _matchedGroup ? (_matchedGroup.harvestDate||'unknown') : 'unknown';
-  const _permKey = dryKey + '|' + roomTag + '|' + _harvestDate;
-  approvedTakedowns[_permKey] = {approvedBy:who, approvedAt:fmtTime(), date:dateToIso(TODAY)};
+  const _record = {approvedBy:who, approvedAt:fmtTime(), date:dateToIso(TODAY), harvestDate:_harvestDate};
+  approvedTakedowns[roomTag + '|' + _harvestDate] = _record;                 // new any-dry-room key
+  approvedTakedowns[dryKey + '|' + roomTag + '|' + _harvestDate] = _record;  // legacy key, backward compat
   S('wg_approved_takedowns', approvedTakedowns);
   S('wg_dry_rooms',dryRooms);
   pushConfigToCloud(true);
@@ -9508,6 +9511,48 @@ function approveDryTakedown(dryKey, roomTag){
     taskName:'Dry takedown — '+dryKey+' Room '+roomTag.replace(/[^0-9]/g,''),
     who,notes:'Submitted by '+td.submittedBy,pct:'',time:fmtTime(),status:'done'});
   S('wg_log_'+dateToIso(TODAY),todayLog);
+  renderTodayLog();
+  renderSupportRooms();
+}
+
+// Lead-only one-click "Mark done" — combines submit + approve in one step.
+// Skips the dual-signoff requirement because a lead is trusted to certify
+// both. Behaves identically to approveDryTakedown otherwise (writes the
+// approval keys, logs to sheet, updates today's log, re-renders).
+function markDryTakedownDone(dryKey, roomTag){
+  if(!loggedInMember || loggedInMember.role !== 'lead') return;
+  const who = loggedInMember.name;
+  if(!dryRooms[dryKey]) dryRooms[dryKey]={note:'',order:[],takedowns:{}};
+  if(!dryRooms[dryKey].takedowns) dryRooms[dryKey].takedowns={};
+  const tdKey = dryKey + '|' + roomTag;
+  // Create the record already approved.
+  dryRooms[dryKey].takedowns[tdKey] = {
+    dryKey, roomTag,
+    submittedBy: who,   submittedAt: fmtTime(),
+    approved: true,     approvedBy: who,        approvedAt: fmtTime(),
+    leadMarked: true,   // audit tag — this bypassed dual signoff
+  };
+  // Remove room from order list
+  if(dryRooms[dryKey]?.order){
+    dryRooms[dryKey].order = dryRooms[dryKey].order.filter(t => t !== roomTag);
+  }
+  // Permanently record approval — both key formats (see approveDryTakedown for rationale)
+  const _batchesForApproval = getDryRoomBatches(dryKey);
+  const _matchedGroup = _batchesForApproval.find(b => (b.roomTag||'') === roomTag);
+  const _harvestDate = _matchedGroup ? (_matchedGroup.harvestDate||'unknown') : 'unknown';
+  const _record = {approvedBy:who, approvedAt:fmtTime(), date:dateToIso(TODAY), harvestDate:_harvestDate, leadMarked:true};
+  approvedTakedowns[roomTag + '|' + _harvestDate] = _record;
+  approvedTakedowns[dryKey + '|' + roomTag + '|' + _harvestDate] = _record;
+  S('wg_approved_takedowns', approvedTakedowns);
+  S('wg_dry_rooms', dryRooms);
+  S('wg_rooms_edited_at', Date.now());
+  pushConfigToCloud(true);
+  // Log to sheet — mark as lead-completed so audit trail shows single signoff
+  postToSheet('Dry_Takedowns', [dateToIso(TODAY), fmtTime(), dryKey, roomTag, who, who + ' (lead)']);
+  todayLog.push({id:Date.now(), roomId:dryKey, taskId:'dry_takedown',
+    taskName:'Dry takedown — ' + dryKey + ' Room ' + roomTag.replace(/[^0-9]/g,'') + ' (lead-marked)',
+    who, notes:'Lead one-click', pct:'', time:fmtTime(), status:'done'});
+  S('wg_log_' + dateToIso(TODAY), todayLog);
   renderTodayLog();
   renderSupportRooms();
 }
@@ -9571,17 +9616,14 @@ function getDryRoomBatches(dryKey){
     }
   });
 
-  // Filter out permanently approved takedowns. An approval could be keyed
-  // under several roomTag variants depending on state at the time it was
-  // recorded — we check ALL applicable variants for each batch:
-  //   • current roomTag (empty, actual R#, or inferred R#)
-  //   • 'Unknown' (the render's fallback when b.roomTag is empty — the approve
-  //     button passes 'Unknown' as the roomTag, so approvals of un-tagged
-  //     batches get keyed under 'Unknown' not '')
-  //   • pre-inference variants for batches whose roomTag was just inferred
-  //     (they used to render/approve under either '' or 'Unknown')
+  // Filter out permanently approved takedowns. A batch is identified by
+  // (roomTag, harvestDate) — that pair is unique across time and dry rooms
+  // (per Devon's spec — no duplicate date+room+strain), so an approval
+  // sticks regardless of which dry room the batch is physically sitting in.
+  // This fixes the "harvest reappears when moved to a different dry room"
+  // bug: batches routinely start in Dry Room 2 and move to Dry Room 1
+  // partway through drying.
   return Object.values(seen).filter(b => {
-    const hd = b.harvestDate || 'unknown';
     const rt = b.roomTag || '';
     const tagVariants = new Set([rt]);
     if (!rt) tagVariants.add('Unknown');
@@ -9590,14 +9632,42 @@ function getDryRoomBatches(dryKey){
       tagVariants.add('Unknown');
     }
     for (const tag of tagVariants) {
-      const permKey = dryKey + '|' + tag + '|' + hd;
-      if (approvedTakedowns[permKey]) return false;
-      const tdKey = dryKey + '|' + tag;
-      const td = dryRooms[dryKey] && dryRooms[dryKey].takedowns && dryRooms[dryKey].takedowns[tdKey];
-      if (td && td.approved === true) return false;
+      if (isTakedownApproved(tag, b.harvestDate, dryKey)) return false;
     }
     return true;
   });
+}
+
+// Cross-dry-room approval lookup. Returns true if a batch identified by
+// (roomTag, harvestDate) has been approved anywhere.
+// Checks (in order):
+//   1. New any-dry-room key format: "R7|2026-09-01" — used by all approvals
+//      recorded from this ship forward.
+//   2. Legacy dry-room-prefixed keys: "Dry Room 1|R7|2026-09-01",
+//      "Dry Room 2|R7|2026-09-01", etc — used by approvals recorded before
+//      this ship. Matched by suffix so any prior dry room's approval counts.
+//   3. Local dryRooms.takedowns state for the CURRENT dry room only — safety
+//      net for edge cases where the cloud approval record has a mangled key
+//      (e.g. harvestDate='unknown' from the pre-inference era) but the local
+//      td record is intact.
+function isTakedownApproved(roomTag, harvestDate, currentDryKey){
+  const hd = harvestDate || 'unknown';
+  if (!roomTag && roomTag !== '') return false;
+  // 1. New format
+  const newKey = roomTag + '|' + hd;
+  if (approvedTakedowns[newKey]) return true;
+  // 2. Legacy dry-room-prefixed keys (any dry room)
+  const legacySuffix = '|' + roomTag + '|' + hd;
+  for (const key in approvedTakedowns) {
+    if (key.endsWith(legacySuffix)) return true;
+  }
+  // 3. Local safety net for the CURRENT dry room's takedown record
+  if (currentDryKey && dryRooms[currentDryKey] && dryRooms[currentDryKey].takedowns) {
+    const tdKey = currentDryKey + '|' + roomTag;
+    const td = dryRooms[currentDryKey].takedowns[tdKey];
+    if (td && td.approved === true) return true;
+  }
+  return false;
 }
 
 function renderSupportRooms(){
@@ -9717,10 +9787,20 @@ function renderSupportRooms(){
                 :`<div style="font-size:10px;color:var(--text3)">Waiting for a different team member to approve</div>`}
             </div>`;
           } else if(daysDrying!==null&&daysDrying>=TARGET_DAYS-2){
-            tdHtml=`<button onclick="event.stopPropagation();submitDryTakedown('${key}','${group.roomTag}')"
-              style="margin-top:6px;width:100%;font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">
-              Mark ready to take down
-            </button>`;
+            // Lead sees a single "Mark done" button that combines submit+approve.
+            // Non-lead sees the two-step "Mark ready" that requires a lead to
+            // approve afterward.
+            if(currentRole==='lead'){
+              tdHtml=`<button onclick="event.stopPropagation();markDryTakedownDone('${key}','${group.roomTag}')"
+                class="btn-primary" style="margin-top:6px;width:100%;font-size:11px;padding:5px 10px">
+                Mark done
+              </button>`;
+            } else {
+              tdHtml=`<button onclick="event.stopPropagation();submitDryTakedown('${key}','${group.roomTag}')"
+                style="margin-top:6px;width:100%;font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer">
+                Mark ready to take down
+              </button>`;
+            }
           }
 
           // Reorder arrows — leads only, skip if approved
