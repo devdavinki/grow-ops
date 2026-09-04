@@ -5209,14 +5209,22 @@ function renderCloneDestruction(){
     const totalDestroyed = batches.reduce((s,b) => s + b.destroyed, 0);
     const strainNameShown = batches[0].strain;
 
+    // data-cd-total attr lets the input handler find this row on every keystroke
+    // and update the live "→ N after session" number without a full re-render.
+    const totalKey = strainNameShown + '::' + dateKey;
     return `<div style="margin-bottom:20px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)"
+           data-cd-total="${totalKey.replace(/"/g,'&quot;')}"
+           data-cd-strain="${strainNameShown.replace(/"/g,'&quot;')}"
+           data-cd-datekey="${dateKey.replace(/"/g,'&quot;')}"
+           data-cd-effective-base="${totalPlants - totalDestroyed}">
         <div>
           <span style="font-size:14px;font-weight:700">${strainNameShown}</span>
           <span style="font-size:12px;color:var(--text3);margin-left:8px">Batch date: <b>${dateKey}</b></span>
         </div>
         <div style="font-size:11px;color:var(--text3)">
-          Strain total: <b>${totalPlants}</b> plants · <b>${totalDestroyed}</b> destroyed · <b style="color:var(--green)">${totalPlants - totalDestroyed}</b> effective
+          Strain total: <b>${totalPlants}</b> plants · <b>${totalDestroyed}</b> destroyed ·
+          <b style="color:var(--green)">${totalPlants - totalDestroyed}</b> effective<span data-cd-live-remaining="${totalKey.replace(/"/g,'&quot;')}"></span>
         </div>
       </div>
       <div class="grid-2" style="gap:10px">
@@ -5328,6 +5336,29 @@ function updateSessionBar(){
   const bar = document.getElementById('cd-session-bar');
   const summary = document.getElementById('cd-session-summary');
   const entries = Object.values(_cdSession);
+  // First: refresh every visible strain/date live-remaining span. Every entry
+  // in _cdSession is keyed to a (strain, batchDate); sum by that pair, then
+  // find the matching header and inject "→ N after session".
+  const perGroup = {};   // "strain::date" → session count
+  Object.values(_cdSession).forEach(e => {
+    const k = e.strain + '::' + e.batchDate;
+    perGroup[k] = (perGroup[k] || 0) + e.count;
+  });
+  // Wipe every live span first (so ones that used to have counts and no longer do go blank)
+  document.querySelectorAll('[data-cd-live-remaining]').forEach(span => {
+    const key = span.getAttribute('data-cd-live-remaining');
+    const headerRow = document.querySelector(`[data-cd-total="${CSS.escape(key)}"]`);
+    if(!headerRow){ span.innerHTML = ''; return; }
+    const base = Number(headerRow.getAttribute('data-cd-effective-base')) || 0;
+    const sessionCount = perGroup[key] || 0;
+    if(sessionCount > 0){
+      const remaining = base - sessionCount;
+      span.innerHTML = ` <span style="color:var(--amber);font-weight:600">→ ${remaining} after session</span>`;
+    } else {
+      span.innerHTML = '';
+    }
+  });
+  // Then: the bottom subtotal bar
   if(!entries.length){
     if(bar) bar.style.display = 'none';
     return;
