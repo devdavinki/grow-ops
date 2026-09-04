@@ -5193,23 +5193,13 @@ function renderCloneDestruction(){
       </div>
       <div class="grid-2" style="gap:10px">
         ${batches.map(b => `
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px">
-            <div style="font-family:var(--mono);font-size:13px;font-weight:600;margin-bottom:6px">${b.batch}</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px">
-              <div>
-                <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Plants</div>
-                <div style="font-size:16px;font-weight:700;color:var(--text)">${b.plants}</div>
-              </div>
-              <div>
-                <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Destroyed</div>
-                <div style="font-size:16px;font-weight:700;color:${b.destroyed>0?'var(--red)':'var(--text3)'}">${b.destroyed}</div>
-              </div>
-              <div>
-                <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Effective</div>
-                <div style="font-size:16px;font-weight:700;color:var(--green)">${b.plants - b.destroyed}</div>
-              </div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <div style="font-family:var(--mono);font-size:13px;font-weight:600">${b.batch}</div>
+            <div style="display:flex;align-items:baseline;gap:6px;flex-shrink:0">
+              <span style="font-size:18px;font-weight:700;color:var(--text)">${b.plants}</span>
+              <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">plants</span>
+              ${b.destroyed>0 ? `<span style="font-size:11px;color:var(--red);margin-left:8px">· ${b.destroyed} destroyed</span>` : ''}
             </div>
-            ${b.sourcePlant ? `<div style="margin-top:8px;font-size:10px;color:var(--text3);font-family:var(--mono);word-break:break-all">Source: ${b.sourcePlant}</div>` : ''}
           </div>
         `).join('')}
       </div>
