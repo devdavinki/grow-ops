@@ -447,6 +447,7 @@ button { cursor: pointer; }
     <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
       <button class="nav-tab active" onclick="showCloneTab('weekly',this)" id="ctab-weekly" style="font-size:12px">Weekly cuts</button>
       <button class="nav-tab" onclick="showCloneTab('mothers',this)" id="ctab-mothers" style="font-size:12px">Mother rotation</button>
+      <button class="nav-tab" onclick="showCloneTab('destroy',this)" id="ctab-destroy" style="font-size:12px">Clone destruction</button>
     </div>
 
     <!-- WEEKLY CUTS SUB-PAGE -->
@@ -568,6 +569,42 @@ button { cursor: pointer; }
       <div id="retired-section" style="display:none">
         <div class="section-title mb12" style="color:var(--text3)">Retired generations</div>
         <div id="mother-retired-grid" class="grid-3 mb16"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         CLONE DESTRUCTION SUB-PAGE
+         Reads METRC_immature (filter: Type=Clone|Seed, Hold=FALSE)
+         Groups by strain → batch date → individual batch
+         Stage 1: read-only view proving counts pull correctly
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="clone-sub-destroy" style="display:none">
+      <div class="row mb12">
+        <div class="section-title">Clone destruction</div>
+        <div style="flex:1"></div>
+        <div id="cd-freshness" style="font-size:11px;color:var(--text3);text-align:right;line-height:1.4"></div>
+      </div>
+
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.5">
+        Stage 1 preview — read-only. Enter a strain to see active clone batches from METRC_immature. Numbers should match METRC exactly. Entry UI and CSV export come in Stage 2 once counts are verified.
+      </div>
+
+      <!-- Strain typeahead -->
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:5px;font-weight:600">Strain</label>
+        <input id="cd-strain-input" type="text" placeholder="Start typing a strain name…"
+          list="cd-strain-list"
+          oninput="renderCloneDestruction()"
+          style="width:100%;font-size:15px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box"/>
+        <datalist id="cd-strain-list"></datalist>
+      </div>
+
+      <!-- Batch grid — grouped by date -->
+      <div id="cd-batch-grid"></div>
+
+      <!-- Empty state -->
+      <div id="cd-empty" style="text-align:center;padding:40px 20px;color:var(--text3);font-size:12px;display:none">
+        Enter a strain above to see its active clone batches from METRC_immature.
       </div>
     </div>
 
@@ -5005,11 +5042,184 @@ function handleMotherFileUpload(input){
 
 function showCloneTab(tab,el){
   document.querySelectorAll('#page-clonetracker .nav-tab').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
+  if(el) el.classList.add('active');
   document.getElementById('clone-sub-weekly').style.display=tab==='weekly'?'block':'none';
   document.getElementById('clone-sub-mothers').style.display=tab==='mothers'?'block':'none';
-  if(tab==='mothers')renderMotherRotation();
-  if(tab==='weekly')renderCloneTracker();
+  document.getElementById('clone-sub-destroy').style.display=tab==='destroy'?'block':'none';
+  if(tab==='mothers') renderMotherRotation();
+  if(tab==='destroy') renderCloneDestruction();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CLONE DESTRUCTION — Stage 1: data pipe + read-only view
+// ══════════════════════════════════════════════════════════════════════
+
+// Read METRC_immature and return active clone batches, filtered per spec:
+//   • Type must be Clone OR Seed (destruction tab is for immature plants only)
+//   • Hold must be FALSE (quarantined batches shouldn't be touched here)
+// Returns an array of {batch, strain, plants, destroyed, batchDate, sourcePlant}
+function getActiveCloneBatches(){
+  const rows = (metrcData && metrcData.immature) || [];
+  if(!rows.length) return [];
+  const out = [];
+  for(let i=0; i<rows.length; i++){
+    const r = rows[i];
+    // METRC_immature columns per Devon's confirmed schema:
+    //   A=Plant Batch, B=Strain, C=Location, D=Type, E=Hold,
+    //   F=Plants, G=Tracked, H=Packaged, I=Destroyed,
+    //   J=Source Package, K=Source Plant, L=Source Plant Batch, M=Batch Date
+    const type = String(r['Type'] || r['type'] || '').trim();
+    if(type !== 'Clone' && type !== 'Seed') continue;
+    const hold = String(r['Hold'] || r['hold'] || '').toUpperCase();
+    if(hold === 'TRUE') continue;
+    const batch = String(r['Plant Batch'] || r['batch'] || '').trim();
+    const strain = String(r['Strain'] || r['strain'] || '').trim();
+    if(!batch || !strain) continue;
+    const plants    = Number(r['Plants']    || r['plants']    || 0) || 0;
+    const destroyed = Number(r['Destroyed'] || r['destroyed'] || 0) || 0;
+    const batchDate = String(r['Batch Date'] || r['batchDate'] || r['batch_date'] || '').trim();
+    const sourcePlant = String(r['Source Plant'] || r['sourcePlant'] || '').trim();
+    out.push({batch, strain, plants, destroyed, batchDate, sourcePlant, type});
+  }
+  return out;
+}
+
+// Fetch and cache METRC_immature freshness signal. Called on tab open.
+let _cdFreshness = null;
+async function refreshCloneDestructionFreshness(){
+  if(!gsUrl) return;
+  try{
+    const res = await fetchWithTimeout(gsUrl+'?action=getImmatureLastModified&t='+Date.now(), null, 10000);
+    const json = await res.json();
+    if(!json || !json.ok) return;
+    _cdFreshness = json.lastModified;
+    renderCloneDestruction();
+  }catch(e){ /* silent — informational only, banner just stays blank */ }
+}
+
+// Format the freshness label as "last uploaded Tue 8:32 AM · 4h ago" style
+function formatFreshnessLabel(iso){
+  if(!iso) return '';
+  const t = new Date(iso);
+  if(isNaN(t.getTime())) return '';
+  const now = Date.now();
+  const ageMs = now - t.getTime();
+  const ageMin = Math.floor(ageMs / 60000);
+  const ageHr  = Math.floor(ageMs / 3600000);
+  const ageDy  = Math.floor(ageMs / 86400000);
+  let ageStr;
+  if(ageMin < 60)        ageStr = ageMin + 'm ago';
+  else if(ageHr < 48)    ageStr = ageHr  + 'h ago';
+  else                   ageStr = ageDy  + 'd ago';
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dow = days[t.getDay()];
+  let hr = t.getHours();
+  const period = hr >= 12 ? 'PM' : 'AM';
+  hr = hr % 12; if(hr === 0) hr = 12;
+  const mm = String(t.getMinutes()).padStart(2,'0');
+  return `METRC_immature last uploaded <b>${dow} ${hr}:${mm} ${period}</b> · ${ageStr}`;
+}
+
+function renderCloneDestruction(){
+  // Freshness banner
+  const freshnessEl = document.getElementById('cd-freshness');
+  if(freshnessEl) freshnessEl.innerHTML = formatFreshnessLabel(_cdFreshness) || '<span style="color:var(--text3)">Loading freshness…</span>';
+
+  const allBatches = getActiveCloneBatches();
+
+  // Datalist for typeahead — unique strains
+  const strains = Array.from(new Set(allBatches.map(b=>b.strain))).sort();
+  const dl = document.getElementById('cd-strain-list');
+  if(dl){
+    dl.innerHTML = strains.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"></option>`).join('');
+  }
+
+  const input = document.getElementById('cd-strain-input');
+  const query = (input ? input.value : '').trim();
+  const grid = document.getElementById('cd-batch-grid');
+  const empty = document.getElementById('cd-empty');
+
+  if(!query){
+    if(grid) grid.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+
+  // Filter to batches matching the strain typed
+  const q = query.toLowerCase();
+  const matching = allBatches.filter(b => b.strain.toLowerCase().indexOf(q) >= 0);
+
+  if(!matching.length){
+    if(grid) grid.innerHTML = `<div style="text-align:center;padding:30px 20px;color:var(--text3);font-size:12px">
+      No active clone batches found for "<b>${query}</b>". Check the spelling or verify METRC_immature is up to date.
+    </div>`;
+    return;
+  }
+
+  // Group by batchDate. Within each date, list individual batches.
+  const byDate = {};
+  matching.forEach(b => {
+    const d = b.batchDate || 'unknown';
+    if(!byDate[d]) byDate[d] = [];
+    byDate[d].push(b);
+  });
+
+  // Sort dates newest first
+  const dates = Object.keys(byDate).sort((a,b) => {
+    const da = new Date(a).getTime(); const db = new Date(b).getTime();
+    if(isNaN(da) && isNaN(db)) return 0;
+    if(isNaN(da)) return 1;
+    if(isNaN(db)) return -1;
+    return db - da;
+  });
+
+  const html = dates.map(dateKey => {
+    const batches = byDate[dateKey];
+    // Strain-total across ALL batches at this date (for the strain being viewed)
+    const totalPlants    = batches.reduce((s,b) => s + b.plants,    0);
+    const totalDestroyed = batches.reduce((s,b) => s + b.destroyed, 0);
+    const strainNameShown = batches[0].strain;
+
+    return `<div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+        <div>
+          <span style="font-size:14px;font-weight:700">${strainNameShown}</span>
+          <span style="font-size:12px;color:var(--text3);margin-left:8px">Batch date: <b>${dateKey}</b></span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">
+          Strain total: <b>${totalPlants}</b> plants · <b>${totalDestroyed}</b> destroyed · <b style="color:var(--green)">${totalPlants - totalDestroyed}</b> effective
+        </div>
+      </div>
+      <div class="grid-2" style="gap:10px">
+        ${batches.map(b => `
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px">
+            <div style="font-family:var(--mono);font-size:13px;font-weight:600;margin-bottom:6px">${b.batch}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px">
+              <div>
+                <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Plants</div>
+                <div style="font-size:16px;font-weight:700;color:var(--text)">${b.plants}</div>
+              </div>
+              <div>
+                <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Destroyed</div>
+                <div style="font-size:16px;font-weight:700;color:${b.destroyed>0?'var(--red)':'var(--text3)'}">${b.destroyed}</div>
+              </div>
+              <div>
+                <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Effective</div>
+                <div style="font-size:16px;font-weight:700;color:var(--green)">${b.plants - b.destroyed}</div>
+              </div>
+            </div>
+            ${b.sourcePlant ? `<div style="margin-top:8px;font-size:10px;color:var(--text3);font-family:var(--mono);word-break:break-all">Source: ${b.sourcePlant}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  if(grid) grid.innerHTML = html;
+
+  // Trigger freshness fetch if we haven't yet
+  if(!_cdFreshness) refreshCloneDestructionFreshness();
 }
 
 function openModal(roomId,taskId,taskName){
