@@ -5250,11 +5250,14 @@ function renderCloneDestruction(){
               <input type="number" min="0" max="${b.plants - b.destroyed}" placeholder="0"
                 data-cd-input="${b.batch}"
                 data-max-destroy="${b.plants - b.destroyed}"
+                data-cd-strain-key="${(b.strain + '::' + b.batchDate).replace(/"/g,'&quot;')}"
                 oninput="onCloneDestructionInput(this)"
                 style="flex:1;font-size:14px;font-weight:600;text-align:center;padding:7px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"/>
               <span style="font-size:10px;color:var(--text3);white-space:nowrap">to destroy</span>
             </div>
+            <!-- Live preview lines: batch-level effective, then strain-level rolling total -->
             <div data-cd-preview="${b.batch}" style="font-size:11px;color:var(--text3);margin-top:6px;min-height:14px;text-align:right"></div>
+            <div data-cd-preview-strain="${b.batch}" style="font-size:11px;color:var(--text3);margin-top:2px;min-height:14px;text-align:right"></div>
           </div>
         `).join('')}
       </div>
@@ -5336,15 +5339,13 @@ function updateSessionBar(){
   const bar = document.getElementById('cd-session-bar');
   const summary = document.getElementById('cd-session-summary');
   const entries = Object.values(_cdSession);
-  // First: refresh every visible strain/date live-remaining span. Every entry
-  // in _cdSession is keyed to a (strain, batchDate); sum by that pair, then
-  // find the matching header and inject "→ N after session".
-  const perGroup = {};   // "strain::date" → session count
+  // Sum session counts by "strain::batchDate" — the key for a rolling group total.
+  const perGroup = {};
   Object.values(_cdSession).forEach(e => {
     const k = e.strain + '::' + e.batchDate;
     perGroup[k] = (perGroup[k] || 0) + e.count;
   });
-  // Wipe every live span first (so ones that used to have counts and no longer do go blank)
+  // Refresh the strain-total header line (top of each date group)
   document.querySelectorAll('[data-cd-live-remaining]').forEach(span => {
     const key = span.getAttribute('data-cd-live-remaining');
     const headerRow = document.querySelector(`[data-cd-total="${CSS.escape(key)}"]`);
@@ -5356,6 +5357,28 @@ function updateSessionBar(){
       span.innerHTML = ` <span style="color:var(--amber);font-weight:600">→ ${remaining} after session</span>`;
     } else {
       span.innerHTML = '';
+    }
+  });
+  // Refresh the strain-rolling-total line INSIDE every batch module. Every input carries
+  // its own strain-key via data-cd-strain-key; look it up per input and paint the strain
+  // remaining below the batch-level preview. This is the per-card rolling total Devon asked
+  // for — appears on any batch card whose group has ANY session activity, even if this
+  // specific batch has 0 entered.
+  document.querySelectorAll('[data-cd-input]').forEach(input => {
+    const batch = input.getAttribute('data-cd-input');
+    const key   = input.getAttribute('data-cd-strain-key');
+    const strainLine = document.querySelector(`[data-cd-preview-strain="${CSS.escape(batch)}"]`);
+    if(!strainLine || !key) return;
+    const headerRow = document.querySelector(`[data-cd-total="${CSS.escape(key)}"]`);
+    if(!headerRow){ strainLine.innerHTML = ''; return; }
+    const base = Number(headerRow.getAttribute('data-cd-effective-base')) || 0;
+    const sessionCount = perGroup[key] || 0;
+    if(sessionCount > 0){
+      const remaining = base - sessionCount;
+      const strainName = headerRow.getAttribute('data-cd-strain') || '';
+      strainLine.innerHTML = `→ <b style="color:var(--amber)">${remaining}</b> total left for ${strainName}`;
+    } else {
+      strainLine.innerHTML = '';
     }
   });
   // Then: the bottom subtotal bar
