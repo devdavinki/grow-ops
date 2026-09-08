@@ -5204,27 +5204,31 @@ function renderCloneDestruction(){
 
   const html = dates.map(dateKey => {
     const batches = byDate[dateKey];
-    // Strain-total across ALL batches at this date (for the strain being viewed)
-    const totalPlants    = batches.reduce((s,b) => s + b.plants,    0);
+    // METRC_immature semantics (confirmed w/ Devon 2026-09-04):
+    //   Plants column    = CURRENT effective count (already has destructions subtracted)
+    //   Destroyed column = cumulative destroyed count
+    //   Starting total   = Plants + Destroyed  (what the batch began with)
+    const totalEffective = batches.reduce((s,b) => s + b.plants,    0);
     const totalDestroyed = batches.reduce((s,b) => s + b.destroyed, 0);
+    const totalStarting  = totalEffective + totalDestroyed;
     const strainNameShown = batches[0].strain;
 
-    // data-cd-total attr lets the input handler find this row on every keystroke
-    // and update the live "→ N after session" number without a full re-render.
+    // data-cd-effective-base = the CURRENT effective count. Session destructions
+    // subtract from this to show the rolling "→ N after session" figure.
     const totalKey = strainNameShown + '::' + dateKey;
     return `<div style="margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)"
            data-cd-total="${totalKey.replace(/"/g,'&quot;')}"
            data-cd-strain="${strainNameShown.replace(/"/g,'&quot;')}"
            data-cd-datekey="${dateKey.replace(/"/g,'&quot;')}"
-           data-cd-effective-base="${totalPlants - totalDestroyed}">
+           data-cd-effective-base="${totalEffective}">
         <div>
           <span style="font-size:14px;font-weight:700">${strainNameShown}</span>
           <span style="font-size:12px;color:var(--text3);margin-left:8px">Batch date: <b>${dateKey}</b></span>
         </div>
         <div style="font-size:11px;color:var(--text3)">
-          Strain total: <b>${totalPlants}</b> plants · <b>${totalDestroyed}</b> destroyed ·
-          <b style="color:var(--green)">${totalPlants - totalDestroyed}</b> effective<span data-cd-live-remaining="${totalKey.replace(/"/g,'&quot;')}"></span>
+          Strain total: <b>${totalStarting}</b> started · <b>${totalDestroyed}</b> destroyed ·
+          <b style="color:var(--green)">${totalEffective}</b> effective<span data-cd-live-remaining="${totalKey.replace(/"/g,'&quot;')}"></span>
         </div>
       </div>
       <div class="grid-2" style="gap:10px">
@@ -5234,7 +5238,7 @@ function renderCloneDestruction(){
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;margin-bottom:10px">
               <div>
                 <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Plants</div>
-                <div style="font-size:16px;font-weight:700;color:var(--text)">${b.plants}</div>
+                <div style="font-size:16px;font-weight:700;color:var(--text)">${b.plants + b.destroyed}</div>
               </div>
               <div>
                 <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Destroyed</div>
@@ -5242,14 +5246,14 @@ function renderCloneDestruction(){
               </div>
               <div>
                 <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">Effective</div>
-                <div style="font-size:16px;font-weight:700;color:var(--green)" data-effective="${b.plants - b.destroyed}">${b.plants - b.destroyed}</div>
+                <div style="font-size:16px;font-weight:700;color:var(--green)" data-effective="${b.plants}">${b.plants}</div>
               </div>
             </div>
-            <!-- Stage 2: entry input -->
+            <!-- Stage 2: entry input. Max is b.plants (the effective count) — you can't destroy more than what's left alive. -->
             <div style="display:flex;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
-              <input type="number" min="0" max="${b.plants - b.destroyed}" placeholder="0"
+              <input type="number" min="0" max="${b.plants}" placeholder="0"
                 data-cd-input="${b.batch}"
-                data-max-destroy="${b.plants - b.destroyed}"
+                data-max-destroy="${b.plants}"
                 data-cd-strain-key="${(b.strain + '::' + b.batchDate).replace(/"/g,'&quot;')}"
                 oninput="onCloneDestructionInput(this)"
                 style="flex:1;font-size:14px;font-weight:600;text-align:center;padding:7px 8px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--mono);box-sizing:border-box"/>
@@ -5431,14 +5435,17 @@ function reviewCloneDestructionSession(){
         const dateEntries = strainEntries.filter(e => e.batchDate === dateKey);
         // Strain-total math for this date across ALL batches (not just ones being destroyed)
         const dateBatchesAll = all.filter(b => b.strain === strain && b.batchDate === dateKey);
-        const currentTotal = dateBatchesAll.reduce((s,b) => s + (b.plants - b.destroyed), 0);
+        // b.plants is effective; sum directly for current strain-date total.
+        const currentTotal = dateBatchesAll.reduce((s,b) => s + b.plants, 0);
         const sessionDestroy = dateEntries.reduce((s,e) => s + e.count, 0);
         const afterTotal = currentTotal - sessionDestroy;
         return `<div style="margin-left:8px;margin-bottom:10px;padding-left:12px;border-left:2px solid var(--border)">
           <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Batch date: <b>${dateKey}</b> · strain total ${currentTotal} → <b style="color:${afterTotal < currentTotal * 0.5 ? 'var(--red)' : 'var(--amber)'}">${afterTotal}</b></div>
           ${dateEntries.map(e => {
-            const remainingInBatch = (e.plants - e.destroyed) - e.count;
-            const isHighPct = e.count / (e.plants - e.destroyed) > 0.5;
+            // e.plants is the effective count (Plants column, already net of destructions).
+            // remainingInBatch = effective - session destroy.
+            const remainingInBatch = e.plants - e.count;
+            const isHighPct = e.plants > 0 && (e.count / e.plants) > 0.5;
             return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;font-size:12px">
               <span style="font-family:var(--mono)">${e.batch}</span>
               <span>destroy <b>${e.count}</b> → <b style="color:var(--text)">${remainingInBatch}</b> remain${isHighPct?' <span style="color:var(--amber);font-size:10px">⚠ &gt;50% of batch</span>':''}</span>
