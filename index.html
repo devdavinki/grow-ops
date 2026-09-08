@@ -5460,19 +5460,9 @@ function reviewCloneDestructionSession(){
     const totalClones  = entries.reduce((s,e) => s + e.count, 0);
     const totalBatches = entries.length;
 
-    // Approver dropdown — every team member with cloning permission (cloner or lead role)
-    // EXCEPT the person currently logged in (who is the entry person). Enforces the
-    // two-person rule at the UI level; backend re-checks.
     const currentName = loggedInMember ? loggedInMember.name : '';
-    const eligibleApprovers = (team || []).filter(m =>
-      (m.role === 'cloner' || m.role === 'lead') && m.name !== currentName
-    );
-    const approverOptions = eligibleApprovers.length
-      ? eligibleApprovers.map(m => `<option value="${m.name.replace(/"/g,'&quot;')}">${m.name}${m.role==='lead'?' (lead)':''}</option>`).join('')
-      : '<option value="">No eligible approvers on team</option>';
-
     body.innerHTML = `<div style="margin-bottom:14px;padding:10px 12px;background:var(--amber-bg,rgba(255,190,60,0.08));border:1px solid var(--amber-dim,var(--border2));border-radius:var(--r);font-size:12px">
-      About to destroy <b>${totalClones}</b> clones across <b>${totalBatches}</b> batch${totalBatches===1?'':'es'} in <b>${strains.length}</b> strain${strains.length===1?'':'s'}. Verify carefully — this cannot be undone once written to the sheet.
+      About to destroy <b>${totalClones}</b> clones across <b>${totalBatches}</b> batch${totalBatches===1?'':'es'} in <b>${strains.length}</b> strain${strains.length===1?'':'s'}. Verify counts carefully — rows can\'t be edited once written to the sheet.
     </div>${html}
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:grid;gap:10px">
       <div>
@@ -5480,16 +5470,8 @@ function reviewCloneDestructionSession(){
         <input id="cd-review-note" type="text" placeholder="e.g. Not viable, weak roots, PM-affected…"
           style="width:100%;font-size:13px;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box"/>
       </div>
-      <div>
-        <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">Approved by (must be different from you — <b>${currentName || 'unknown'}</b>)</label>
-        <select id="cd-review-approver"
-          style="width:100%;font-size:13px;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box">
-          <option value="">— Select approver —</option>
-          ${approverOptions}
-        </select>
-      </div>
       <div style="font-size:10px;color:var(--text3);line-height:1.4">
-        Reason is set to <b>Damaged</b> for all rows (per METRC requirement). Rows will be written to the <b>Clone_Destructions</b> sheet with your name (entered), the approver, and a timestamp.
+        Reason is set to <b>Damaged</b> for all rows (per METRC requirement). Rows will be written to <b>Clone_Destructions</b> with your name (<b>${currentName || 'unknown'}</b>) and a timestamp.
       </div>
     </div>`;
   }
@@ -5510,30 +5492,18 @@ async function submitCloneDestructionForApproval(){
     alert('Nothing to submit.');
     return;
   }
-  const currentName = loggedInMember ? loggedInMember.name : '';
-  if(!currentName){
-    alert('You must be signed in to submit destructions.');
-    return;
-  }
-  const approverEl = document.getElementById('cd-review-approver');
-  const noteEl     = document.getElementById('cd-review-note');
-  const approver = approverEl ? approverEl.value.trim() : '';
-  const note     = noteEl ? noteEl.value.trim() : '';
-  if(!approver){
-    alert('Select an approver before submitting.');
-    return;
-  }
-  if(approver === currentName){
-    alert('Approver must be a different person than you.');
-    return;
-  }
-  // Build payload — entries carry (batch, count, strain, batchDate) plus actualDate = today
+  const currentName = (loggedInMember && loggedInMember.name) || 'Unknown';
+  const noteEl = document.getElementById('cd-review-note');
+  const note   = noteEl ? noteEl.value.trim() : '';
+
+  // Build payload — one row per batch touched in this session.
+  // Entered/Approved are both the current user (no two-person requirement).
   const todayIso = dateToIso(TODAY);
   const payload = {
-    action:      'submitCloneDestructions',
-    enteredBy:   currentName,
-    approvedBy:  approver,
-    note:        note,
+    action:     'submitCloneDestructions',
+    enteredBy:  currentName,
+    approvedBy: currentName,
+    note:       note,
     entries: Object.keys(_cdSession).map(batch => ({
       batch:      batch,
       count:      _cdSession[batch].count,
@@ -5542,20 +5512,30 @@ async function submitCloneDestructionForApproval(){
       batchDate:  _cdSession[batch].batchDate,
     })),
   };
-  // Lock the submit button while the request is in flight
+
+  // Lock the submit button while in flight
   const btn = document.getElementById('cd-submit-btn');
-  const originalBtnText = btn ? btn.textContent : '';
+  const originalBtnText = btn ? btn.textContent : 'Submit destructions';
+  const unlock = () => { if(btn){ btn.disabled = false; btn.textContent = originalBtnText; } };
   if(btn){ btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+  // Hardened fetch — AbortController with a 30s ceiling guarantees the button
+  // never hangs indefinitely if the network drops mid-request (which happened
+  // to Devon on 2026-09). The catch path always runs unlock().
+  const ctrl = new AbortController();
+  const abortTimer = setTimeout(() => ctrl.abort(), 30000);
   try{
     const res = await fetch(gsUrl, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain'},
       body: JSON.stringify(payload),
+      signal: ctrl.signal,
     });
+    clearTimeout(abortTimer);
     const result = await res.json();
     if(!result.ok){
       alert('Submission failed:\n\n' + (result.error || 'unknown error') + '\n\nSession preserved — fix and retry.');
-      if(btn){ btn.disabled = false; btn.textContent = originalBtnText; }
+      unlock();
       return;
     }
     // Success — clear session, close modal, alert summary
@@ -5565,11 +5545,15 @@ async function submitCloneDestructionForApproval(){
     closeCloneDestructionReview();
     renderCloneDestruction();
     alert('Wrote ' + rowsWritten + ' destruction row' + (rowsWritten===1?'':'s') +
-          ' to Clone_Destructions.\n\nDestroyed: ' + totalClones + ' clones\nApproved by: ' + approver +
+          ' to Clone_Destructions.\n\nDestroyed: ' + totalClones + ' clones\nEntered by: ' + currentName +
           '\n\nCopy A:G from that sheet to your METRC upload template.');
   }catch(e){
-    alert('Submission failed (network error): ' + String(e) + '\n\nSession preserved — check connection and retry.');
-    if(btn){ btn.disabled = false; btn.textContent = originalBtnText; }
+    clearTimeout(abortTimer);
+    const msg = (e && e.name === 'AbortError')
+      ? 'Submission timed out after 30 seconds. Check your connection and retry — session is preserved.'
+      : 'Submission failed: ' + String(e) + '\n\nSession preserved — check connection and retry.';
+    alert(msg);
+    unlock();
   }
 }
 
