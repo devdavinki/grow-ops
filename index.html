@@ -5459,9 +5459,39 @@ function reviewCloneDestructionSession(){
   if(body){
     const totalClones  = entries.reduce((s,e) => s + e.count, 0);
     const totalBatches = entries.length;
+
+    // Approver dropdown — every team member with cloning permission (cloner or lead role)
+    // EXCEPT the person currently logged in (who is the entry person). Enforces the
+    // two-person rule at the UI level; backend re-checks.
+    const currentName = loggedInMember ? loggedInMember.name : '';
+    const eligibleApprovers = (team || []).filter(m =>
+      (m.role === 'cloner' || m.role === 'lead') && m.name !== currentName
+    );
+    const approverOptions = eligibleApprovers.length
+      ? eligibleApprovers.map(m => `<option value="${m.name.replace(/"/g,'&quot;')}">${m.name}${m.role==='lead'?' (lead)':''}</option>`).join('')
+      : '<option value="">No eligible approvers on team</option>';
+
     body.innerHTML = `<div style="margin-bottom:14px;padding:10px 12px;background:var(--amber-bg,rgba(255,190,60,0.08));border:1px solid var(--amber-dim,var(--border2));border-radius:var(--r);font-size:12px">
-      About to destroy <b>${totalClones}</b> clones across <b>${totalBatches}</b> batch${totalBatches===1?'':'es'} in <b>${strains.length}</b> strain${strains.length===1?'':'s'}. Verify carefully — this will submit for approval.
-    </div>${html}`;
+      About to destroy <b>${totalClones}</b> clones across <b>${totalBatches}</b> batch${totalBatches===1?'':'es'} in <b>${strains.length}</b> strain${strains.length===1?'':'s'}. Verify carefully — this cannot be undone once written to the sheet.
+    </div>${html}
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:grid;gap:10px">
+      <div>
+        <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">Note (optional — appears on all destruction rows)</label>
+        <input id="cd-review-note" type="text" placeholder="e.g. Not viable, weak roots, PM-affected…"
+          style="width:100%;font-size:13px;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);font-weight:600;display:block;margin-bottom:4px">Approved by (must be different from you — <b>${currentName || 'unknown'}</b>)</label>
+        <select id="cd-review-approver"
+          style="width:100%;font-size:13px;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);box-sizing:border-box">
+          <option value="">— Select approver —</option>
+          ${approverOptions}
+        </select>
+      </div>
+      <div style="font-size:10px;color:var(--text3);line-height:1.4">
+        Reason is set to <b>Damaged</b> for all rows (per METRC requirement). Rows will be written to the <b>Clone_Destructions</b> sheet with your name (entered), the approver, and a timestamp.
+      </div>
+    </div>`;
   }
   document.getElementById('cd-review-modal-bg').classList.add('active');
 }
@@ -5470,10 +5500,77 @@ function closeCloneDestructionReview(){
   document.getElementById('cd-review-modal-bg').classList.remove('active');
 }
 
-// Stage 3 will replace this stub with actual sheet writes + approval flow.
-function submitCloneDestructionForApproval(){
-  alert('Stage 2 preview — submission not wired yet.\n\nStage 3 will:\n  • Write to Clone_Destructions sheet\n  • Trigger 2-person approval flow\n  • Clear session on success');
-  // Don't clear session or close modal — leave it in preview state
+// Stage 3: real submission. Writes one row per session entry to the Clone_Destructions
+// sheet via the backend. Validates approver is set and differs from entry person.
+// On success: clears the session, closes the modal, alerts summary. On failure:
+// alerts with error text but preserves session so operator can retry.
+async function submitCloneDestructionForApproval(){
+  const entries = Object.values(_cdSession);
+  if(!entries.length){
+    alert('Nothing to submit.');
+    return;
+  }
+  const currentName = loggedInMember ? loggedInMember.name : '';
+  if(!currentName){
+    alert('You must be signed in to submit destructions.');
+    return;
+  }
+  const approverEl = document.getElementById('cd-review-approver');
+  const noteEl     = document.getElementById('cd-review-note');
+  const approver = approverEl ? approverEl.value.trim() : '';
+  const note     = noteEl ? noteEl.value.trim() : '';
+  if(!approver){
+    alert('Select an approver before submitting.');
+    return;
+  }
+  if(approver === currentName){
+    alert('Approver must be a different person than you.');
+    return;
+  }
+  // Build payload — entries carry (batch, count, strain, batchDate) plus actualDate = today
+  const todayIso = dateToIso(TODAY);
+  const payload = {
+    action:      'submitCloneDestructions',
+    enteredBy:   currentName,
+    approvedBy:  approver,
+    note:        note,
+    entries: Object.keys(_cdSession).map(batch => ({
+      batch:      batch,
+      count:      _cdSession[batch].count,
+      actualDate: todayIso,
+      strain:     _cdSession[batch].strain,
+      batchDate:  _cdSession[batch].batchDate,
+    })),
+  };
+  // Lock the submit button while the request is in flight
+  const btn = document.getElementById('cd-submit-btn');
+  const originalBtnText = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Submitting…'; }
+  try{
+    const res = await fetch(gsUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if(!result.ok){
+      alert('Submission failed:\n\n' + (result.error || 'unknown error') + '\n\nSession preserved — fix and retry.');
+      if(btn){ btn.disabled = false; btn.textContent = originalBtnText; }
+      return;
+    }
+    // Success — clear session, close modal, alert summary
+    const rowsWritten = result.rowsWritten || entries.length;
+    const totalClones = entries.reduce((s,e) => s + e.count, 0);
+    _cdSession = {};
+    closeCloneDestructionReview();
+    renderCloneDestruction();
+    alert('Wrote ' + rowsWritten + ' destruction row' + (rowsWritten===1?'':'s') +
+          ' to Clone_Destructions.\n\nDestroyed: ' + totalClones + ' clones\nApproved by: ' + approver +
+          '\n\nCopy A:G from that sheet to your METRC upload template.');
+  }catch(e){
+    alert('Submission failed (network error): ' + String(e) + '\n\nSession preserved — check connection and retry.');
+    if(btn){ btn.disabled = false; btn.textContent = originalBtnText; }
+  }
 }
 
 function openModal(roomId,taskId,taskName){
