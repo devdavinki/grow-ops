@@ -5107,7 +5107,12 @@ function getActiveCloneBatches(){
     const destroyed = Number(r['Destroyed'] || r['destroyed'] || 0) || 0;
     const batchDate = String(r['Batch Date'] || r['batchDate'] || r['batch_date'] || '').trim();
     const sourcePlant = String(r['Source Plant'] || r['sourcePlant'] || '').trim();
-    out.push({batch, strain, plants, destroyed, batchDate, sourcePlant, type});
+    // Layer in-app destructions submitted since last METRC upload — these
+    // aren't reflected in METRC_immature's Plants column until Devon re-uploads.
+    const pendingDestroyed = _cdPendingDestructions[batch] || 0;
+    const adjustedPlants    = Math.max(0, plants - pendingDestroyed);
+    const adjustedDestroyed = destroyed + pendingDestroyed;
+    out.push({batch, strain, plants:adjustedPlants, destroyed:adjustedDestroyed, batchDate, sourcePlant, type});
   }
   return out;
 }
@@ -5115,14 +5120,40 @@ function getActiveCloneBatches(){
 // Fetch and cache METRC_immature freshness signal. Called on tab open.
 let _cdFreshness = null;
 async function refreshCloneDestructionFreshness(){
+  if(!gsUrl){ console.warn('[freshness] no gsUrl'); return; }
+  try{
+    const res = await fetchWithTimeout(gsUrl+'?action=getImmatureLastModified&t='+Date.now(), null, 25000);
+    const json = await res.json();
+    if(!json || !json.ok){ console.warn('[freshness] bad response:', json); return; }
+    _cdFreshness = json.lastModified;
+    console.log('[freshness] loaded:', _cdFreshness);
+    // Also pull in-app pending destructions layered on top of METRC counts.
+    refreshCloneDestructionPending();
+    renderCloneDestruction();
+  }catch(e){
+    console.warn('[freshness] fetch failed:', e && e.message ? e.message : e);
+  }
+}
+
+// Pull the in-app destructions from Clone_Destructions submitted since the
+// last METRC upload. These get layered on top of METRC_immature's "Plants"
+// column so the UI reflects destructions the operator has already made,
+// even before they re-upload fresh METRC data.
+let _cdPendingDestructions = {};   // {batch: totalDestroyed}
+async function refreshCloneDestructionPending(){
   if(!gsUrl) return;
   try{
-    const res = await fetchWithTimeout(gsUrl+'?action=getImmatureLastModified&t='+Date.now(), null, 10000);
+    const since = _cdFreshness || '';
+    const url = gsUrl+'?action=getRecentCloneDestructions&since='+encodeURIComponent(since)+'&t='+Date.now();
+    const res = await fetchWithTimeout(url, null, 25000);
     const json = await res.json();
-    if(!json || !json.ok) return;
-    _cdFreshness = json.lastModified;
+    if(!json || !json.ok){ console.warn('[pending] bad response:', json); return; }
+    _cdPendingDestructions = json.byBatch || {};
+    console.log('[pending] loaded', Object.keys(_cdPendingDestructions).length, 'batches with in-app destructions');
     renderCloneDestruction();
-  }catch(e){ /* silent — informational only, banner just stays blank */ }
+  }catch(e){
+    console.warn('[pending] fetch failed:', e && e.message ? e.message : e);
+  }
 }
 
 // Format the freshness label as "last uploaded Tue 8:32 AM · 4h ago" style
@@ -5475,11 +5506,19 @@ function reviewCloneDestructionSession(){
       </div>
     </div>`;
   }
+  // Hide the sticky session bar so it doesn't float above the modal and
+  // eat clicks on the Submit button.
+  const bar = document.getElementById('cd-session-bar');
+  if(bar) bar.style.visibility = 'hidden';
   document.getElementById('cd-review-modal-bg').classList.add('active');
 }
 
 function closeCloneDestructionReview(){
   document.getElementById('cd-review-modal-bg').classList.remove('active');
+  // Restore session bar visibility (was hidden while modal was open to prevent
+  // the sticky element from intercepting clicks on the modal's Submit button).
+  const bar = document.getElementById('cd-session-bar');
+  if(bar) bar.style.visibility = '';
 }
 
 // Stage 3: real submission. Writes one row per session entry to the Clone_Destructions
@@ -5538,11 +5577,15 @@ async function submitCloneDestructionForApproval(){
       unlock();
       return;
     }
-    // Success — clear session, close modal, alert summary
+    // Success — clear session, close modal, refresh pending destructions
+    // so the batch modules immediately reflect the new counts, then alert.
     const rowsWritten = result.rowsWritten || entries.length;
     const totalClones = entries.reduce((s,e) => s + e.count, 0);
     _cdSession = {};
     closeCloneDestructionReview();
+    // Refresh in-app destructions from the sheet, then re-render.
+    // Don't await — the alert fires immediately, refresh happens in background.
+    refreshCloneDestructionPending();
     renderCloneDestruction();
     alert('Wrote ' + rowsWritten + ' destruction row' + (rowsWritten===1?'':'s') +
           ' to Clone_Destructions.\n\nDestroyed: ' + totalClones + ' clones\nEntered by: ' + currentName +
