@@ -5543,13 +5543,22 @@ async function submitCloneDestructionForApproval(){
     enteredBy:  currentName,
     approvedBy: currentName,
     note:       note,
-    entries: Object.keys(_cdSession).map(batch => ({
-      batch:      batch,
-      count:      _cdSession[batch].count,
-      actualDate: todayIso,
-      strain:     _cdSession[batch].strain,
-      batchDate:  _cdSession[batch].batchDate,
-    })),
+    entries: Object.keys(_cdSession).map(batch => {
+      const s = _cdSession[batch];
+      // "Kept from destruction" per SOP: the count remaining in the immature
+      // batch AFTER this destruction is recorded. Computed here on the frontend
+      // from what the user has just entered — avoids race conditions with
+      // METRC_immature refresh mid-submit.
+      const keptAfter = Math.max(0, (s.plants || 0) - (s.count || 0));
+      return {
+        batch:      batch,
+        count:      s.count,
+        kept:       keptAfter,
+        actualDate: todayIso,
+        strain:     s.strain,
+        batchDate:  s.batchDate,
+      };
+    }),
   };
 
   // Lock the submit button while in flight
