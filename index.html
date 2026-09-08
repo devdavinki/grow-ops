@@ -633,7 +633,7 @@ button { cursor: pointer; }
       <div id="cd-review-body" style="margin:14px 0;max-height:60vh;overflow-y:auto"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
         <button class="btn-cancel" onclick="closeCloneDestructionReview()">Cancel</button>
-        <button class="btn-primary" onclick="submitCloneDestructionForApproval()" id="cd-submit-btn">Submit for approval</button>
+        <button class="btn-primary" onclick="submitCloneDestructionForApproval()" id="cd-submit-btn">Submit destructions</button>
       </div>
     </div>
   </div>
@@ -5510,11 +5510,11 @@ function reviewCloneDestructionSession(){
   // eat clicks on the Submit button.
   const bar = document.getElementById('cd-session-bar');
   if(bar) bar.style.visibility = 'hidden';
-  document.getElementById('cd-review-modal-bg').classList.add('active');
+  document.getElementById('cd-review-modal-bg').classList.add('open');
 }
 
 function closeCloneDestructionReview(){
-  document.getElementById('cd-review-modal-bg').classList.remove('active');
+  document.getElementById('cd-review-modal-bg').classList.remove('open');
   // Restore session bar visibility (was hidden while modal was open to prevent
   // the sticky element from intercepting clicks on the modal's Submit button).
   const bar = document.getElementById('cd-session-bar');
