@@ -4231,7 +4231,13 @@ function _findIpmRuleById(ruleId){
 
 function markIpmDone(ruleId, roomId, dueDate, note){
   const rule=_findIpmRuleById(ruleId);
-  if(!rule) return;
+  if(!rule){
+    // Silent return here was causing completions to vanish without feedback
+    // when rules got out of sync. Log loudly so the issue surfaces.
+    console.warn('[markIpmDone] rule not found for id:', ruleId, '— completion NOT recorded. Task will reappear.');
+    alert('Could not record completion — rule missing or out of sync. Please refresh the page and try again.');
+    return;
+  }
   ipmLog.push({
     id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
     ruleId, ruleName:rule.name||'', product:rule.product||'',
@@ -4250,7 +4256,11 @@ function markIpmDone(ruleId, roomId, dueDate, note){
 
 function markIpmSkip(ruleId, roomId, dueDate, reason){
   const rule=_findIpmRuleById(ruleId);
-  if(!rule) return;
+  if(!rule){
+    console.warn('[markIpmSkip] rule not found for id:', ruleId, '— skip NOT recorded.');
+    alert('Could not record skip — rule missing or out of sync. Please refresh the page and try again.');
+    return;
+  }
   if(!reason){
     reason=prompt('Reason for skipping (optional):','')||'';
   }
@@ -6605,9 +6615,25 @@ if(_storedVersion !== APP_VERSION) {
     'wg_dry_rooms', 'wg_approved_takedowns',
     'wg_trim_queue', 'wg_trim_queue_deleted',
     'wg_room_health',
+    // ── wg_ipm_log: IPM/rule completion log. Previously missing from keep-keys,
+    //    causing rule-generated tasks (Superthrive, Milstop, etc.) to reappear
+    //    as "1 day overdue" after a version bump because the local completion
+    //    record was wiped. Cloud still has the data via union merge, but the
+    //    push uses no-cors so some entries can silently fail to reach the
+    //    cloud — losing the local copy means losing the completion entirely.
+    'wg_ipm_log',
   ];
   const _keepData = {};
   _keepKeys.forEach(k=>{ const v=localStorage.getItem(k); if(v) _keepData[k]=v; });
+  // Also preserve all daily chore logs (wg_log_YYYY-MM-DD) which have the
+  // same data-loss risk — chore completions wiped on version bump reappear
+  // as pending the next day.
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.indexOf('wg_log_') === 0){
+      _keepData[k] = localStorage.getItem(k);
+    }
+  }
   localStorage.clear();
   Object.entries(_keepData).forEach(([k,v])=>localStorage.setItem(k,v));
   S('wg_app_version', APP_VERSION);
