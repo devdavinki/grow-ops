@@ -9764,13 +9764,27 @@ function showStrainAutocomplete(val){
   const suggestions=getMetrcStrainSuggestions(val);
   if(!suggestions.length||!val||val.length<2){box.style.display='none';return;}
   box.style.display='block';
+  // Build suggestions as plain HTML (no inline JS). Each row carries the
+  // strain name on a data-strain attribute; a delegated click handler below
+  // reads it and calls selectStrain. Immune to apostrophes, quotes, ampersands,
+  // backslashes, or any other character that would break an inline onclick=
+  // string. Previously names like "Wilson's Wonder" and "Angel's Rest"
+  // couldn't be clicked because the escape didn't survive every browser's
+  // attribute parser.
+  const _escHtml = (str) => String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   box.innerHTML=suggestions.slice(0,12).map(s=>{
     const acr=strainCodeOnly(s.strain);
-    const acrTag=acr?` <span style="font-family:var(--mono);font-weight:700;color:var(--blue)">${acr}</span>`:'';
-    return `<div onclick="selectStrain('${s.strain.replace(/'/g,"\'")}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-    <div style="font-weight:600;color:var(--text)">${s.strain}${acrTag}</div>
-    <div style="font-size:11px;color:var(--text3)">${s.mothers} mothers · ${s.locStr}</div>
+    const acrTag=acr?` <span style="font-family:var(--mono);font-weight:700;color:var(--blue)">${_escHtml(acr)}</span>`:'';
+    return `<div class="strain-suggestion" data-strain="${_escHtml(s.strain)}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+    <div style="font-weight:600;color:var(--text)">${_escHtml(s.strain)}${acrTag}</div>
+    <div style="font-size:11px;color:var(--text3)">${_escHtml(s.mothers)} mothers · ${_escHtml(s.locStr)}</div>
   </div>`;}).join('');
+  // Attach click handlers via addEventListener — no inline onclick strings
+  // to worry about. The strain name travels on a data- attribute which the
+  // browser handles as plain text, immune to any JS-string-escaping gotchas.
+  box.querySelectorAll('.strain-suggestion').forEach(el => {
+    el.addEventListener('click', () => selectStrain(el.getAttribute('data-strain') || ''));
+  });
 }
 function selectStrain(strain){
   const input=document.getElementById('ce-strain');
@@ -10117,9 +10131,12 @@ function approveDryTakedown(dryKey, roomTag){
   // dry-room moves. Write BOTH the new any-dry-room key format AND the
   // legacy dry-room-prefixed format — so rollback to an older client
   // version still sees the approval. Both keys point to the same record.
-  const _batchesForApproval = getDryRoomBatches(dryKey);
-  const _matchedGroup = _batchesForApproval.find(b => (b.roomTag||'') === roomTag);
-  const _harvestDate = _matchedGroup ? (_matchedGroup.harvestDate||'unknown') : 'unknown';
+  // Search ALL dry rooms for the matching batch — the batch may have moved
+  // between dry rooms, or may be mid-transition and not yet in this dry room's
+  // list. Falling back to 'unknown' here was the root cause of takedowns
+  // reappearing: a 'R8|unknown' key doesn't match tomorrow's 'R8|2026-09-09'
+  // lookup, so the approved batch pops back up as needing approval again.
+  let _harvestDate = _findHarvestDateForTakedown(dryKey, roomTag);
   const _record = {approvedBy:who, approvedAt:fmtTime(), date:dateToIso(TODAY), harvestDate:_harvestDate};
   approvedTakedowns[roomTag + '|' + _harvestDate] = _record;                 // new any-dry-room key
   approvedTakedowns[dryKey + '|' + roomTag + '|' + _harvestDate] = _record;  // legacy key, backward compat
@@ -10160,9 +10177,9 @@ function markDryTakedownDone(dryKey, roomTag){
     dryRooms[dryKey].order = dryRooms[dryKey].order.filter(t => t !== roomTag);
   }
   // Permanently record approval — both key formats (see approveDryTakedown for rationale)
-  const _batchesForApproval = getDryRoomBatches(dryKey);
-  const _matchedGroup = _batchesForApproval.find(b => (b.roomTag||'') === roomTag);
-  const _harvestDate = _matchedGroup ? (_matchedGroup.harvestDate||'unknown') : 'unknown';
+  // Search ALL dry rooms for the matching batch — see approveDryTakedown
+  // for rationale (same root-cause fix).
+  const _harvestDate = _findHarvestDateForTakedown(dryKey, roomTag);
   const _record = {approvedBy:who, approvedAt:fmtTime(), date:dateToIso(TODAY), harvestDate:_harvestDate, leadMarked:true};
   approvedTakedowns[roomTag + '|' + _harvestDate] = _record;
   approvedTakedowns[dryKey + '|' + roomTag + '|' + _harvestDate] = _record;
@@ -10273,6 +10290,26 @@ function getDryRoomBatches(dryKey){
 //      net for edge cases where the cloud approval record has a mangled key
 //      (e.g. harvestDate='unknown' from the pre-inference era) but the local
 //      td record is intact.
+// Helper used by approveDryTakedown and markDryTakedownDone. Searches ALL
+// dry rooms for the batch matching the given roomTag, so an approval key
+// always has a real harvestDate (never 'unknown'). Falls back to 'unknown'
+// only if the batch is truly not found anywhere — e.g. the harvest was
+// deleted from METRC mid-approval.
+function _findHarvestDateForTakedown(preferDryKey, roomTag){
+  const DRY_KEYS = ['Dry Room 1', 'Dry Room 2'];
+  // Try the preferred dry room first (usually the one the user is looking at)
+  const ordered = [preferDryKey, ...DRY_KEYS.filter(k => k !== preferDryKey)];
+  for (const dk of ordered) {
+    if (!dk) continue;
+    const batches = getDryRoomBatches(dk);
+    const match = batches.find(b => (b.roomTag || '') === roomTag);
+    if (match && match.harvestDate && match.harvestDate !== 'unknown') {
+      return match.harvestDate;
+    }
+  }
+  return 'unknown';
+}
+
 function isTakedownApproved(roomTag, harvestDate, currentDryKey){
   const hd = harvestDate || 'unknown';
   if (!roomTag && roomTag !== '') return false;
@@ -10289,6 +10326,30 @@ function isTakedownApproved(roomTag, harvestDate, currentDryKey){
     const tdKey = currentDryKey + '|' + roomTag;
     const td = dryRooms[currentDryKey].takedowns[tdKey];
     if (td && td.approved === true) return true;
+  }
+  // 4. Rescue for `|unknown` approvals written by earlier builds that fell
+  //    back to 'unknown' when they couldn't find the batch at approve-time.
+  //    These keys lost which specific harvest they were for, but the record
+  //    stores the APPROVAL DATE. If an approval with the right R-tag was made
+  //    AFTER the harvest's own date, it almost certainly applies to this
+  //    harvest. Only matches harvests that pre-date the approval.
+  //    Checks both new-format `R#|unknown` and legacy `Dry Room X|R#|unknown`.
+  if (hd && hd !== 'unknown') {
+    const harvestTime = new Date(hd + 'T00:00:00').getTime();
+    if (!isNaN(harvestTime)) {
+      const unknownNewKey = roomTag + '|unknown';
+      const unknownSuffix = '|' + roomTag + '|unknown';
+      const candidates = [];
+      if (approvedTakedowns[unknownNewKey]) candidates.push(approvedTakedowns[unknownNewKey]);
+      for (const key in approvedTakedowns) {
+        if (key !== unknownNewKey && key.endsWith(unknownSuffix)) candidates.push(approvedTakedowns[key]);
+      }
+      for (const rec of candidates) {
+        if (!rec || !rec.date) continue;
+        const approvalTime = new Date(rec.date + 'T00:00:00').getTime();
+        if (!isNaN(approvalTime) && approvalTime >= harvestTime) return true;
+      }
+    }
   }
   return false;
 }
