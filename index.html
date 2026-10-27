@@ -416,7 +416,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Today's Log</button>
   <button class="nav-tab" onclick="showPage('calendar')" data-page="calendar" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Calendar</button>
   <button class="nav-tab" onclick="showPage('rules')" data-page="rules" data-roles="lead,fertigator,ipm">Rules</button>
-  <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
+  <!-- Room Checks tab removed 2026-10-27: runoff/env entry now lives on individual room cards in the Rooms tab (coco-perlite transition). Page kept for legacy access. -->
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
   <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
   <button class="nav-tab" onclick="showPage('tuning')" data-page="tuning" data-roles="lead">Tuning</button>
@@ -1374,6 +1374,7 @@ button { cursor: pointer; }
       <div id="rdm-phase-section"></div>
       <div id="rdm-ambient-section"></div>
       <div id="rdm-substrate-section"></div>
+      <div id="rdm-runoff-section"></div>
       <div id="rdm-nodata" style="display:none;text-align:center;padding:32px;color:var(--text3);font-size:13px">No Growlink sensor data for this room yet</div>
     </div>
   </div>
@@ -10737,6 +10738,277 @@ function parseTableSensors(rawSensors, tableCount) {
   return tables;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// RUNOFF ENTRY — per-room operator-logged readings, lives on the room card
+// to sit beside Growlink's streaming numbers for direct comparison. See
+// the coco-perlite transition design in /projects/.../areas/.
+// ══════════════════════════════════════════════════════════════════════
+
+// Rooms currently on the 70/30 coco-perlite medium. Rest are still rockwool
+// (DD 2.6 setpoints). Transition is gradual — add to this set as rooms flip.
+// Keyed by room tag (R6, R11) so the lookup is UI-side without needing a
+// per-room backend config yet.
+const COCO_ROOMS = new Set(['R6', 'R11']);
+
+// 1738 Dryback Targets — W1-W10 ramp for coco-perlite lane. Each entry has
+// day range, band name, target dryback (pts), floor VWC, pwEC target.
+// Source: 1738_Dryback_Targets.pdf v0.5 · 2026-10-24 · Tier 2 Restricted.
+const DRYBACK_1738 = [
+  {w:1,  days:[1,7],   band:'Red · Establish',       dryback:'8-10 pts',  floor:'40-42', pwEC:'2.4'},
+  {w:2,  days:[8,14],  band:'Orange · Early build',  dryback:'10 pts',    floor:'40',    pwEC:'2.6'},
+  {w:3,  days:[15,21], band:'Yellow · Throughput',   dryback:'12 pts',    floor:'38',    pwEC:'3.0'},
+  {w:4,  days:[22,28], band:'Green · Crown form',    dryback:'12-15 pts', floor:'35-38', pwEC:'3.2'},
+  {w:5,  days:[29,35], band:'Blue · Peak entry',     dryback:'15 pts',    floor:'35',    pwEC:'3.6'},
+  {w:6,  days:[36,42], band:'Indigo · True peak',    dryback:'15 pts',    floor:'35',    pwEC:'3.7'},
+  {w:7,  days:[43,49], band:'Violet · Peak hold',    dryback:'15 pts',    floor:'35',    pwEC:'3.8'},
+  {w:8,  days:[50,56], band:'Magenta · Fill hold',   dryback:'15 pts cap',floor:'35',    pwEC:'3.8'},
+  {w:9,  days:[57,63], band:'Magenta close → Gold',  dryback:'15 pts cap',floor:'35',    pwEC:'3.8'},
+  {w:10, days:[64,70], band:'White · Landing',       dryback:'20 pts',    floor:'30',    pwEC:'let rise'},
+];
+function _getDrybackBand1738(fd) {
+  if (!fd || fd < 1) return null;
+  return DRYBACK_1738.find(b => fd >= b.days[0] && fd <= b.days[1]) || null;
+}
+
+// Format a short "N days ago" string for display next to each entry.
+function _fmtAgo(dateIso) {
+  if (!dateIso) return '';
+  const t = new Date(dateIso + 'T00:00:00').getTime();
+  if (isNaN(t)) return '';
+  const days = Math.floor((Date.now() - t) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return days + 'd ago';
+}
+
+// Per-room cache so switching between room modals doesn\'t re-fetch every time
+// the user bounces between rooms. Short TTL — 60s — so new entries from other
+// devices become visible on next open.
+const _runoffCache = {};  // {roomTag: {ts, entries}}
+
+async function _fetchRunoffEntries(roomTag) {
+  if (!roomTag || !gsUrl) return [];
+  const cached = _runoffCache[roomTag];
+  if (cached && (Date.now() - cached.ts) < 60000) return cached.entries;
+  try {
+    const res = await fetchWithTimeout(
+      gsUrl + '?action=getRunoffEntries&room=' + encodeURIComponent(roomTag) + '&limit=10&t=' + Date.now(),
+      null, 20000
+    );
+    const json = await res.json();
+    if (!json || !json.ok) return [];
+    _runoffCache[roomTag] = {ts: Date.now(), entries: json.entries || []};
+    return json.entries || [];
+  } catch (e) {
+    console.warn('[runoff] fetch failed:', e && e.message);
+    return [];
+  }
+}
+
+// Build the HTML for the room modal\'s runoff section. Pulls recent entries
+// asynchronously and re-renders when they arrive — initial render shows just
+// the dryback target + "Record" button so the modal opens fast.
+async function _renderRunoffSection(room) {
+  const el = document.getElementById('rdm-runoff-section');
+  if (!el) return;
+  // Only applies to flower rooms (support rooms get nothing here)
+  const roomNum = (room.name || '').match(/Room (\d+)/);
+  if (!roomNum) { el.innerHTML = ''; return; }
+  const roomTag = 'R' + roomNum[1];
+  const isCoco = COCO_ROOMS.has(roomTag);
+  const fd = typeof flowerDay === 'function' ? flowerDay(room) : null;
+
+  // Dryback target header — 1738 for coco rooms, generic for rockwool
+  let targetHtml = '';
+  if (isCoco) {
+    const band = _getDrybackBand1738(fd);
+    if (band) {
+      targetHtml = `
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">1738 target · W${band.w} D${band.days[0]}-${band.days[1]} · ${band.band}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:10px">
+          <span style="padding:3px 8px;background:var(--bg3);border-radius:var(--r);font-family:var(--mono)">dryback ${band.dryback}</span>
+          <span style="padding:3px 8px;background:var(--bg3);border-radius:var(--r);font-family:var(--mono)">floor ${band.floor} VWC</span>
+          <span style="padding:3px 8px;background:var(--bg3);border-radius:var(--r);font-family:var(--mono)">pwEC ${band.pwEC}</span>
+        </div>`;
+    }
+  }
+
+  // Initial render — show header + "Record" button + loading placeholder for entries
+  el.innerHTML = `
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Runoff readings ${isCoco ? '<span style="font-size:10px;color:var(--green);font-weight:400;margin-left:4px">· coco lane</span>' : ''}</div>
+        <button onclick="openRunoffEntryForm('${roomTag}')" class="btn-primary" style="font-size:11px;padding:5px 11px">+ Record sample</button>
+      </div>
+      ${targetHtml}
+      <div id="rdm-runoff-list" style="font-size:12px;color:var(--text3)">Loading recent entries…</div>
+    </div>`;
+
+  // Fetch and populate entries
+  const entries = await _fetchRunoffEntries(roomTag);
+  const listEl = document.getElementById('rdm-runoff-list');
+  if (!listEl) return;  // user closed modal during fetch
+  if (!entries.length) {
+    listEl.innerHTML = '<div style="padding:14px 0;text-align:center;color:var(--text3);font-size:11px">No readings logged yet. First one goes here.</div>';
+    return;
+  }
+  // Soft nudge if last entry is 3+ days old
+  const latestDate = entries[0].date;
+  const latestAge = latestDate ? Math.floor((Date.now() - new Date(latestDate + 'T00:00:00').getTime()) / 86400000) : 999;
+  const nudge = latestAge >= 3 ? `<div style="padding:6px 10px;background:var(--amber-dim);color:var(--amber);border-radius:var(--r);font-size:11px;margin-bottom:8px">${latestAge} days since last reading — worth a check</div>` : '';
+  listEl.innerHTML = nudge + entries.map(e => {
+    const dEC = (e.feedEC != null) ? (e.EC - e.feedEC) : null;
+    const dPH = (e.feedPH != null) ? (e.pH - e.feedPH) : null;
+    const dECStr = dEC == null ? '' : (dEC >= 0 ? '+' : '') + dEC.toFixed(2);
+    const dPHStr = dPH == null ? '' : (dPH >= 0 ? '+' : '') + dPH.toFixed(2);
+    const ecColor = dEC == null ? 'var(--text3)' : (Math.abs(dEC) > 0.5 ? 'var(--amber)' : 'var(--green)');
+    const phColor = dPH == null ? 'var(--text3)' : (Math.abs(dPH) > 0.5 ? 'var(--amber)' : 'var(--green)');
+    return `
+      <div style="padding:7px 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center">
+        <div style="font-size:10px;color:var(--text3);min-width:52px">
+          <div>${_fmtAgo(e.date)}</div>
+          <div style="font-family:var(--mono)">T${e.table} ${e.side[0].toUpperCase()}</div>
+        </div>
+        <div style="font-size:11px">
+          <div style="font-family:var(--mono)">${e.mL}mL · pH ${e.pH.toFixed(2)} · EC ${e.EC.toFixed(2)}</div>
+          ${(dECStr || dPHStr) ? `<div style="font-size:10px;color:var(--text3)">Δ feed: <span style="color:${ecColor}">EC ${dECStr}</span> · <span style="color:${phColor}">pH ${dPHStr}</span></div>` : ''}
+          ${e.note ? `<div style="font-size:10px;color:var(--text3);font-style:italic">${e.note.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[c])}</div>` : ''}
+        </div>
+        <div style="font-size:10px;color:var(--text3);text-align:right">${e.operator || ''}</div>
+      </div>`;
+  }).join('');
+}
+
+// Opens an inline entry form (not a stacked modal — simpler on mobile).
+// Replaces the runoff section with the form. On submit or cancel, re-renders
+// the section back to its normal state.
+function openRunoffEntryForm(roomTag) {
+  const el = document.getElementById('rdm-runoff-section');
+  if (!el) return;
+  const tableCount = (typeof RC_TABLE_COUNTS === 'object' && RC_TABLE_COUNTS[roomTag]) || 3;
+  const tableOpts = [];
+  for (let i = 1; i <= tableCount; i++) {
+    const label = i === 1 ? 'Right side' : (i === tableCount ? 'Left side' : 'Center');
+    tableOpts.push(`<option value="${i}">Table ${i} · ${label}</option>`);
+  }
+  // Try to pre-fill feed EC/pH from the nearest Growlink probe (for the delta)
+  const room = rooms.find(r => ('R' + (r.name.match(/\d+/) || [''])[0]) === roomTag);
+  const gl = room ? (growlinkData[room.name] || getGrowlinkForRoom(room.name)) : null;
+  const feedEC = gl && gl.soilEC != null ? Number(gl.soilEC).toFixed(2) : '';
+  const feedPH = gl && gl.soilPH != null ? Number(gl.soilPH).toFixed(2) : '';
+  el.innerHTML = `
+    <div style="margin-top:16px;padding:14px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg3)">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Record runoff · ${roomTag}</div>
+      <div style="display:grid;gap:10px">
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Table</label>
+          <select id="runoff-table" style="width:100%;padding:8px;font-size:14px">${tableOpts.join('')}</select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Tray position</label>
+          <div style="display:flex;gap:6px">
+            <button type="button" onclick="_runoffSelectSide(this,'front')" id="runoff-side-front" class="btn-primary" style="flex:1;padding:9px;font-size:13px">Front</button>
+            <button type="button" onclick="_runoffSelectSide(this,'back')" id="runoff-side-back" style="flex:1;padding:9px;font-size:13px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);cursor:pointer">Back</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Volume (mL)</label>
+            <input id="runoff-ml" type="number" inputmode="decimal" step="any" min="0" placeholder="0" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('runoff-ph').focus();}" style="width:100%;padding:8px;font-size:14px;text-align:center"/>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">pH</label>
+            <input id="runoff-ph" type="number" inputmode="decimal" step="any" min="0" placeholder="6.0" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('runoff-ec').focus();}" style="width:100%;padding:8px;font-size:14px;text-align:center"/>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">EC</label>
+            <input id="runoff-ec" type="number" inputmode="decimal" step="any" min="0" placeholder="3.0" enterkeyhint="done" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('runoff-note').focus();}" style="width:100%;padding:8px;font-size:14px;text-align:center"/>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Note (optional)</label>
+          <input id="runoff-note" type="text" maxlength="200" placeholder="e.g. picked front, back looked overwatered" style="width:100%;padding:8px;font-size:13px"/>
+        </div>
+        ${feedEC || feedPH ? `<div style="font-size:10px;color:var(--text3);padding:6px;background:var(--bg2);border-radius:var(--r)">Nearest probe reads: EC ${feedEC || '—'} · pH ${feedPH || '—'} (used for delta)</div>` : ''}
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px">
+          <button type="button" onclick="_renderRunoffSection(_lastRoomOpened)" style="padding:8px 14px;font-size:12px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);cursor:pointer">Cancel</button>
+          <button type="button" onclick="submitRunoffEntry('${roomTag}','${feedEC}','${feedPH}')" class="btn-primary" id="runoff-submit-btn" style="padding:8px 14px;font-size:12px">Save</button>
+        </div>
+      </div>
+    </div>`;
+  // Hidden state for selected side
+  window._runoffSelectedSide = 'front';
+  setTimeout(() => document.getElementById('runoff-ml') && document.getElementById('runoff-ml').focus(), 100);
+}
+
+function _runoffSelectSide(btn, side) {
+  window._runoffSelectedSide = side;
+  const f = document.getElementById('runoff-side-front');
+  const b = document.getElementById('runoff-side-back');
+  if (side === 'front') {
+    f.className = 'btn-primary'; f.style.cssText = 'flex:1;padding:9px;font-size:13px';
+    b.className = ''; b.style.cssText = 'flex:1;padding:9px;font-size:13px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);cursor:pointer';
+  } else {
+    b.className = 'btn-primary'; b.style.cssText = 'flex:1;padding:9px;font-size:13px';
+    f.className = ''; f.style.cssText = 'flex:1;padding:9px;font-size:13px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);cursor:pointer';
+  }
+}
+
+async function submitRunoffEntry(roomTag, feedECStr, feedPHStr) {
+  const btn = document.getElementById('runoff-submit-btn');
+  const tableVal = document.getElementById('runoff-table').value;
+  const mL  = parseFloat(document.getElementById('runoff-ml').value);
+  const pH  = parseFloat(document.getElementById('runoff-ph').value);
+  const EC  = parseFloat(document.getElementById('runoff-ec').value);
+  const note = document.getElementById('runoff-note').value.trim();
+  const side = window._runoffSelectedSide || 'front';
+  if (isNaN(mL) || isNaN(pH) || isNaN(EC)) {
+    alert('Enter mL, pH, and EC before saving.');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  const payload = {
+    action: 'submitRunoffEntry',
+    data: {
+      room: roomTag,
+      table: tableVal,
+      side,
+      mL, pH, EC,
+      operator: loggedInMember ? loggedInMember.name : 'Unknown',
+      feedEC: feedECStr ? Number(feedECStr) : null,
+      feedPH: feedPHStr ? Number(feedPHStr) : null,
+      note,
+    }
+  };
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    const res = await fetch(gsUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    const result = await res.json();
+    if (!result.ok) {
+      alert('Save failed: ' + (result.error || 'unknown'));
+      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+      return;
+    }
+    // Clear cache so next render pulls fresh data
+    delete _runoffCache[roomTag];
+    // Re-render the runoff section back to list view
+    _renderRunoffSection(_lastRoomOpened);
+  } catch (e) {
+    alert('Save failed: ' + (e.message || 'network error'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+  }
+}
+
+// Track the last-opened room so the Cancel + success handlers can re-render
+let _lastRoomOpened = null;
+
 function openRoomModal(room) {
   console.log('[Score] openRoomModal called — currentRole:', currentRole, '| loggedInMember:', loggedInMember&&loggedInMember.name);
   const roomName = room.name || room.key;
@@ -11209,6 +11481,11 @@ function openRoomModal(room) {
       </div>
     </div>`;
   } else { subEl.innerHTML=''; }
+
+  // Track the room for the inline runoff form\'s Cancel + success handlers
+  _lastRoomOpened = room;
+  // Render the runoff section (async — pulls recent entries from the sheet)
+  _renderRunoffSection(room);
 
   document.getElementById('room-detail-bg').style.display='block';
 }
