@@ -1403,7 +1403,7 @@ button { cursor: pointer; }
     <div id="login-pin-row" style="display:none">
       <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px">Enter your AGT employee ID</label>
       <div style="display:flex;gap:8px">
-        <input id="login-pin-input" type="password" maxlength="10" placeholder="######" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
+        <input id="login-pin-input" type="password" inputmode="numeric" enterkeyhint="go" autocomplete="off" maxlength="10" placeholder="######" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmLogin();}" style="flex:1;letter-spacing:.2em;font-size:18px;text-align:center"/>
         <button onclick="confirmLogin()" class="btn-primary">Enter</button>
       </div>
       <div id="login-pin-error" style="font-size:12px;color:var(--red);margin-top:6px;display:none">Incorrect employee ID</div>
@@ -5621,6 +5621,11 @@ async function submitCloneDestructionForApproval(){
     const rowsWritten = result.rowsWritten || entries.length;
     const totalClones = entries.reduce((s,e) => s + e.count, 0);
     _cdSession = {};
+    // Re-enable the submit button for the NEXT session. Without this, after a
+    // successful submit the button stays disabled with text "Submitting…" so
+    // the user\'s second attempt silently does nothing until they refresh the
+    // whole app.
+    unlock();
     closeCloneDestructionReview();
     // Refresh in-app destructions from the sheet, then re-render.
     // Don't await — the alert fires immediately, refresh happens in background.
