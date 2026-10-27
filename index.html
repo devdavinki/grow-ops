@@ -2683,6 +2683,23 @@ function renderRooms(){
 // ASSIGNMENTS PAGE
 // ══════════════════════════════════════════════
 function renderAssignments(){
+  // Force-pull from cloud on open so the view reflects completions from other
+  // devices. Without this, stale local ipmLog would show tasks as still pending
+  // even after they were completed on another phone. Non-blocking — we render
+  // immediately with local state, then re-render when the pull completes.
+  if(typeof pullConfigFromCloud === 'function' && gsUrl){
+    pullConfigFromCloud(true).then(() => {
+      // Only re-render if we're still on the assignments page
+      const pg = document.getElementById('page-assignments');
+      if(pg && pg.style.display !== 'none'){
+        _renderAssignmentsNow();
+      }
+    }).catch(()=>{});
+  }
+  _renderAssignmentsNow();
+}
+
+function _renderAssignmentsNow(){
   const content=document.getElementById('assignments-content');
   const roleLabel=document.getElementById('assign-role-label');
   const roleNames={lead:'Lead / Pat',defoliator:'Defoliator',fertigator:'Fertigator',cloner:'Cloner',ipm:'IPM Tech',checker:'Room Checker'};
@@ -4229,7 +4246,7 @@ function _findIpmRuleById(ruleId){
   return (ipmRules || []).find(r => r.id === ruleId) || null;
 }
 
-function markIpmDone(ruleId, roomId, dueDate, note){
+async function markIpmDone(ruleId, roomId, dueDate, note){
   const rule=_findIpmRuleById(ruleId);
   if(!rule){
     // Silent return here was causing completions to vanish without feedback
@@ -4247,14 +4264,17 @@ function markIpmDone(ruleId, roomId, dueDate, note){
   });
   S('wg_ipm_log', ipmLog);
   sessionStorage.setItem('wg_ipm_log_dirty','1');
-  pushConfigToCloud(true); // immediate, not debounced
+  // AWAIT the push so the finish state is sent before the user can lock
+  // their phone or background the app. On iPhone this is the difference
+  // between a write that lands and one that gets killed mid-flight.
+  await pushConfigToCloud(true);
   postToSheet('IPM_Log',[dueDate, fmtTime(), loggedInMember?loggedInMember.name:'Unknown', rule.name||'', rule.product||'', roomId, 'done', note||'']);
   renderAssignments();
   if(typeof renderIpmRules==='function') renderIpmRules();
   if(typeof renderIpmHistory==='function') renderIpmHistory();
 }
 
-function markIpmSkip(ruleId, roomId, dueDate, reason){
+async function markIpmSkip(ruleId, roomId, dueDate, reason){
   const rule=_findIpmRuleById(ruleId);
   if(!rule){
     console.warn('[markIpmSkip] rule not found for id:', ruleId, '— skip NOT recorded.');
@@ -4273,7 +4293,7 @@ function markIpmSkip(ruleId, roomId, dueDate, reason){
   });
   S('wg_ipm_log', ipmLog);
   sessionStorage.setItem('wg_ipm_log_dirty','1');
-  pushConfigToCloud(true); // immediate, not debounced
+  await pushConfigToCloud(true); // AWAIT — see markIpmDone for why
   postToSheet('IPM_Log',[dueDate, fmtTime(), loggedInMember?loggedInMember.name:'Unknown', rule.name||'', rule.product||'', roomId, 'skipped', reason||'']);
   renderAssignments();
   if(typeof renderIpmHistory==='function') renderIpmHistory();
@@ -12277,9 +12297,19 @@ async function pushConfigToCloud(silent=false){
     }
   };
   try{
-    await fetch(gsUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify(payload)});
+    await fetch(gsUrl,{
+      method:'POST',
+      mode:'no-cors',
+      keepalive:true,  // CRITICAL for mobile: lets the request complete even if the user locks their phone or backgrounds the tab mid-push. Without this, iOS Safari aggressively kills in-flight no-cors fetches, which was HY\'s silent-write bug.
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify(payload)
+    });
     if(!silent) console.log('[Config] Pushed to cloud');
+    // Record last successful sync time so the UI can show a "last synced" indicator.
+    // Caveat: no-cors fetch doesn\'t let us verify the server actually accepted the
+    // payload. This timestamp means "we fired the request and the browser didn\'t
+    // immediately reject it" — not strict proof of server-side success.
+    sessionStorage.setItem('wg_last_sync_at', new Date().toISOString());
     // Clear dirty flags now that the changes are uploaded
     if(_roomsDirty)    sessionStorage.removeItem('wg_rooms_dirty');
     if(_teamDirty)     sessionStorage.removeItem('wg_team_dirty');
