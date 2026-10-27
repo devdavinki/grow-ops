@@ -5647,7 +5647,7 @@ function openModal(roomId,taskId,taskName){
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal(){document.getElementById('modal-bg').classList.remove('open');pendingComplete=null;}
-function confirmComplete(){
+async function confirmComplete(){
   if(!pendingComplete) return;
   const {roomId,taskId,taskName}=pendingComplete;
   const who=loggedInMember?loggedInMember.name:'Unknown';
@@ -5656,20 +5656,26 @@ function confirmComplete(){
   if(!roomOverrides[roomId]) roomOverrides[roomId]={};
   roomOverrides[roomId]['done_'+taskId]=true;
   S('wg_overrides_'+dateToIso(TODAY),roomOverrides);
+  sessionStorage.setItem('wg_room_overrides_dirty','1');
   const entry={id:Date.now(),roomId,taskId,taskName,who,notes,pct,time:fmtTime(),status:'done'};
   todayLog.push(entry);
   S('wg_log_'+dateToIso(TODAY),todayLog);
   closeModal();
-  pushConfigToCloud(true); // immediate — completion must land before user navigates
+  // AWAIT the push so the user\'s finger stays on screen until it completes.
+  // On iPhone this is the difference between a write landing and getting
+  // killed by iOS\'s background-tab suspension. keepalive handles the edge
+  // where the user still backgrounds mid-flight.
+  await pushConfigToCloud(true);
   renderAssignments();
   renderRooms();
   renderTodayLog();
 }
-function skipTask(roomId,taskId){
+async function skipTask(roomId,taskId){
   if(!roomOverrides[roomId]) roomOverrides[roomId]={};
   roomOverrides[roomId]['skip_'+taskId]=true;
   S('wg_overrides_'+dateToIso(TODAY),roomOverrides);
-  pushConfigToCloud(true); // immediate
+  sessionStorage.setItem('wg_room_overrides_dirty','1');
+  await pushConfigToCloud(true); // AWAIT — see confirmComplete for rationale
   renderAssignments();
   renderRooms();
 }
