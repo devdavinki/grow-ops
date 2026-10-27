@@ -12302,19 +12302,23 @@ async function pushConfigToCloud(silent=false){
       syncedAt:new Date().toISOString(),
     }
   };
+  // keepalive: true was tried here to survive iPhone background-kills, BUT
+  // the browser enforces a 64KB payload limit on keepalive fetches. Our full
+  // config payload (7 days of logs, 4 weeks of clone sessions, rooms, rules,
+  // etc.) runs 100-500KB, so keepalive caused instant rejection of EVERY push
+  // with no visible error (because silent=true suppresses the catch log). The
+  // await still gives us mobile protection by blocking the caller function until
+  // the push completes — users have to leave the finger on the screen during
+  // that window. For the sub-second payloads this is adequate; longer-running
+  // writes stay vulnerable to screen-lock but much less commonly than before.
   try{
     await fetch(gsUrl,{
       method:'POST',
       mode:'no-cors',
-      keepalive:true,  // CRITICAL for mobile: lets the request complete even if the user locks their phone or backgrounds the tab mid-push. Without this, iOS Safari aggressively kills in-flight no-cors fetches, which was HY\'s silent-write bug.
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
     });
     if(!silent) console.log('[Config] Pushed to cloud');
-    // Record last successful sync time so the UI can show a "last synced" indicator.
-    // Caveat: no-cors fetch doesn\'t let us verify the server actually accepted the
-    // payload. This timestamp means "we fired the request and the browser didn\'t
-    // immediately reject it" — not strict proof of server-side success.
     sessionStorage.setItem('wg_last_sync_at', new Date().toISOString());
     // Clear dirty flags now that the changes are uploaded
     if(_roomsDirty)    sessionStorage.removeItem('wg_rooms_dirty');
@@ -12327,7 +12331,7 @@ async function pushConfigToCloud(silent=false){
     if(_trimQueueDirty)sessionStorage.removeItem('wg_trim_queue_dirty');
     if(_strainPerliteDirty)sessionStorage.removeItem('wg_strain_perlite_dirty');
     if(_prerollThcDirty)sessionStorage.removeItem('wg_preroll_thc_dirty');
-  }catch(e){ if(!silent) console.warn('[Config] Push failed:',e); }
+  }catch(e){ console.warn('[Config] Push failed:',e); }  // ALWAYS log — silent=true was hiding this class of bug
 }
 
 async function pullConfigFromCloud(silent=false){
