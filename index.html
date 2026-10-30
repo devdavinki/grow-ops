@@ -10787,21 +10787,22 @@ function _fmtAgo(dateIso) {
 const _runoffCache = {};  // {roomTag: {ts, entries}}
 
 async function _fetchRunoffEntries(roomTag) {
-  if (!roomTag || !gsUrl) return [];
+  if (!roomTag || !gsUrl) return {entries:[], error:null};
   const cached = _runoffCache[roomTag];
-  if (cached && (Date.now() - cached.ts) < 60000) return cached.entries;
+  if (cached && (Date.now() - cached.ts) < 60000) return {entries: cached.entries, error:null};
   try {
     const res = await fetchWithTimeout(
       gsUrl + '?action=getRunoffEntries&room=' + encodeURIComponent(roomTag) + '&limit=10&t=' + Date.now(),
-      null, 20000
+      null, 30000  // raised from 20s — the sheet-scan can be slow when Apps Script quota is saturated
     );
     const json = await res.json();
-    if (!json || !json.ok) return [];
+    if (!json || !json.ok) return {entries:[], error: (json && json.error) || 'bad response'};
     _runoffCache[roomTag] = {ts: Date.now(), entries: json.entries || []};
-    return json.entries || [];
+    return {entries: json.entries || [], error:null};
   } catch (e) {
-    console.warn('[runoff] fetch failed:', e && e.message);
-    return [];
+    const msg = (e && e.message) || String(e);
+    console.warn('[runoff] fetch failed:', msg);
+    return {entries:[], error: msg};
   }
 }
 
@@ -10845,9 +10846,17 @@ async function _renderRunoffSection(room) {
     </div>`;
 
   // Fetch and populate entries
-  const entries = await _fetchRunoffEntries(roomTag);
+  const result = await _fetchRunoffEntries(roomTag);
+  const entries = result.entries;
+  const fetchError = result.error;
   const listEl = document.getElementById('rdm-runoff-list');
   if (!listEl) return;  // user closed modal during fetch
+  if (fetchError) {
+    // Surface the actual failure instead of silently showing "none yet",
+    // which is indistinguishable from an empty-list state.
+    listEl.innerHTML = `<div style="padding:14px 0;text-align:center;color:var(--amber);font-size:11px">Couldn\'t load recent entries · ${fetchError.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[c])}</div>`;
+    return;
+  }
   if (!entries.length) {
     listEl.innerHTML = '<div style="padding:14px 0;text-align:center;color:var(--text3);font-size:11px">No readings logged yet. First one goes here.</div>';
     return;
