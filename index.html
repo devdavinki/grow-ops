@@ -10877,7 +10877,7 @@ async function submitRoomCheckFromCard(roomTag, tableCount) {
     const fvol = g(`rcm-t${t}-fvol`), fec = g(`rcm-t${t}-fec`), fph = g(`rcm-t${t}-fph`);
     const bvol = g(`rcm-t${t}-bvol`), bec = g(`rcm-t${t}-bec`), bph = g(`rcm-t${t}-bph`);
     rows.push([
-      dateVal, timeVal, roomTag,
+      dateVal, timeVal, who, roomTag,
       rh, temp, leaf, dew, ppfd,
       `Table ${t}`,
       fvol, fec, fph,
