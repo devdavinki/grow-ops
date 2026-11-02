@@ -416,7 +416,7 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Today's Log</button>
   <button class="nav-tab" onclick="showPage('calendar')" data-page="calendar" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Calendar</button>
   <button class="nav-tab" onclick="showPage('rules')" data-page="rules" data-roles="lead,fertigator,ipm">Rules</button>
-  <button class="nav-tab" onclick="showPage('checks')" data-page="checks" data-roles="lead,checker,ipm">Room Checks</button>
+  <!-- Room Checks tab hidden 2026-11-02: entry UI now lives on individual room cards in the Rooms tab. Page kept intact for legacy access via direct URL. -->
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
   <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
   <button class="nav-tab" onclick="showPage('tuning')" data-page="tuning" data-roles="lead">Tuning</button>
@@ -1374,6 +1374,7 @@ button { cursor: pointer; }
       <div id="rdm-phase-section"></div>
       <div id="rdm-ambient-section"></div>
       <div id="rdm-substrate-section"></div>
+      <div id="rdm-roomcheck-section"></div>
       <div id="rdm-nodata" style="display:none;text-align:center;padding:32px;color:var(--text3);font-size:13px">No Growlink sensor data for this room yet</div>
     </div>
   </div>
@@ -10737,6 +10738,220 @@ function parseTableSensors(rawSensors, tableCount) {
   return tables;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// ROOM CHECK ON ROOM CARD — operator-logged runoff/env readings for the
+// currently-viewed room. Writes to Runoff_Form via the SAME postToSheet
+// path the Room Checks tab uses (sheet:\'Runoff_Form\', row:[...]) so the
+// column layout and backend handling are identical. No new backend code.
+// ══════════════════════════════════════════════════════════════════════
+
+let _rcmLastRoom = null;  // tracks the room-card room so Cancel can re-render
+
+function _renderRoomCheckSection(room) {
+  const el = document.getElementById('rdm-roomcheck-section');
+  if (!el) return;
+  const roomNum = (room.name || '').match(/Room (\d+)/);
+  if (!roomNum) { el.innerHTML = ''; return; }
+  const roomTag = 'R' + roomNum[1];
+  _rcmLastRoom = room;
+  // Collapsed view: just a button that opens the form
+  el.innerHTML = `
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Room check</div>
+        <button onclick="openRoomCheckForm('${roomTag}')" class="btn-primary" style="font-size:11px;padding:5px 11px">+ Record</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3)">Log environmental readings and per-table runoff for ${roomTag}. Writes to the same Runoff_Form sheet.</div>
+    </div>`;
+}
+
+function openRoomCheckForm(roomTag) {
+  const el = document.getElementById('rdm-roomcheck-section');
+  if (!el) return;
+  const tableCount = (typeof RC_TABLE_COUNTS === 'object' && RC_TABLE_COUNTS[roomTag]) || 3;
+
+  // Build per-table EC/pH/Vol input triplets. Mobile-friendly layout: each
+  // table\'s inputs stacked, labeled, with numeric keyboards and
+  // tab-advance between fields.
+  const tableRows = [];
+  for (let t = 1; t <= tableCount; t++) {
+    tableRows.push(`
+      <div style="padding:10px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px">Table ${t}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:5px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Front Vol (mL)</div>
+            <input id="rcm-t${t}-fvol" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Back Vol (mL)</div>
+            <input id="rcm-t${t}-bvol" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">F EC</div>
+            <input id="rcm-t${t}-fec" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">F pH</div>
+            <input id="rcm-t${t}-fph" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">B EC</div>
+            <input id="rcm-t${t}-bec" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">B pH</div>
+            <input id="rcm-t${t}-bph" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  el.innerHTML = `
+    <div style="margin-top:16px;padding:14px;border:1px solid var(--border2);border-radius:var(--r2);background:var(--bg3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Room check · ${roomTag}</div>
+        <div id="rcm-status" style="font-size:11px"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:10px">Fill what you measured. Leave blanks where you didn\'t.</div>
+
+      <!-- Environmental readings — room-level, copied onto every table row at submit -->
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:5px">Environment</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">RH %</div>
+          <input id="rcm-rh" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Room °F</div>
+          <input id="rcm-temp" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Leaf °F</div>
+          <input id="rcm-leaf" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Dewpt °F</div>
+          <input id="rcm-dew" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px">PPFD</div>
+          <input id="rcm-ppfd" type="number" inputmode="decimal" step="any" placeholder="—" style="width:100%;padding:7px;font-size:13px;text-align:center"/>
+        </div>
+      </div>
+
+      <!-- Per-table runoff -->
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:5px">Runoff · ${tableCount} table${tableCount>1?'s':''}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        ${tableRows.join('')}
+      </div>
+
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button type="button" onclick="_renderRoomCheckSection(_rcmLastRoom)" style="padding:8px 14px;font-size:12px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);cursor:pointer">Cancel</button>
+        <button type="button" onclick="submitRoomCheckFromCard('${roomTag}', ${tableCount})" class="btn-primary" id="rcm-submit-btn" style="padding:8px 14px;font-size:12px">Save</button>
+      </div>
+    </div>`;
+}
+
+async function submitRoomCheckFromCard(roomTag, tableCount) {
+  const btn = document.getElementById('rcm-submit-btn');
+  const status = document.getElementById('rcm-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  if (status) { status.textContent = 'Saving…'; status.style.color = 'var(--text3)'; }
+
+  const who = loggedInMember ? loggedInMember.name : 'Unknown';
+  const dateVal = (typeof dateToIso === 'function' && typeof TODAY !== 'undefined') ? dateToIso(TODAY) : new Date().toISOString().split('T')[0];
+  const timeVal = (typeof fmtTime === 'function') ? fmtTime() : new Date().toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+
+  const g = id => document.getElementById(id)?.value || '';
+  const rh = g('rcm-rh'), temp = g('rcm-temp'), leaf = g('rcm-leaf'), dew = g('rcm-dew'), ppfd = g('rcm-ppfd');
+
+  // Build one row per table, matching the EXACT historical sheet format:
+  // Date, Time, Room, RH, RoomTemp, LeafTemp, Dewpoint, PPFD, Table, F_Vol, F_EC, F_pH, B_Vol, B_EC, B_pH
+  // This mirrors the format in the historical rows the user provided — one
+  // row per table, env readings copied down.
+  const rows = [];
+  for (let t = 1; t <= tableCount; t++) {
+    const fvol = g(`rcm-t${t}-fvol`), fec = g(`rcm-t${t}-fec`), fph = g(`rcm-t${t}-fph`);
+    const bvol = g(`rcm-t${t}-bvol`), bec = g(`rcm-t${t}-bec`), bph = g(`rcm-t${t}-bph`);
+    rows.push([
+      dateVal, timeVal, roomTag,
+      rh, temp, leaf, dew, ppfd,
+      `Table ${t}`,
+      fvol, fec, fph,
+      bvol, bec, bph,
+    ]);
+  }
+
+  // Submit all rows (one postToSheet call per row — same path as Room Checks tab).
+  // If ANY row fails, show failure. If all succeed, show success.
+  let allOk = true;
+  let firstErr = null;
+  for (const row of rows) {
+    try {
+      const result = await postToSheet('Runoff_Form', row);
+      if (!result || !result.ok) {
+        allOk = false;
+        firstErr = (result && result.error) || 'unknown';
+        break;
+      }
+    } catch (e) {
+      allOk = false;
+      firstErr = (e && e.message) || String(e);
+      break;
+    }
+  }
+
+  if (!allOk) {
+    if (status) { status.textContent = '✗ ' + firstErr; status.style.color = 'var(--red)'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    return;
+  }
+
+  // Auto-mark room_check done for today (matches Room Checks tab behavior)
+  try {
+    const roomNum = roomTag.replace('R', '');
+    const matchedRoom = rooms.find(r => r.id === 'r' + roomNum);
+    if (matchedRoom) {
+      const todayIso = dateToIso(TODAY);
+      if (!roomOverrides[matchedRoom.id]) roomOverrides[matchedRoom.id] = {};
+      if (!roomOverrides[matchedRoom.id]['done_room_check']) {
+        roomOverrides[matchedRoom.id]['done_room_check'] = true;
+        todayLog.push({id:Date.now(), roomId:matchedRoom.id, taskId:'room_check',
+          taskName:'Daily check — '+matchedRoom.name, who, notes:'', pct:'', time:timeVal, status:'done'});
+        S('wg_overrides_'+todayIso, roomOverrides);
+        S('wg_log_'+todayIso, todayLog);
+        pushConfigToCloud(true);
+        if (typeof renderAssignments === 'function') renderAssignments();
+        if (typeof renderRooms === 'function') renderRooms();
+        if (typeof renderTodayLog === 'function') renderTodayLog();
+      }
+    }
+  } catch (e) {
+    console.warn('[rcm] auto-mark done failed (write still succeeded):', e);
+  }
+
+  // Save to local "today\'s submissions" log so the Room Checks tab shows it too
+  try {
+    const subLog = L('wg_check_subs_'+dateToIso(TODAY), []);
+    const tableData = {};
+    for (let t = 1; t <= tableCount; t++) {
+      tableData[t] = {
+        fvol: g(`rcm-t${t}-fvol`), fec: g(`rcm-t${t}-fec`), fph: g(`rcm-t${t}-fph`),
+        bvol: g(`rcm-t${t}-bvol`), bec: g(`rcm-t${t}-bec`), bph: g(`rcm-t${t}-bph`),
+      };
+    }
+    subLog.push({room:roomTag, who, time:timeVal, rh, temp, leaf, dew, ppfd, tables:tableData, source:'room-card'});
+    S('wg_check_subs_'+dateToIso(TODAY), subLog);
+    if (typeof renderTodayCheckSubmissions === 'function') renderTodayCheckSubmissions();
+  } catch (e) {}
+
+  if (status) { status.textContent = '✓ Saved'; status.style.color = 'var(--green)'; }
+  setTimeout(() => _renderRoomCheckSection(_rcmLastRoom), 1200);
+}
+
 function openRoomModal(room) {
   console.log('[Score] openRoomModal called — currentRole:', currentRole, '| loggedInMember:', loggedInMember&&loggedInMember.name);
   const roomName = room.name || room.key;
@@ -11209,6 +11424,9 @@ function openRoomModal(room) {
       </div>
     </div>`;
   } else { subEl.innerHTML=''; }
+
+  // Render room-check entry section on each room card (replaces Room Checks tab)
+  _renderRoomCheckSection(room);
 
   document.getElementById('room-detail-bg').style.display='block';
 }
