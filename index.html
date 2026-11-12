@@ -416,7 +416,8 @@ button { cursor: pointer; }
   <button class="nav-tab" onclick="showPage('today-log')" data-page="today-log" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Today's Log</button>
   <button class="nav-tab" onclick="showPage('calendar')" data-page="calendar" data-roles="lead,defoliator,fertigator,cloner,ipm,checker,postprod">Calendar</button>
   <button class="nav-tab" onclick="showPage('rules')" data-page="rules" data-roles="lead,fertigator,ipm">Rules</button>
-  <!-- Room Checks tab hidden 2026-11-02: entry UI now lives on individual room cards in the Rooms tab. Page kept intact for legacy access via direct URL. -->
+  <!-- Room Checks tab hidden 2026-11-02: entry UI now lives on individual room cards in the Rooms tab. Page kept intact for legacy access. Morning attention widget surfaced as its own tab below. -->
+  <button class="nav-tab" onclick="showMorningTab()" data-page="checks" data-roles="lead,checker,ipm,fertigator,cloner,defoliator,ipm,postprod">🌅 Morning</button>
   <button class="nav-tab" onclick="showPage('slack')" data-page="slack" data-roles="lead">Slack Dispatch</button>
   <button class="nav-tab" onclick="showPage('daily-review')" data-page="daily-review" data-roles="lead">Daily Review</button>
   <button class="nav-tab" onclick="showPage('tuning')" data-page="tuning" data-roles="lead">Tuning</button>
@@ -5763,6 +5764,25 @@ function numOrNull(v){if(!v||v===''||v==='—')return null;const n=parseFloat(St
 
 // Table counts per room (rooms 1,6,9 have 2 tables; all others 3)
 const RC_TABLE_COUNTS = {R1:2,R2:3,R3:3,R4:3,R5:3,R6:2,R7:3,R8:3,R9:2,R10:3,R11:3};
+
+// Route the new Morning nav tab into the existing morning-attention widget
+// that lives as a sub-tab inside the hidden Room Checks page. Shows only the
+// morning widget, hides the sub-tab bar (Submit / History) since those are
+// the redundant pieces replaced by per-room cards.
+function showMorningTab() {
+  if (typeof showPage === 'function') showPage('checks');
+  // Hide the sub-tab navigation bar — Submit and View History are now
+  // redundant (room-card form + Rooms tab coverage). Keep DOM so the
+  // existing showChecksTab() logic still works if anything calls it.
+  const submitBtn  = document.getElementById('checks-subtab-submit');
+  const historyBtn = document.getElementById('checks-subtab-history');
+  const morningBtn = document.getElementById('checks-subtab-morning');
+  if (submitBtn)  submitBtn.style.display  = 'none';
+  if (historyBtn) historyBtn.style.display = 'none';
+  if (morningBtn) morningBtn.style.display = 'none';
+  // Activate the morning sub-tab (shows the widget, pulls Growlink if stale)
+  showChecksTab('morning', morningBtn);
+}
 
 function showChecksTab(tab, btn){
   document.getElementById('checks-sub-submit').style.display = tab==='submit'?'block':'none';
